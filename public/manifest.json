@@ -1,11 +1,11 @@
 {
   "name": "Freela Manager",
   "short_name": "Freela",
-  "description": "Gestão de freelances, finanças e invoices",
+  "description": "Gestao de freelances, financas e invoices",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#1e40af",
+  "theme_color": "#7c3aed",
   "orientation": "portrait",
   "icons": [
     {

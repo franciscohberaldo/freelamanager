@@ -2,27 +2,38 @@
 
 export const dynamic = "force-dynamic"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
-import { Loader2, BarChart3 } from "lucide-react"
+import { Loader2, BarChart3, MailCheck } from "lucide-react"
 
-type Mode = "login" | "register"
+type Mode = "login" | "register" | "registered"
 
 export default function LoginPage() {
-  const router = useRouter()
-  const supabase = createClient()
-  const [mode, setMode] = useState<Mode>("login")
+  const router       = useRouter()
+  const searchParams = useSearchParams()
+  const supabase     = createClient()
+
+  const [mode, setMode]         = useState<Mode>("login")
   const [email, setEmail]       = useState("")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm]   = useState("")
   const [name, setName]         = useState("")
   const [loading, setLoading]   = useState(false)
+
+  // Show error from Supabase redirect (e.g. expired confirmation link)
+  useEffect(() => {
+    const error = searchParams.get("error")
+    const desc  = searchParams.get("error_description")
+    if (error) {
+      toast.error(desc?.replace(/\+/g, " ") ?? "Ocorreu um erro. Tente fazer login novamente.")
+    }
+  }, [searchParams])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -31,7 +42,13 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      toast.error("Credenciais inválidas. Verifique e-mail e senha.")
+      if (error.message.toLowerCase().includes("email not confirmed")) {
+        toast.error("E-mail não confirmado. Verifique sua caixa de entrada e clique no link de confirmação.")
+      } else if (error.message.toLowerCase().includes("invalid login")) {
+        toast.error("E-mail ou senha incorretos.")
+      } else {
+        toast.error(error.message)
+      }
       setLoading(false)
       return
     }
@@ -52,38 +69,81 @@ export default function LoginPage() {
     }
     setLoading(true)
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { full_name: name },
-      },
+      options: { data: { full_name: name } },
     })
 
     if (error) {
-      toast.error(error.message)
+      if (error.message.toLowerCase().includes("already registered")) {
+        toast.error("Este e-mail já está cadastrado. Faça login.")
+        setMode("login")
+      } else {
+        toast.error(error.message)
+      }
       setLoading(false)
       return
     }
 
-    toast.success("Conta criada! Verifique seu e-mail para confirmar o cadastro.")
-    setMode("login")
-    setPassword("")
-    setConfirm("")
+    // If email confirmation is disabled in Supabase, session is created immediately
+    if (data.session) {
+      router.push("/dashboard")
+      router.refresh()
+      return
+    }
+
+    // Email confirmation required
+    setMode("registered")
     setLoading(false)
   }
 
-  function switchMode(m: Mode) {
+  function switchMode(m: "login" | "register") {
     setMode(m)
     setPassword("")
     setConfirm("")
     setName("")
   }
 
+  // ── Confirmation sent screen ──────────────────────────────────────────────
+  if (mode === "registered") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
+        <div className="w-full max-w-md space-y-6">
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary text-primary-foreground">
+              <BarChart3 className="w-6 h-6" />
+            </div>
+            <h1 className="text-2xl font-bold">Freela Manager</h1>
+          </div>
+          <Card>
+            <CardContent className="py-8 text-center space-y-4">
+              <div className="flex justify-center">
+                <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center">
+                  <MailCheck className="w-7 h-7 text-emerald-600" />
+                </div>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">Confirme seu e-mail</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Enviamos um link de confirmação para <strong>{email}</strong>.
+                  Clique no link para ativar sua conta.
+                </p>
+              </div>
+              <Button variant="outline" className="w-full" onClick={() => switchMode("login")}>
+                Voltar para o login
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Login / Register form ─────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
       <div className="w-full max-w-md space-y-6">
-        {/* Logo */}
         <div className="flex flex-col items-center gap-2">
           <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary text-primary-foreground">
             <BarChart3 className="w-6 h-6" />
@@ -104,38 +164,21 @@ export default function LoginPage() {
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                  />
+                  <Input id="email" type="email" placeholder="seu@email.com"
+                    value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Senha</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                  />
+                  <Input id="password" type="password" placeholder="••••••••"
+                    value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Entrando...</> : "Entrar"}
                 </Button>
                 <p className="text-center text-sm text-muted-foreground">
                   Não tem conta?{" "}
-                  <button
-                    type="button"
-                    onClick={() => switchMode("register")}
-                    className="text-primary font-medium hover:underline"
-                  >
+                  <button type="button" onClick={() => switchMode("register")}
+                    className="text-primary font-medium hover:underline">
                     Criar conta
                   </button>
                 </p>
@@ -144,62 +187,31 @@ export default function LoginPage() {
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Nome completo</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="João Silva"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    required
-                    autoComplete="name"
-                  />
+                  <Input id="name" type="text" placeholder="João Silva"
+                    value={name} onChange={e => setName(e.target.value)} required autoComplete="name" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reg-email">E-mail</Label>
-                  <Input
-                    id="reg-email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                  />
+                  <Input id="reg-email" type="email" placeholder="seu@email.com"
+                    value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reg-password">Senha</Label>
-                  <Input
-                    id="reg-password"
-                    type="password"
-                    placeholder="Mínimo 6 caracteres"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    autoComplete="new-password"
-                  />
+                  <Input id="reg-password" type="password" placeholder="Mínimo 6 caracteres"
+                    value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirm">Confirmar senha</Label>
-                  <Input
-                    id="confirm"
-                    type="password"
-                    placeholder="••••••••"
-                    value={confirm}
-                    onChange={e => setConfirm(e.target.value)}
-                    required
-                    autoComplete="new-password"
-                  />
+                  <Input id="confirm" type="password" placeholder="••••••••"
+                    value={confirm} onChange={e => setConfirm(e.target.value)} required autoComplete="new-password" />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Criando...</> : "Criar conta"}
                 </Button>
                 <p className="text-center text-sm text-muted-foreground">
                   Já tem conta?{" "}
-                  <button
-                    type="button"
-                    onClick={() => switchMode("login")}
-                    className="text-primary font-medium hover:underline"
-                  >
+                  <button type="button" onClick={() => switchMode("login")}
+                    className="text-primary font-medium hover:underline">
                     Entrar
                   </button>
                 </p>
