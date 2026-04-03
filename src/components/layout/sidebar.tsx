@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import {
   BarChart3, Briefcase, CalendarDays, ClipboardList,
   FileText, LayoutDashboard, LogOut, Moon, Settings,
-  Sun, TrendingUp, Users,
+  Sun, TrendingUp, Users, CalendarCheck,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
@@ -19,8 +19,9 @@ const navItems = [
   { href: "/jobs",       label: "Jobs",          icon: Briefcase },
   { href: "/clients",    label: "Clientes",      icon: Users },
   { href: "/invoices",   label: "Invoices",      icon: FileText },
-  { href: "/agenda",     label: "Acomp. de Jobs", icon: CalendarDays },
-  { href: "/reports",    label: "Relatórios",    icon: TrendingUp },
+  { href: "/agenda",          label: "Acomp. de Jobs",   icon: CalendarDays },
+  { href: "/disponibilidade", label: "Status de Agenda",  icon: CalendarCheck },
+  { href: "/reports",         label: "Relatórios",        icon: TrendingUp },
   { href: "/settings",   label: "Configurações", icon: Settings },
 ]
 
