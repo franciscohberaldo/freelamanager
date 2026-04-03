@@ -9,11 +9,6 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Freela Manager",
   description: "Gestão de freelances, finanças e invoices",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    statusBarStyle: "default",
-    title: "Freela Manager",
-  },
 }
 
 export const viewport: Viewport = {
