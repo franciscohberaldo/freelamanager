@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
 import { format } from "date-fns"
@@ -96,6 +96,9 @@ export function TaskDialog({ children, jobs, open, onOpenChange, task }: Props) 
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar tarefa" : "Nova tarefa"}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {isEdit ? "Edite os campos da tarefa" : "Preencha os campos para criar uma nova tarefa"}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

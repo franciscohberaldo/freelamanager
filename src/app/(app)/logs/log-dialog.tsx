@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Timer, Square } from "lucide-react"
 import { format } from "date-fns"
@@ -125,6 +125,9 @@ export function LogDialog({ children, jobs, log, mode }: Props) {
           <DialogTitle>
             {isCreate ? "Novo Registro" : isDuplicate ? "Duplicar Registro" : "Editar Registro"}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {isCreate ? "Preencha os campos para criar um novo registro" : isDuplicate ? "Duplicar o registro selecionado" : "Edite os campos do registro"}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">

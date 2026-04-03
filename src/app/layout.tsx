@@ -11,7 +11,6 @@ export const metadata: Metadata = {
   description: "Gestão de freelances, finanças e invoices",
   manifest: "/manifest.json",
   appleWebApp: {
-    capable: true,
     statusBarStyle: "default",
     title: "Freela Manager",
   },

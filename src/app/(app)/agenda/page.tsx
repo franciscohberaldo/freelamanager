@@ -5,7 +5,7 @@ export default async function AgendaPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [{ data: events }, { data: jobs }] = await Promise.all([
+  const [{ data: events, error: eventsError }, { data: jobs }] = await Promise.all([
     supabase
       .from("agenda_events")
       .select("*, jobs(name)")
@@ -18,5 +18,10 @@ export default async function AgendaPage() {
       .order("name"),
   ])
 
-  return <AgendaClient events={events ?? []} jobs={jobs ?? []} />
+  // If query fails (e.g. migration not run yet), show empty state
+  if (eventsError) {
+    console.error("agenda_events query error:", eventsError.message)
+  }
+
+  return <AgendaClient events={(events ?? []) as any} jobs={jobs ?? []} />
 }
