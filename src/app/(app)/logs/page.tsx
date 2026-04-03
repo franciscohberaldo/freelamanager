@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { LogDialog } from "./log-dialog"
 import { LogFilters } from "./log-filters"
+import { LogTimerButton } from "./log-timer-button"
 import { Plus, ClipboardList } from "lucide-react"
 import { format, startOfMonth, endOfMonth } from "date-fns"
 
@@ -130,7 +131,8 @@ export default async function LogsPage({
                       <span className="text-xs font-medium">{formatHours(log.hours_billed)} fat.</span>
                       <span className="font-semibold">{formatCurrency(log.total_value, job?.currency)}</span>
                     </div>
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end items-center gap-1">
+                      <LogTimerButton logId={log.id} hoursWorked={log.hours_worked} />
                       <LogDialog jobs={(jobs ?? []) as any} log={log} mode="duplicate">
                         <Button variant="ghost" size="sm" className="h-7 text-xs">Duplicar</Button>
                       </LogDialog>
