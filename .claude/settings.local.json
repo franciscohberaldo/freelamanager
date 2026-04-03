@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack --yes)",
+      "Bash(npm install:*)",
+      "Bash(npx next:*)",
+      "Bash(npm run:*)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(curl -s \"https://vqaqaudappbupnsfcndd.supabase.co/rest/v1/?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxYXFhdWRhcHBidXBuc2ZjbmRkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTE5OTkxMiwiZXhwIjoyMDkwNzc1OTEyfQ.pqf6_vWYtdIdbenh3qRQM-Zgkg8wYjtljiwqBW6iGsQ\")",
+      "Bash(node -e \"const d=require\\('fs'\\).readFileSync\\(0,'utf8'\\); const o=JSON.parse\\(d\\); console.log\\(Object.keys\\(o.paths||{}\\).filter\\(p=>!p.startsWith\\('/rpc'\\)\\).join\\('\\\\n'\\)\\)\")"
+    ]
+  }
+}
