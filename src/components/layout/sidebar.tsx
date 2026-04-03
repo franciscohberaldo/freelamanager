@@ -19,7 +19,7 @@ const navItems = [
   { href: "/jobs",       label: "Jobs",          icon: Briefcase },
   { href: "/clients",    label: "Clientes",      icon: Users },
   { href: "/invoices",   label: "Invoices",      icon: FileText },
-  { href: "/agenda",     label: "Agenda / Gantt",icon: CalendarDays },
+  { href: "/agenda",     label: "Acomp. de Jobs", icon: CalendarDays },
   { href: "/reports",    label: "Relatórios",    icon: TrendingUp },
   { href: "/settings",   label: "Configurações", icon: Settings },
 ]

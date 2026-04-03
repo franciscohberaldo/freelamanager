@@ -18,13 +18,5 @@ export default async function AgendaPage() {
       .order("name"),
   ])
 
-  return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Agenda & Gantt</h1>
-        <p className="text-muted-foreground text-sm">Pagamentos, entregas, milestones e prazos</p>
-      </div>
-      <AgendaClient events={events ?? []} jobs={jobs ?? []} />
-    </div>
-  )
+  return <AgendaClient events={events ?? []} jobs={jobs ?? []} />
 }

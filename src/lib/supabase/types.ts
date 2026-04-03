@@ -24,8 +24,8 @@ type InvoiceInsert = { user_id: string; job_id: string; invoice_number: string; 
 type InvoiceItemRow = { id: string; invoice_id: string; log_id: string | null; date: string; description: string | null; hours_billed: number; rate: number; subtotal: number }
 type InvoiceItemInsert = { invoice_id: string; log_id?: string | null; date: string; description?: string | null; hours_billed: number; rate: number; subtotal: number }
 
-type AgendaEventRow = { id: string; user_id: string; job_id: string | null; title: string; description: string | null; type: 'payment' | 'delivery' | 'meeting' | 'milestone' | 'deadline'; event_date: string; is_done: boolean; created_at: string; updated_at: string }
-type AgendaEventInsert = { user_id: string; job_id?: string | null; title: string; description?: string | null; type: 'payment' | 'delivery' | 'meeting' | 'milestone' | 'deadline'; event_date: string; is_done?: boolean }
+type AgendaEventRow = { id: string; user_id: string; job_id: string | null; title: string; description: string | null; type: 'payment' | 'delivery' | 'meeting' | 'milestone' | 'deadline'; event_date: string; is_done: boolean; task_status: 'working_on_it' | 'done' | 'stuck' | 'todo'; priority: 'low' | 'medium' | 'high' | null; budget: number | null; start_date: string | null; files_count: number; created_at: string; updated_at: string }
+type AgendaEventInsert = { user_id: string; job_id?: string | null; title: string; description?: string | null; type: 'payment' | 'delivery' | 'meeting' | 'milestone' | 'deadline'; event_date: string; is_done?: boolean; task_status?: 'working_on_it' | 'done' | 'stuck' | 'todo'; priority?: 'low' | 'medium' | 'high' | null; budget?: number | null; start_date?: string | null }
 
 export type Database = {
   public: {
