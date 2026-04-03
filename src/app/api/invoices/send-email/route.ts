@@ -3,8 +3,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 import { format, parseISO } from "date-fns"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 function formatCurrency(value: number, currency: string = "BRL"): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value)
 }
@@ -84,6 +82,7 @@ export async function POST(request: NextRequest) {
     </div>
   `
 
+  const resend = new Resend(process.env.RESEND_API_KEY)
   const { error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL ?? "invoices@freelamanager.com",
     to: [clientEmail],
