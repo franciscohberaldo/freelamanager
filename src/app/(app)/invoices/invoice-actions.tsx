@@ -7,10 +7,11 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, Download, Send, CheckCircle2, Loader2 } from "lucide-react"
 import type { Invoice } from "@/lib/supabase/types"
+import type { InvoiceLang } from "@/lib/invoice-i18n"
 
 interface Props {
   invoice: Invoice
@@ -33,12 +34,12 @@ export function InvoiceActions({ invoice, clientEmail }: Props) {
     setLoading(false)
   }
 
-  async function sendByEmail() {
+  async function sendByEmail(lang: InvoiceLang) {
     setLoading(true)
     const res = await fetch("/api/invoices/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ invoiceId: invoice.id }),
+      body: JSON.stringify({ invoiceId: invoice.id, lang }),
     })
     const data = await res.json()
     if (res.ok) {
@@ -50,15 +51,15 @@ export function InvoiceActions({ invoice, clientEmail }: Props) {
     setLoading(false)
   }
 
-  async function downloadPdf() {
+  async function downloadPdf(lang: InvoiceLang) {
     setLoading(true)
-    const res = await fetch(`/api/invoices/pdf?id=${invoice.id}`)
+    const res = await fetch(`/api/invoices/pdf?id=${invoice.id}&lang=${lang}`)
     if (!res.ok) { toast.error("Erro ao gerar PDF"); setLoading(false); return }
     const blob = await res.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `invoice-${invoice.invoice_number}.pdf`
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement("a")
+    a.href     = url
+    a.download = `invoice-${invoice.invoice_number}-${lang}.pdf`
     a.click()
     URL.revokeObjectURL(url)
     setLoading(false)
@@ -71,15 +72,30 @@ export function InvoiceActions({ invoice, clientEmail }: Props) {
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MoreHorizontal className="w-4 h-4" />}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={downloadPdf}>
-          <Download className="w-4 h-4" />
-          Download PDF
+      <DropdownMenuContent align="end" className="w-48">
+
+        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal flex items-center gap-1.5">
+          <Download className="w-3.5 h-3.5" /> PDF
+        </DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => downloadPdf("pt")} className="pl-6">
+          🇧🇷 Português
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={sendByEmail}>
-          <Send className="w-4 h-4" />
-          Enviar por e-mail
+        <DropdownMenuItem onClick={() => downloadPdf("en")} className="pl-6">
+          🇺🇸 English
         </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal flex items-center gap-1.5">
+          <Send className="w-3.5 h-3.5" /> E-mail
+        </DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => sendByEmail("pt")} className="pl-6">
+          🇧🇷 Português
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => sendByEmail("en")} className="pl-6">
+          🇺🇸 English
+        </DropdownMenuItem>
+
         {invoice.status !== "paid" && (
           <>
             <DropdownMenuSeparator />
