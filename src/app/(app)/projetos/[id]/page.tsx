@@ -15,7 +15,7 @@ export default async function ProjectPage({ params }: { params: { id: string } }
       .single(),
     supabase
       .from("project_tasks")
-      .select("*")
+      .select("*, project_task_items(id, text, is_done, position)")
       .eq("project_id", params.id)
       .order("position")
       .order("created_at"),
@@ -23,5 +23,5 @@ export default async function ProjectPage({ params }: { params: { id: string } }
 
   if (!project) notFound()
 
-  return <ProjectClient project={project as any} tasks={tasks ?? []} />
+  return <ProjectClient project={project as any} tasks={(tasks ?? []) as any} />
 }

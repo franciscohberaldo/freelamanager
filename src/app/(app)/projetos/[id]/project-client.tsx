@@ -13,13 +13,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { GanttChart } from "./gantt-chart"
-import { ChevronLeft, Plus, Loader2, Pencil, Trash2, GanttChartSquare, List } from "lucide-react"
+import { KanbanBoard } from "./kanban-board"
+import { ChevronLeft, Plus, Loader2, Pencil, Trash2, GanttChartSquare, List, LayoutGrid, Check, X } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
+interface ChecklistItem {
+  id: string; text: string; is_done: boolean; position: number
+}
 interface Task {
   id: string; title: string; description: string | null; status: string
   progress: number; start_date: string | null; end_date: string | null; position: number
+  project_task_items?: ChecklistItem[]
 }
 interface Project {
   id: string; name: string; description: string | null; status: string
@@ -34,11 +39,113 @@ const STATUS_OPTS = [
   { value: "done",        label: "Concluído",     color: "bg-emerald-100 text-emerald-700" },
   { value: "blocked",     label: "Bloqueado",     color: "bg-red-100 text-red-700" },
 ]
-
 const STATUS_DOT: Record<string, string> = {
   todo: "#94a3b8", in_progress: "#3b82f6", done: "#22c55e", blocked: "#ef4444",
 }
 
+// ─── Checklist inside task dialog ───────────────────────────────────────────
+function ChecklistEditor({
+  taskId, items, onChange,
+}: {
+  taskId: string | undefined
+  items: ChecklistItem[]
+  onChange: (items: ChecklistItem[]) => void
+}) {
+  const supabase = createClient()
+  const [newText, setNewText] = useState("")
+
+  async function addItem() {
+    const text = newText.trim()
+    if (!text) return
+    if (!taskId) {
+      // Pre-save: just local
+      const temp: ChecklistItem = { id: crypto.randomUUID(), text, is_done: false, position: items.length }
+      onChange([...items, temp])
+      setNewText("")
+      return
+    }
+    const { data, error } = await supabase.from("project_task_items").insert({
+      task_id: taskId, text, is_done: false, position: items.length,
+    }).select().single()
+    if (error) { toast.error("Erro ao adicionar item"); return }
+    onChange([...items, data as ChecklistItem])
+    setNewText("")
+  }
+
+  async function toggleItem(item: ChecklistItem) {
+    const updated = { ...item, is_done: !item.is_done }
+    onChange(items.map(i => i.id === item.id ? updated : i))
+    if (taskId) {
+      await supabase.from("project_task_items").update({ is_done: updated.is_done }).eq("id", item.id)
+    }
+  }
+
+  async function removeItem(item: ChecklistItem) {
+    onChange(items.filter(i => i.id !== item.id))
+    if (taskId) {
+      await supabase.from("project_task_items").delete().eq("id", item.id)
+    }
+  }
+
+  const done  = items.filter(i => i.is_done).length
+  const total = items.length
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="text-sm">Checklist {total > 0 ? `(${done}/${total})` : ""}</Label>
+        {total > 0 && (
+          <div className="flex items-center gap-2 flex-1 max-w-40 ml-3">
+            <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
+              <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.round((done/total)*100)}%` }} />
+            </div>
+            <span className="text-xs text-muted-foreground">{Math.round((done/total)*100)}%</span>
+          </div>
+        )}
+      </div>
+      <div className="space-y-1 max-h-40 overflow-y-auto">
+        {items.map(item => (
+          <div key={item.id} className="flex items-center gap-2 group">
+            <button
+              type="button"
+              onClick={() => toggleItem(item)}
+              className={[
+                "w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-colors",
+                item.is_done ? "bg-emerald-500 border-emerald-500" : "border-muted-foreground/40 hover:border-emerald-400",
+              ].join(" ")}
+            >
+              {item.is_done && <Check className="w-2.5 h-2.5 text-white" />}
+            </button>
+            <span className={`text-sm flex-1 ${item.is_done ? "line-through text-muted-foreground" : ""}`}>
+              {item.text}
+            </span>
+            <button
+              type="button"
+              onClick={() => removeItem(item)}
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Input
+          value={newText}
+          onChange={e => setNewText(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addItem())}
+          placeholder="Adicionar item..."
+          className="h-8 text-sm"
+        />
+        <Button type="button" size="sm" variant="outline" className="h-8 shrink-0" onClick={addItem}>
+          <Plus className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Task Dialog ─────────────────────────────────────────────────────────────
 function TaskDialog({
   task, projectId, open, onClose, onSaved,
 }: {
@@ -54,6 +161,7 @@ function TaskDialog({
     start_date:  task?.start_date ?? "",
     end_date:    task?.end_date ?? "",
   })
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>(task?.project_task_items ?? [])
 
   function set(k: string, v: string | number) { setForm(f => ({ ...f, [k]: v })) }
 
@@ -61,6 +169,7 @@ function TaskDialog({
     e.preventDefault()
     if (!form.title.trim()) { toast.error("Título obrigatório"); return }
     setLoading(true)
+
     const payload = {
       title:       form.title,
       description: form.description || null,
@@ -69,16 +178,35 @@ function TaskDialog({
       start_date:  form.start_date || null,
       end_date:    form.end_date || null,
     }
+
+    let savedTaskId = task?.id
+
     if (task) {
       const { error } = await supabase.from("project_tasks").update(payload).eq("id", task.id)
       if (error) { toast.error("Erro ao atualizar"); setLoading(false); return }
       toast.success("Tarefa atualizada!")
     } else {
       const { data: { user } } = await supabase.auth.getUser()
-      const { error } = await supabase.from("project_tasks").insert({ ...payload, project_id: projectId, user_id: user!.id })
-      if (error) { toast.error("Erro ao criar tarefa"); setLoading(false); return }
+      const { data, error } = await supabase
+        .from("project_tasks")
+        .insert({ ...payload, project_id: projectId, user_id: user!.id })
+        .select()
+        .single()
+      if (error || !data) { toast.error("Erro ao criar tarefa"); setLoading(false); return }
+      savedTaskId = (data as Task).id
       toast.success("Tarefa criada!")
+
+      // Save any pending checklist items that were added before saving
+      const pendingItems = checklistItems.filter(i => !task)
+      if (pendingItems.length > 0 && savedTaskId) {
+        await supabase.from("project_task_items").insert(
+          pendingItems.map((item, idx) => ({
+            task_id: savedTaskId, text: item.text, is_done: item.is_done, position: idx,
+          }))
+        )
+      }
     }
+
     setLoading(false)
     onClose()
     onSaved()
@@ -86,7 +214,7 @@ function TaskDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{task ? "Editar tarefa" : "Nova tarefa"}</DialogTitle>
           <DialogDescription className="sr-only">Gerenciar tarefa do projeto</DialogDescription>
@@ -126,6 +254,14 @@ function TaskDialog({
               <Input type="date" value={form.end_date} onChange={e => set("end_date", e.target.value)} />
             </div>
           </div>
+
+          {/* Checklist */}
+          <ChecklistEditor
+            taskId={task?.id}
+            items={checklistItems}
+            onChange={setChecklistItems}
+          />
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
             <Button type="submit" disabled={loading}>
@@ -138,10 +274,11 @@ function TaskDialog({
   )
 }
 
+// ─── Main Component ───────────────────────────────────────────────────────────
 export function ProjectClient({ project, tasks: initialTasks }: Props) {
-  const router  = useRouter()
+  const router   = useRouter()
   const supabase = createClient()
-  const [tasks, setTasks] = useState(initialTasks)
+  const [tasks, setTasks]             = useState(initialTasks)
   const [dialogOpen, setDialogOpen]   = useState(false)
   const [editingTask, setEditingTask] = useState<Task | undefined>()
 
@@ -202,9 +339,12 @@ export function ProjectClient({ project, tasks: initialTasks }: Props) {
         )}
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="gantt">
+      {/* Tabs: Gantt | Kanban | List */}
+      <Tabs defaultValue="kanban">
         <TabsList>
+          <TabsTrigger value="kanban" className="gap-2">
+            <LayoutGrid className="w-4 h-4" /> Kanban
+          </TabsTrigger>
           <TabsTrigger value="gantt" className="gap-2">
             <GanttChartSquare className="w-4 h-4" /> Gantt
           </TabsTrigger>
@@ -212,6 +352,17 @@ export function ProjectClient({ project, tasks: initialTasks }: Props) {
             <List className="w-4 h-4" /> Lista
           </TabsTrigger>
         </TabsList>
+
+        {/* Kanban View */}
+        <TabsContent value="kanban" className="mt-4">
+          {tasks.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground text-sm">
+              Nenhuma tarefa. Clique em "Nova Tarefa" para começar.
+            </div>
+          ) : (
+            <KanbanBoard tasks={tasks} projectColor={project.color} onEdit={openEdit} />
+          )}
+        </TabsContent>
 
         {/* Gantt View */}
         <TabsContent value="gantt" className="mt-4">
@@ -227,7 +378,9 @@ export function ProjectClient({ project, tasks: initialTasks }: Props) {
           )}
           <div className="space-y-2">
             {tasks.map(t => {
-              const opt = STATUS_OPTS.find(s => s.value === t.status)
+              const opt   = STATUS_OPTS.find(s => s.value === t.status)
+              const items = t.project_task_items ?? []
+              const doneItems = items.filter(i => i.is_done).length
               return (
                 <div key={t.id}
                   className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3 group hover:shadow-sm transition-shadow">
@@ -239,13 +392,20 @@ export function ProjectClient({ project, tasks: initialTasks }: Props) {
                     <p className={`font-medium text-sm ${t.status === "done" ? "line-through text-muted-foreground" : ""}`}>
                       {t.title}
                     </p>
-                    {(t.start_date || t.end_date) && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {t.start_date ? format(parseISO(t.start_date), "dd MMM", { locale: ptBR }) : "—"}
-                        {" → "}
-                        {t.end_date ? format(parseISO(t.end_date), "dd MMM", { locale: ptBR }) : "—"}
-                      </p>
-                    )}
+                    <div className="flex items-center gap-3 mt-0.5">
+                      {(t.start_date || t.end_date) && (
+                        <p className="text-xs text-muted-foreground">
+                          {t.start_date ? format(parseISO(t.start_date), "dd MMM", { locale: ptBR }) : "—"}
+                          {" → "}
+                          {t.end_date ? format(parseISO(t.end_date), "dd MMM", { locale: ptBR }) : "—"}
+                        </p>
+                      )}
+                      {items.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          ✓ {doneItems}/{items.length}
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Progress */}

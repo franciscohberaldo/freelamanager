@@ -12,18 +12,22 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Loader2, FolderKanban, CalendarRange, ChevronRight } from "lucide-react"
+import { Plus, Loader2, FolderKanban, CalendarRange, ChevronRight, BookTemplate, Save } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
-interface Task { id: string; status: string }
+interface Task { id: string; status: string; title: string; description: string | null; progress: number }
 interface Project {
   id: string; name: string; description: string | null; status: string
   color: string; start_date: string | null; end_date: string | null
   clients: { name: string } | null; project_tasks: Task[]
 }
 interface Client { id: string; name: string }
-interface Props { projects: Project[]; clients: Client[] }
+interface Template {
+  id: string; name: string
+  tasks: { title: string; description: string | null; status: string; progress: number }[]
+}
+interface Props { projects: Project[]; clients: Client[]; templates: Template[] }
 
 const STATUS_LABEL: Record<string, string> = {
   planning: "Planejamento", active: "Em andamento",
@@ -38,10 +42,15 @@ const STATUS_COLOR: Record<string, string> = {
 }
 const COLORS = ["#7c3aed","#2563eb","#0891b2","#16a34a","#d97706","#dc2626","#db2777","#475569"]
 
-function NewProjectDialog({ clients, onCreated }: { clients: Client[]; onCreated: () => void }) {
-  const [open, setOpen] = useState(false)
+function NewProjectDialog({
+  clients, templates, onCreated,
+}: {
+  clients: Client[]; templates: Template[]; onCreated: () => void
+}) {
+  const [open, setOpen]       = useState(false)
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
+  const [templateId, setTemplateId] = useState("")
   const [form, setForm] = useState({
     name: "", description: "", client_id: "", status: "active",
     color: "#7c3aed", start_date: "", end_date: "",
@@ -49,25 +58,53 @@ function NewProjectDialog({ clients, onCreated }: { clients: Client[]; onCreated
 
   function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
 
+  function applyTemplate(tid: string) {
+    setTemplateId(tid)
+    const tpl = templates.find(t => t.id === tid)
+    if (tpl && !form.name) set("name", tpl.name)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.name.trim()) { toast.error("Nome obrigatório"); return }
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    const { error } = await supabase.from("projects").insert({
+
+    const { data: proj, error } = await supabase.from("projects").insert({
       user_id:     user!.id,
       name:        form.name,
       description: form.description || null,
-      client_id:   form.client_id || null,
+      client_id:   form.client_id === "none" || !form.client_id ? null : form.client_id,
       status:      form.status,
       color:       form.color,
       start_date:  form.start_date || null,
       end_date:    form.end_date || null,
-    })
-    if (error) { toast.error("Erro ao criar projeto"); setLoading(false); return }
+    }).select().single()
+
+    if (error || !proj) { toast.error("Erro ao criar projeto"); setLoading(false); return }
+
+    // Apply template tasks
+    if (templateId) {
+      const tpl = templates.find(t => t.id === templateId)
+      if (tpl?.tasks?.length) {
+        await supabase.from("project_tasks").insert(
+          tpl.tasks.map((t, i) => ({
+            project_id:  proj.id,
+            user_id:     user!.id,
+            title:       t.title,
+            description: t.description,
+            status:      "todo",
+            progress:    0,
+            position:    i,
+          }))
+        )
+      }
+    }
+
     toast.success("Projeto criado!")
     setOpen(false)
     setForm({ name:"", description:"", client_id:"", status:"active", color:"#7c3aed", start_date:"", end_date:"" })
+    setTemplateId("")
     onCreated()
     setLoading(false)
   }
@@ -83,6 +120,26 @@ function NewProjectDialog({ clients, onCreated }: { clients: Client[]; onCreated
           <DialogDescription className="sr-only">Criar novo projeto</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Template selector */}
+          {templates.length > 0 && (
+            <div className="space-y-2">
+              <Label>Usar template (opcional)</Label>
+              <Select value={templateId} onValueChange={applyTemplate}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Nenhum template" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem template</SelectItem>
+                  {templates.map(t => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name} ({t.tasks.length} tarefas)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Nome *</Label>
             <Input value={form.name} onChange={e => set("name", e.target.value)} placeholder="Ex: Website Redesign" required />
@@ -144,7 +201,41 @@ function NewProjectDialog({ clients, onCreated }: { clients: Client[]; onCreated
   )
 }
 
-export function ProjectsClient({ projects, clients }: Props) {
+// Save a project as template
+function SaveTemplateButton({ project }: { project: Project }) {
+  const [loading, setLoading] = useState(false)
+  const supabase = createClient()
+  const router   = useRouter()
+
+  async function save() {
+    if (!confirm(`Salvar "${project.name}" como template?`)) return
+    setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const tasks = project.project_tasks.map(t => ({
+      title:       t.title,
+      description: t.description,
+      status:      "todo",
+      progress:    0,
+    }))
+    const { error } = await supabase.from("project_templates").insert({
+      user_id: user!.id,
+      name:    project.name,
+      tasks,
+    })
+    if (error) toast.error("Erro ao salvar template")
+    else { toast.success("Template salvo!"); router.refresh() }
+    setLoading(false)
+  }
+
+  return (
+    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"
+      title="Salvar como template" onClick={e => { e.preventDefault(); save() }}>
+      {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+    </Button>
+  )
+}
+
+export function ProjectsClient({ projects, clients, templates }: Props) {
   const router = useRouter()
 
   return (
@@ -152,16 +243,19 @@ export function ProjectsClient({ projects, clients }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Projetos</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">{projects.length} projeto{projects.length !== 1 ? "s" : ""}</p>
+          <p className="text-muted-foreground text-sm mt-0.5">
+            {projects.length} projeto{projects.length !== 1 ? "s" : ""}
+            {templates.length > 0 && ` · ${templates.length} template${templates.length !== 1 ? "s" : ""}`}
+          </p>
         </div>
-        <NewProjectDialog clients={clients} onCreated={() => router.refresh()} />
+        <NewProjectDialog clients={clients} templates={templates} onCreated={() => router.refresh()} />
       </div>
 
       {projects.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
           <FolderKanban className="w-12 h-12 mb-3 opacity-30" />
           <p className="font-medium">Nenhum projeto ainda</p>
-          <p className="text-sm mt-1">Crie seu primeiro projeto para visualizar o Gantt</p>
+          <p className="text-sm mt-1">Crie seu primeiro projeto para visualizar o Kanban e Gantt</p>
         </div>
       )}
 
@@ -172,7 +266,7 @@ export function ProjectsClient({ projects, clients }: Props) {
           const pct   = tasks.length ? Math.round((done / tasks.length) * 100) : 0
           return (
             <Link key={p.id} href={`/projetos/${p.id}`}
-              className="block rounded-xl border bg-card p-5 hover:shadow-md transition-all group">
+              className="block rounded-xl border bg-card p-5 hover:shadow-md transition-all group relative">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-3 h-3 rounded-full shrink-0" style={{ background: p.color }} />
@@ -181,10 +275,11 @@ export function ProjectsClient({ projects, clients }: Props) {
                     {p.clients && <p className="text-xs text-muted-foreground truncate">{(p.clients as any).name}</p>}
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-1 shrink-0">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[p.status]}`}>
                     {STATUS_LABEL[p.status]}
                   </span>
+                  <SaveTemplateButton project={p} />
                   <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
                 </div>
               </div>
