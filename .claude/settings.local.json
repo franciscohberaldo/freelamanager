@@ -13,6 +13,9 @@
       "Bash(vercel env:*)",
       "Bash(npx tsc:*)",
       "Bash(gh --version)"
+    ],
+    "additionalDirectories": [
+      "d:\\FreelancerAdmin\\src\\app\\(app)\\projetos"
     ]
   }
 }

@@ -1,6 +1,6 @@
 # Freela Manager — Documentação Completa
 
-> Sistema de gestão para freelancers: clientes, jobs, registro de horas, invoices, agenda e disponibilidade.
+> Sistema de gestão para freelancers: clientes, jobs, registro de horas, invoices, agenda, projetos com Gantt e diário pessoal.
 
 ---
 
@@ -15,7 +15,7 @@
 7. [Estrutura de Arquivos](#estrutura-de-arquivos)
 8. [Fluxos Principais](#fluxos-principais)
 9. [Observações Técnicas](#observações-técnicas)
-10. [Roadmap de Evolução — 30 Funcionalidades](#roadmap-de-evolução--30-funcionalidades)
+10. [Roadmap de Evolução — 50 Funcionalidades](#roadmap-de-evolução--50-funcionalidades)
 11. [Implementação em Fases](#implementação-em-fases)
 
 ---
@@ -226,7 +226,62 @@ Configuração de disponibilidade do freelancer para novos projetos.
 
 ---
 
-### 9. Relatórios — `/reports`
+### 9. Projetos (Gantt) — `/projetos` e `/projetos/[id]`
+
+Gerenciador dedicado de projetos com visualização Gantt.
+
+**Página de lista `/projetos`:**
+- Cards de projetos com: nome, cliente, status, barra de progresso (% tarefas concluídas), período
+- Indicador de cor configurável por projeto
+- Criar novo projeto via dialog: nome, descrição, cliente, status, cor, datas
+
+**Página de detalhe `/projetos/[id]`:**
+- Header com nome, cliente, período e barra de progresso geral
+- Duas abas: **Gantt** e **Lista**
+
+**Aba Gantt:**
+- Painel esquerdo fixo: nome da tarefa + ponto de status
+- Painel direito scrollável: timeline com cabeçalhos de mês
+- Barras horizontais coloridas por status da tarefa
+- Barra de progresso embutida dentro de cada barra
+- Linha vermelha vertical indicando "hoje"
+- Posicionamento pixel-preciso: 28px por dia
+
+**Aba Lista:**
+- Linhas com: status (dot colorido), título, período, barra de progresso %, badge de status
+- Ações: editar, excluir (visíveis ao passar o mouse)
+- Dialog de tarefa: título, descrição, status, progresso (slider 0–100), data início/fim
+
+**Status de tarefa:** `todo` / `in_progress` / `done` / `blocked`
+
+**Tabelas:** `projects`, `project_tasks`
+
+---
+
+### 10. Diário — `/diario`
+
+Calendário pessoal para registrar o que foi feito a cada dia.
+
+**Visualização:**
+- Grade mensal (Dom→Sáb) com navegação por mês
+- Dias com entrada exibem: emoji de humor + prévia do texto
+- Dias vazios mostram um ponto sutil
+- Dias futuros são desabilitados
+- Clique em qualquer dia passado abre o dialog de edição
+- Lista de entradas do mês abaixo do calendário (até 10 itens)
+
+**Dialog de entrada:**
+- Título: data completa (ex: "segunda-feira, 05 de maio")
+- Seletor de humor com 5 opções: 😄 Ótimo / 🙂 Bom / 😐 Ok / 😕 Ruim / 😞 Péssimo
+- Textarea: "O que você fez hoje?" (6 linhas)
+- Botão "Excluir" para remover a entrada
+- Upsert automático por data (uma entrada por dia)
+
+**Tabela:** `daily_journal` com constraint `unique(user_id, date)`
+
+---
+
+### 11. Relatórios — `/reports`
 
 Análise financeira anual.
 
@@ -327,6 +382,32 @@ available_from, hours_per_week, working_days[],
 message, accepting_projects, updated_at
 ```
 
+### Tabela: `projects`
+```
+id, user_id, client_id,
+name, description, status, color,
+start_date, end_date,
+created_at, updated_at
+```
+Status: `planning` / `active` / `on_hold` / `completed` / `cancelled`
+
+### Tabela: `project_tasks`
+```
+id, project_id, user_id,
+title, description, status, progress (0–100),
+start_date, end_date, position,
+created_at, updated_at
+```
+Status: `todo` / `in_progress` / `done` / `blocked`
+
+### Tabela: `daily_journal`
+```
+id, user_id, date (unique per user),
+content, mood, highlights[],
+created_at, updated_at
+```
+Mood: `great` / `good` / `okay` / `bad` / `terrible`
+
 ### Função PostgreSQL: `get_next_invoice_number(p_user_id, p_year)`
 Incrementa e retorna o próximo número sequencial de invoice. Thread-safe via lock.
 
@@ -339,6 +420,8 @@ Todas as tabelas têm RLS ativo. Cada usuário acessa **apenas seus próprios da
 | `001_initial_schema.sql` | Schema completo: todas as tabelas, RLS, triggers, índices, função `get_next_invoice_number` |
 | `002_agenda_tasks.sql` | Adiciona `task_status`, `priority`, `budget`, `start_date`, `files_count` à `agenda_events` |
 | `003_availability.sql` | Cria tabela `user_availability` com RLS |
+| `004_projects.sql` | Cria tabelas `projects` e `project_tasks` com RLS e triggers |
+| `005_journal.sql` | Cria tabela `daily_journal` com constraint unique por data |
 
 ---
 
@@ -466,7 +549,7 @@ Implementado via `next-themes`. Toggle no rodapé da sidebar. Persiste via `loca
 
 ---
 
-## Roadmap de Evolução — 30 Funcionalidades
+## Roadmap de Evolução — 50 Funcionalidades
 
 ### Categoria: Financeiro & Faturamento
 
@@ -544,6 +627,50 @@ Implementado via `next-themes`. Toggle no rodapé da sidebar. Persiste via `loca
 | 28 | **Onboarding Guiado** | Wizard na primeira vez: "Crie seu primeiro cliente → Job → Registro diário". Reduz curva de aprendizado |
 | 29 | **Atalhos de Teclado** | `N` = novo registro, `F` = buscar, `Esc` = fechar dialog, `Ctrl+S` = salvar. Aumenta velocidade de uso |
 | 30 | **Multi-usuário / Workspace** | Adicionar assistente ou sócio com permissões limitadas (ex: só logs, sem acesso a financeiro) |
+
+---
+
+### Novas Sugestões (31–50)
+
+#### Categoria: Produtividade & Organização
+
+| # | Funcionalidade | Descrição |
+|---|---|---|
+| 31 | **Time Blocking** | Bloquear faixas de horário no calendário por cliente/job (manhã = Cliente A, tarde = Cliente B). Visual de agenda diária |
+| 32 | **Templates de Projeto** | Salvar estrutura de projeto (fases + tarefas padrão) como template reutilizável. Ex: "Template Website" com 12 tarefas prontas |
+| 33 | **Kanban de Tarefas** | Visão alternativa ao Gantt: quadro drag-and-drop com colunas por status. Complementa o Gantt para gestão visual |
+| 34 | **Subtarefas** | Tarefas dentro de tarefas. Cada tarefa do projeto pode ter checklist de subtarefas com progresso individual |
+| 35 | **Controle de Férias e Folgas** | Marcar dias como férias, feriado ou folga. Exclui esses dias do cálculo de disponibilidade e de horas esperadas |
+
+#### Categoria: Financeiro Avançado
+
+| # | Funcionalidade | Descrição |
+|---|---|---|
+| 36 | **Histórico de Taxas** | Registrar quando o valor/hora de um cliente mudou. Relatório mostra evolução de taxa por cliente ao longo do tempo |
+| 37 | **Orçamento por Projeto** | Definir orçamento total do projeto e acompanhar consumo em tempo real (horas × taxa). Alerta quando chegar a 80% |
+| 38 | **Conciliação Bancária** | Importar extrato bancário (CSV) e cruzar lançamentos com invoices pagas. Identifica divergências automaticamente |
+| 39 | **Moeda com Cotação Automática** | Buscar cotação BRL/USD/EUR em tempo real e converter todos os valores para a moeda base do usuário no relatório |
+| 40 | **Nota Fiscal (NF-e)** | Integração com API de emissão de NF-e (ex: NFe.io, Omie). Emitir nota diretamente ao marcar invoice como paga |
+
+#### Categoria: Comunicação & Integração
+
+| # | Funcionalidade | Descrição |
+|---|---|---|
+| 41 | **Envio via WhatsApp** | Enviar invoice por WhatsApp usando Z-API ou Twilio. Mensagem com link de PDF + botão de pagamento |
+| 42 | **Zapier / Make Integration** | Expor webhooks padronizados para conectar com 1000+ ferramentas (Notion, Trello, Google Sheets, etc.) |
+| 43 | **Extensão de Navegador** | Extension Chrome/Firefox com timer flutuante. Logar horas e criar registros diários sem abrir o app |
+| 44 | **Resumo por WhatsApp** | Envio automático de resumo semanal para o próprio número: horas trabalhadas, faturamento, próximas entregas |
+| 45 | **API Pública REST** | Endpoints autenticados para integração com sistemas externos. Útil para conectar com ERPs, CRMs ou scripts |
+
+#### Categoria: Inteligência & Segurança
+
+| # | Funcionalidade | Descrição |
+|---|---|---|
+| 46 | **IA para Descrição de Invoice** | Usar Claude API para gerar automaticamente a descrição dos itens da invoice a partir das notas de reuniões e pedidos dos logs |
+| 47 | **Busca Global** | Campo de busca unificado (Cmd+K) que pesquisa simultaneamente em clientes, jobs, logs, invoices e projetos |
+| 48 | **Autenticação em Dois Fatores (2FA)** | TOTP via app autenticador (Google Authenticator, Authy). Adiciona camada extra de segurança à conta |
+| 49 | **Backup Completo** | Exportar todos os dados da conta em JSON estruturado. Garante portabilidade e recuperação em caso de necessidade |
+| 50 | **Modo Offline (PWA)** | Usar Service Worker para cachear os dados mais recentes. Permitir visualização e criação de logs sem conexão, sincronizando ao reconectar |
 
 ---
 
@@ -727,14 +854,33 @@ A evolução do sistema está dividida em 6 fases ordenadas por **impacto imedia
 ## Resumo do Roadmap
 
 ```
-HOJE          Fase 1         Fase 2         Fase 3         Fase 4         Fase 5         Fase 6
-  │             │              │              │              │              │              │
-  ▼             ▼              ▼              ▼              ▼              ▼              ▼
-Sistema     Polimento     Financeiro     Automação      Análise       CRM +          Escala +
-  atual     + CSV/Export  + Despesas     + Recorrência  + Heatmap    Portal         Pagamento
-            + Onboarding  + Propostas    + Push Notif.  + Previsão   + Pipeline     + Multi-user
-            + Atalhos     + Metas        + Resumo       + LTV        + Google Cal   + Stripe
+HOJE               Fase 1         Fase 2         Fase 3         Fase 4         Fase 5         Fase 6
+  │                  │              │              │              │              │              │
+  ▼                  ▼              ▼              ▼              ▼              ▼              ▼
+Sistema          Polimento     Financeiro     Automação      Análise       CRM +          Escala +
+implementado     + CSV/Export  + Despesas     + Recorrência  + Heatmap     Portal         Pagamento
+(12 páginas)     + Onboarding  + Propostas    + Push Notif.  + Previsão    + Pipeline     + Multi-user
+                 + Atalhos     + Metas        + Resumo       + LTV         + Google Cal   + Stripe
+                 + 2FA         + Orçamento    + WhatsApp     + Kanban      + NF-e         + Modo Offline
+                               + Projeto      + Notif. Push  + Subtarefas  + Portal CLI
 ```
+
+### Páginas atualmente implementadas (v1)
+
+| Rota | Página | Status |
+|---|---|---|
+| `/dashboard` | Dashboard com KPIs e gráficos | ✅ |
+| `/clients` | Cadastro de clientes | ✅ |
+| `/jobs` | Gestão de jobs | ✅ |
+| `/logs` | Registro diário / Timesheet | ✅ |
+| `/invoices` | Invoices (PDF + e-mail PT/EN) | ✅ |
+| `/agenda` | Acompanhamento de Jobs (4 views) | ✅ |
+| `/projetos` | Gerenciador de projetos | ✅ |
+| `/projetos/[id]` | Gantt chart + lista de tarefas | ✅ |
+| `/diario` | Diário pessoal com calendário | ✅ |
+| `/disponibilidade` | Status de agenda / disponibilidade | ✅ |
+| `/reports` | Relatórios anuais | ✅ |
+| `/settings` | Configurações da conta | ✅ |
 
 | Fase | Funcionalidades | Complexidade geral | Pré-requisito |
 |---|---|---|---|
