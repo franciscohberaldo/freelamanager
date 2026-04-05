@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation"
 import { format, isToday, isYesterday, parseISO, subMonths, addMonths } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { formatCurrency, formatHours } from "@/lib/utils"
+import { downloadCsv } from "@/lib/csv"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LogDialog } from "./log-dialog"
 import { LogTimerButton } from "./log-timer-button"
-import { Plus, Play, Search, SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, Play, Search, SlidersHorizontal, ChevronLeft, ChevronRight, Download } from "lucide-react"
 import type { DailyLog } from "@/lib/supabase/types"
 
 interface JobOption {
@@ -29,6 +30,7 @@ interface Props {
   logs: LogWithJob[]
   jobs: JobOption[]
   currentMonth: string
+  hourRounding: string
 }
 
 function formatLogDate(dateStr: string) {
@@ -46,7 +48,7 @@ function formatHoursShort(h: number) {
   return `${hrs}h ${String(min).padStart(2, "0")}min`
 }
 
-export function LogsClient({ logs, jobs, currentMonth }: Props) {
+export function LogsClient({ logs, jobs, currentMonth, hourRounding }: Props) {
   const [search, setSearch] = useState("")
   const router = useRouter()
 
@@ -79,6 +81,34 @@ export function LogsClient({ logs, jobs, currentMonth }: Props) {
     router.push(`/logs?month=${month}`)
   }
 
+  function exportCsv() {
+    const data = filtered.map(l => {
+      const job = l.jobs as LogWithJob["jobs"]
+      return {
+        data:           l.date,
+        job:            job?.name ?? "",
+        cliente:        job?.clients?.name ?? "",
+        reunioes:       l.meetings ?? "",
+        pedidos:        l.requests ?? "",
+        horas_trab:     l.hours_worked,
+        horas_fat:      l.hours_billed,
+        valor:          l.total_value,
+        status:         l.hours_billed > 0 ? "Concluído" : "Em andamento",
+      }
+    })
+    downloadCsv(data, `logs-${currentMonth}.csv`, [
+      { key: "data",       label: "Data" },
+      { key: "job",        label: "Job" },
+      { key: "cliente",    label: "Cliente" },
+      { key: "reunioes",   label: "Reuniões" },
+      { key: "pedidos",    label: "Pedidos" },
+      { key: "horas_trab", label: "Horas Trabalhadas" },
+      { key: "horas_fat",  label: "Horas Faturadas" },
+      { key: "valor",      label: "Valor Total" },
+      { key: "status",     label: "Status" },
+    ])
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
@@ -92,13 +122,13 @@ export function LogsClient({ logs, jobs, currentMonth }: Props) {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          <LogDialog jobs={jobs} mode="create">
+          <LogDialog jobs={jobs} mode="create" hourRounding={hourRounding}>
             <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white gap-1.5">
               <Plus className="w-4 h-4" />
               Novo registro
             </Button>
           </LogDialog>
-          <LogDialog jobs={jobs} mode="create">
+          <LogDialog jobs={jobs} mode="create" hourRounding={hourRounding}>
             <Button size="sm" variant="outline" className="gap-1.5 border-emerald-500 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20">
               <Play className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />
               Iniciar timer
@@ -117,9 +147,9 @@ export function LogsClient({ logs, jobs, currentMonth }: Props) {
               className="pl-8 h-8 w-48 text-sm"
             />
           </div>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            Filtrar
+          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={exportCsv}>
+            <Download className="w-3.5 h-3.5" />
+            CSV
           </Button>
           <div className="flex items-center border rounded-md h-8">
             <Button variant="ghost" size="icon" className="h-8 w-7 rounded-r-none" onClick={() => navigate(prevMonth)}>
@@ -149,6 +179,14 @@ export function LogsClient({ logs, jobs, currentMonth }: Props) {
           <span className="text-muted-foreground">Valor estimado:</span>
           <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(totals.value)}</span>
         </span>
+        {hourRounding !== "none" && (
+          <>
+            <span className="text-muted-foreground/40">|</span>
+            <span className="text-xs text-muted-foreground">
+              Arred. {hourRounding === "0.25" ? "15min" : hourRounding === "0.5" ? "30min" : "1h"} ativo
+            </span>
+          </>
+        )}
       </div>
 
       {/* Table */}
@@ -207,7 +245,7 @@ export function LogsClient({ logs, jobs, currentMonth }: Props) {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
                       <LogTimerButton logId={log.id} hoursWorked={log.hours_worked} />
-                      <LogDialog jobs={jobs} log={log} mode="edit">
+                      <LogDialog jobs={jobs} log={log} mode="edit" hourRounding={hourRounding}>
                         <Button variant="ghost" size="sm" className="h-7 text-xs">Editar</Button>
                       </LogDialog>
                     </div>

@@ -676,216 +676,441 @@ Implementado via `next-themes`. Toggle no rodapé da sidebar. Persiste via `loca
 
 ## Implementação em Fases
 
-A evolução do sistema está dividida em 6 fases ordenadas por **impacto imediato**, **viabilidade técnica** e **dependências entre funcionalidades**.
+### Estado atual do sistema (v1 — live em produção)
+
+| Rota | Página | Banco |
+|---|---|---|
+| `/dashboard` | KPIs + gráficos de receita e horas | `daily_logs`, `invoices`, `jobs`, `agenda_events` |
+| `/clients` | Cadastro de clientes + contatos | `clients`, `client_contacts` |
+| `/jobs` | Projetos/contratos por cliente | `jobs` |
+| `/logs` | Timesheet com timer ao vivo | `daily_logs` |
+| `/invoices` | Invoice com PDF/e-mail PT e EN | `invoices`, `invoice_items` |
+| `/agenda` | Quadro de tarefas (Tabela/Timeline/Gantt/Cal) | `agenda_events` |
+| `/projetos` | Lista de projetos com progresso | `projects`, `project_tasks` |
+| `/projetos/[id]` | Gantt chart + lista de tarefas | `project_tasks` |
+| `/diario` | Calendário diário com humor | `daily_journal` |
+| `/disponibilidade` | Status de disponibilidade | `user_availability` |
+| `/reports` | Relatórios anuais | `daily_logs`, `invoices` |
+| `/settings` | Conta + integrações | `auth.users` |
+
+**12 páginas · 10 tabelas · 5 migrations · 3 API routes**
 
 ---
 
-### Fase 1 — Polimento e Gaps Críticos
-**Objetivo:** Fechar lacunas do sistema atual antes de adicionar complexidade. Tudo que um freelancer sente falta no uso diário.
+### Critérios de priorização
 
-| # | Funcionalidade | Complexidade | Impacto |
-|---|---|---|---|
-| 24 | Exportar CSV / Excel | Baixa | Alto |
-| 28 | Onboarding guiado | Baixa | Alto |
-| 15 | Arredondamento de horas | Baixa | Médio |
-| 29 | Atalhos de teclado | Baixa | Médio |
-| 7  | Personalização de Invoice (logo, CNPJ) | Média | Alto |
+Cada funcionalidade foi avaliada em 3 eixos:
 
-**Migrations necessárias:** Adicionar campos de personalização em `user_settings` (nova tabela)
-
-**Entregáveis:**
-- Botão "Exportar CSV" nas páginas de logs, invoices e clientes
-- Wizard de primeiro acesso com 3 passos
-- Campo arredondamento nas configurações
-- Atalhos globais via `useEffect` + `keydown`
-- Upload de logo e campos de identificação fiscal na página de configurações
+| Eixo | Peso | Critério |
+|---|---|---|
+| **Impacto** | Alto | Uso diário, poupa tempo real ou aumenta faturamento |
+| **Complexidade** | Alto | Esforço de dev + migrations necessárias |
+| **Dependência** | Médio | Precisa de outra feature pronta antes |
 
 ---
 
-### Fase 2 — Poder Financeiro Completo
-**Objetivo:** Tornar o módulo financeiro robusto o suficiente para substituir planilhas do Excel.
+### Fase 1 — Configurações & Exportação
+> **Objetivo:** Completar o sistema central antes de expandir. Features de baixo esforço e alto retorno que qualquer freelancer usa diariamente.
 
-| # | Funcionalidade | Complexidade | Impacto |
-|---|---|---|---|
-| 4  | Controle de Despesas | Média | Alto |
-| 5  | Simulador de Impostos | Baixa | Alto |
-| 6  | Pagamento Parcial | Média | Médio |
-| 1  | Propostas / Orçamentos | Alta | Alto |
-| 13 | Metas de Horas | Média | Alto |
+| # | Funcionalidade | Complexidade | Impacto | Por que agora |
+|---|---|---|---|---|
+| 7  | Personalização de Invoice (logo, CNPJ) | Média | 🔴 Alto | Primeira coisa que um cliente vê |
+| 24 | Exportar CSV (logs, invoices, clientes) | Baixa | 🔴 Alto | Fundamental para contabilidade |
+| 15 | Arredondamento automático de horas | Baixa | 🟡 Médio | Poupa ajuste manual toda vez |
+| 29 | Atalhos de teclado globais | Baixa | 🟡 Médio | Aumenta velocidade de uso diário |
+| 47 | Busca global (Cmd+K) | Média | 🟡 Médio | Base para todas as features futuras |
+| 48 | Autenticação 2FA | Média | 🟡 Médio | Segurança antes de dados crescerem |
 
-**Migrations necessárias:**
+**Migrations:**
 ```sql
--- expenses: id, user_id, category, description, amount, date, receipt_url
--- proposals: id, user_id, client_id, title, items, status, valid_until, converted_job_id
--- invoice_payments: id, invoice_id, amount, paid_at, method, notes
--- user_goals: id, user_id, type, target, period
+-- 006_user_settings.sql
+create table user_settings (
+  user_id       uuid primary key references auth.users(id),
+  company_name  text,
+  cnpj_cpf      text,
+  logo_url      text,
+  invoice_color text default '#7c3aed',
+  hour_rounding text default 'none'  -- none | 0.25 | 0.5 | 1
+);
 ```
 
 **Entregáveis:**
-- Página `/despesas` com categorias e totais mensais
-- Widget de impostos estimados no dashboard
-- Registro de pagamentos parciais por invoice
-- Módulo `/propostas` com gerador de PDF
-- Card de meta de horas no dashboard com % de progresso
+- `/settings` expandido: logo upload (Supabase Storage), CNPJ, nome empresa, cor de invoice
+- PDF usa logo e dados fiscais do usuário automaticamente
+- Botão "Exportar CSV" em `/logs`, `/invoices`, `/clients`
+- Hook global `useHotkeys` com `N` (novo), `F` (buscar), `Esc` (fechar)
+- Paleta de busca (Cmd+K) com resultados de todas as entidades
+- TOTP 2FA via Supabase Auth MFA
 
 ---
 
-### Fase 3 — Automação e Comunicação
-**Objetivo:** Reduzir trabalho manual com automações que poupam tempo toda semana.
+### Fase 2 — Financeiro Completo
+> **Objetivo:** Tornar o módulo financeiro capaz de substituir qualquer planilha. Fechar o ciclo completo de receita, despesa e tributação.
 
-| # | Funcionalidade | Complexidade | Impacto |
-|---|---|---|---|
-| 3  | Lembretes de cobrança automáticos | Média | Alto |
-| 2  | Invoices recorrentes | Alta | Alto |
-| 19 | Resumo semanal por e-mail | Média | Médio |
-| 18 | Notificações Push (PWA) | Alta | Médio |
-| 27 | Eventos recorrentes na agenda | Média | Médio |
+| # | Funcionalidade | Complexidade | Impacto | Por que agora |
+|---|---|---|---|---|
+| 4  | Controle de Despesas | Média | 🔴 Alto | Sem despesas, não há lucro real |
+| 5  | Simulador de Impostos (MEI/ME/PJ) | Baixa | 🔴 Alto | Dúvida constante de todo PJ |
+| 1  | Propostas / Orçamentos | Alta | 🔴 Alto | Início do funil de vendas |
+| 13 | Metas de horas e receita | Média | 🔴 Alto | Visibilidade do progresso mensal |
+| 6  | Pagamento parcial de invoice | Média | 🟡 Médio | Clientes que pagam em partes |
+| 37 | Orçamento por projeto (budget tracking) | Média | 🟡 Médio | Controle de escopo em Projetos |
+| 36 | Histórico de taxas por cliente | Baixa | 🟡 Médio | Rastrear reajustes ao longo do tempo |
+| 39 | Cotação automática BRL/USD/EUR | Média | 🟡 Médio | Clientes internacionais |
+
+**Migrations:**
+```sql
+-- 007_financeiro.sql
+create table expenses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id),
+  category text not null,  -- software|hardware|curso|imposto|outro
+  description text not null,
+  amount numeric(12,2) not null,
+  date date not null,
+  receipt_url text,
+  created_at timestamptz default now()
+);
+
+create table proposals (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id),
+  client_id uuid references clients(id),
+  title text not null,
+  status text default 'draft',  -- draft|sent|approved|rejected
+  valid_until date,
+  total numeric(12,2),
+  notes text,
+  converted_job_id uuid references jobs(id),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table invoice_payments (
+  id uuid primary key default gen_random_uuid(),
+  invoice_id uuid not null references invoices(id),
+  amount numeric(12,2) not null,
+  paid_at date not null,
+  method text,  -- pix|ted|cartao|outro
+  notes text
+);
+
+create table user_goals (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id),
+  type text not null,  -- hours_week|hours_month|revenue_month
+  target numeric(12,2) not null,
+  period text not null  -- 2025-04 | 2025-W15
+);
+```
+
+**Entregáveis:**
+- `/despesas` — cadastro por categoria, relatório mensal, gráfico Receita vs Despesa
+- `/propostas` — criador de orçamento com geração de PDF, link de aprovação
+- Dashboard com card de meta mensal (barra de progresso receita/horas)
+- Widget de impostos estimados (ISS + INSS + IR) configurável por regime
+- Pagamentos parciais visíveis por invoice com saldo em aberto
+- Campo de orçamento em `/projetos/[id]` com % consumido
+- Histórico de `hourly_rate` por job em linha do tempo
+
+---
+
+### Fase 3 — Projetos Avançados
+> **Objetivo:** Tornar o gerenciador de projetos tão poderoso quanto ferramentas dedicadas, sem sair do Freela Manager.
+
+| # | Funcionalidade | Complexidade | Impacto | Por que agora |
+|---|---|---|---|---|
+| 33 | Kanban de tarefas (drag-and-drop) | Alta | 🔴 Alto | Vista complementar ao Gantt |
+| 34 | Subtarefas com checklist | Média | 🟡 Médio | Detalhar tarefas grandes |
+| 32 | Templates de projeto | Média | 🟡 Médio | Reaproveitamento para projetos similares |
+| 26 | Checklist por evento da agenda | Baixa | 🟡 Médio | Mais granularidade nos eventos |
+| 17 | Horas por subtarefa no log diário | Média | 🟡 Médio | Rastreio granular de onde o tempo vai |
+| 35 | Controle de férias e folgas | Média | 🟡 Médio | Excluir dias do cálculo de disponibilidade |
+
+**Migrations:**
+```sql
+-- 008_projetos_avancado.sql
+create table project_task_items (  -- subtarefas/checklist
+  id uuid primary key default gen_random_uuid(),
+  task_id uuid not null references project_tasks(id) on delete cascade,
+  text text not null,
+  is_done boolean not null default false,
+  position int not null default 0
+);
+
+create table project_templates (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id),
+  name text not null,
+  tasks jsonb not null default '[]'
+);
+
+create table time_off (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id),
+  date date not null,
+  type text not null,  -- ferias|feriado|folga|doenca
+  note text,
+  unique(user_id, date)
+);
+
+create table log_subtasks (
+  id uuid primary key default gen_random_uuid(),
+  log_id uuid not null references daily_logs(id) on delete cascade,
+  description text not null,
+  hours numeric(5,2) not null default 0
+);
+```
+
+**Entregáveis:**
+- Aba "Kanban" em `/projetos/[id]` com drag-and-drop por status
+- Checklist expandível dentro de cada tarefa do projeto
+- `/projetos` — botão "Usar template" ao criar novo projeto
+- Checklist nos eventos de `/agenda`
+- Quebra de horas por atividade dentro do dialog de log diário
+- Calendário de férias/folgas visível na disponibilidade
+
+---
+
+### Fase 4 — Automação & Comunicação
+> **Objetivo:** Reduzir trabalho manual recorrente. O sistema trabalha para você quando você não está olhando.
+
+| # | Funcionalidade | Complexidade | Impacto | Por que agora |
+|---|---|---|---|---|
+| 3  | Lembretes de cobrança automáticos | Média | 🔴 Alto | Elimina follow-up manual de invoice |
+| 2  | Invoices recorrentes | Alta | 🔴 Alto | Jobs de retainer não precisam de ação mensal |
+| 19 | Resumo semanal por e-mail | Média | 🟡 Médio | Visão sem precisar abrir o app |
+| 27 | Eventos recorrentes na agenda | Média | 🟡 Médio | Reuniões de alinhamento toda semana |
+| 41 | Envio de invoice via WhatsApp | Alta | 🟡 Médio | Canal preferido de muitos clientes |
+| 44 | Resumo semanal via WhatsApp | Média | 🟡 Médio | Notificação onde o usuário já está |
+| 18 | Notificações Push (PWA) | Alta | 🟡 Médio | Alertas de prazos sem abrir o app |
 
 **Tecnologias adicionais:**
-- Supabase Edge Functions + pg_cron (para envios agendados)
-- Web Push API + service worker (para notificações)
+- Supabase Edge Functions (processamento server-side agendado)
+- `pg_cron` via Supabase (cron jobs no banco)
+- Z-API ou Twilio (WhatsApp)
+- Web Push API + VAPID keys (notificações PWA)
 
-**Migrations necessárias:**
+**Migrations:**
 ```sql
--- scheduled_emails: id, user_id, type, next_run, config (jsonb)
--- recurring_invoices: id, user_id, job_id, day_of_month, auto_send
--- push_subscriptions: id, user_id, endpoint, keys (jsonb)
+-- 009_automacao.sql
+alter table jobs add column if not exists
+  auto_invoice boolean not null default false,
+  invoice_day_of_month int;
+
+create table push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id),
+  endpoint text not null,
+  keys jsonb not null,
+  created_at timestamptz default now()
+);
+
+create table notification_settings (
+  user_id uuid primary key references auth.users(id),
+  overdue_reminder boolean default true,
+  weekly_email boolean default true,
+  whatsapp_number text,
+  push_enabled boolean default false
+);
 ```
 
 **Entregáveis:**
-- Configuração de lembrança por invoice (D+1, D+7, D+15)
-- Setup de invoice recorrente por job com flag `is_recurring`
-- E-mail de resumo semanal toda segunda-feira (Edge Function)
-- Botão "Ativar notificações" no app (PWA push)
-- Recorrência de eventos: diária, semanal, mensal
+- Edge Function `send-overdue-reminders` — roda diariamente, envia e-mail D+1/7/15
+- Edge Function `generate-recurring-invoices` — roda no dia configurado por job
+- Edge Function `weekly-summary` — toda segunda às 8h, resumo por e-mail
+- `/settings` com painel de notificações (toggle cada automação)
+- Botão "Enviar por WhatsApp" nas ações de invoice
+- Service Worker registrado + prompt de ativação de push
 
 ---
 
-### Fase 4 — Análise e Inteligência
-**Objetivo:** Transformar os dados acumulados em decisões de negócio claras.
+### Fase 5 — Análise & Inteligência
+> **Objetivo:** Os dados acumulados de meses de uso viram insights que guiam decisões de negócio.
 
-| # | Funcionalidade | Complexidade | Impacto |
-|---|---|---|---|
-| 21 | Rentabilidade por job | Média | Alto |
-| 22 | Valor por cliente (LTV) | Média | Alto |
-| 16 | Heatmap de produtividade | Média | Médio |
-| 23 | Previsão de receita | Alta | Alto |
-| 17 | Horas por subtarefa | Média | Médio |
-
-**Migrations necessárias:**
-```sql
--- log_tasks: id, log_id, description, hours (subtarefas dentro de um log)
-```
-
-**Entregáveis:**
-- Seção "Rentabilidade" em `/reports` com gráfico estimado × real por job
-- Seção "Clientes" em `/reports` com LTV, média mensal, tendência
-- Calendário heatmap em `/reports` (inspirado no GitHub contributions)
-- Widget de previsão dos próximos 3 meses no dashboard
-- Subtarefas com horas dentro do dialog de registro diário
-
----
-
-### Fase 5 — Relacionamento com Cliente
-**Objetivo:** Evoluir o sistema para suportar o ciclo completo de vendas e relacionamento.
-
-| # | Funcionalidade | Complexidade | Impacto |
-|---|---|---|---|
-| 9  | Pipeline de Vendas (CRM Kanban) | Alta | Alto |
-| 10 | Portal do Cliente (link público) | Alta | Alto |
-| 11 | Histórico de comunicação | Média | Médio |
-| 12 | Score de cliente | Baixa | Médio |
-| 25 | Sync Google Calendar | Alta | Médio |
+| # | Funcionalidade | Complexidade | Impacto | Por que agora |
+|---|---|---|---|---|
+| 21 | Rentabilidade por job | Média | 🔴 Alto | Qual projeto vale a pena renovar |
+| 22 | Valor por cliente (LTV) | Média | 🔴 Alto | Quem merece mais atenção |
+| 23 | Previsão de receita (3 meses) | Alta | 🔴 Alto | Planejamento financeiro antecipado |
+| 16 | Heatmap de produtividade | Média | 🟡 Médio | Identifica padrões e ociosidade |
+| 46 | IA para descrição de invoice | Alta | 🟡 Médio | Gera texto profissional dos logs |
+| 49 | Backup completo dos dados | Baixa | 🟡 Médio | Segurança e portabilidade |
+| 38 | Conciliação bancária (CSV) | Alta | 🟡 Médio | Fecha ciclo contábil |
 
 **Tecnologias adicionais:**
-- Google Calendar API (OAuth 2.0)
-- Tokens públicos para portal do cliente (JWT sem auth)
-
-**Migrations necessárias:**
-```sql
--- sales_pipeline: id, user_id, client_id, stage, title, value, notes, expected_close
--- client_interactions: id, client_id, type, summary, happened_at
--- client_portal_tokens: id, client_id, token (unique), expires_at
-```
+- Claude API (`claude-sonnet-4-6`) para geração de texto
+- Algoritmo de regressão linear simples para previsão
 
 **Entregáveis:**
-- Página `/pipeline` com Kanban drag-and-drop
-- Rota pública `/portal/[token]` para o cliente ver suas invoices
-- Timeline de interações na ficha do cliente
-- Campo `score` (1–5) e etiquetas internas por cliente
-- Botão "Conectar Google Calendar" nas configurações
+- `/reports` com nova aba "Rentabilidade": estimado × real × faturado por job
+- `/reports` com aba "Clientes": LTV, ticket médio, tendência por cliente
+- Dashboard: card "Previsão 3 meses" com gráfico de projeção
+- `/reports` com heatmap anual de horas (inspirado no GitHub)
+- Botão "Gerar com IA" no preview de invoice → Claude descreve os itens
+- `/settings` → Exportar tudo em JSON (todos os dados da conta)
+- `/despesas` → Import de extrato bancário CSV com mapeamento de colunas
 
 ---
 
-### Fase 6 — Escala e Integrações
-**Objetivo:** Preparar para múltiplos usuários, integrações externas e monetização do próprio sistema.
+### Fase 6 — CRM & Relacionamento com Cliente
+> **Objetivo:** Cobrir o ciclo completo: prospecção → proposta → entrega → renovação.
 
-| # | Funcionalidade | Complexidade | Impacto |
-|---|---|---|---|
-| 8  | Link de Pagamento Online | Alta | Alto |
-| 30 | Multi-usuário / Workspace | Muito alta | Alto |
-| 20 | Webhook Slack / Discord | Média | Médio |
-| 26 | Checklist por tarefa | Baixa | Médio |
-| 14 | Pomodoro integrado | Média | Médio |
+| # | Funcionalidade | Complexidade | Impacto | Por que agora |
+|---|---|---|---|---|
+| 9  | Pipeline de Vendas Kanban | Alta | 🔴 Alto | Gestão de leads e oportunidades |
+| 10 | Portal do cliente (link público) | Alta | 🔴 Alto | Cliente acompanha sem entrar no sistema |
+| 11 | Histórico de comunicação | Média | 🟡 Médio | Contexto completo do relacionamento |
+| 12 | Score de cliente | Baixa | 🟡 Médio | Decide quem priorizar |
+| 25 | Sync Google Calendar | Alta | 🟡 Médio | Agenda unificada com a vida real |
+| 40 | Nota Fiscal NF-e | Muito alta | 🔴 Alto | Obrigação legal para PJ |
 
 **Tecnologias adicionais:**
-- Stripe API ou Mercado Pago API
-- Workspace model: organizations + members + roles
+- Google Calendar API + OAuth 2.0
+- NFe.io ou Omie API (emissão de nota fiscal)
+- JWT público para portal do cliente (sem auth Supabase)
 
-**Migrations necessárias:**
+**Migrations:**
 ```sql
--- organizations: id, name, owner_id, plan, stripe_customer_id
--- org_members: id, org_id, user_id, role (owner|admin|member|viewer)
--- payment_links: id, invoice_id, provider, link_url, status
--- task_checklist: id, agenda_event_id, text, is_done, position
--- webhooks: id, user_id, url, events[], secret
+-- 010_crm.sql
+create table sales_pipeline (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id),
+  client_id uuid references clients(id),
+  stage text not null,  -- lead|contacted|proposal|negotiation|won|lost
+  title text not null,
+  value numeric(12,2),
+  expected_close date,
+  notes text,
+  position int default 0,
+  created_at timestamptz default now()
+);
+
+create table client_interactions (
+  id uuid primary key default gen_random_uuid(),
+  client_id uuid not null references clients(id) on delete cascade,
+  type text not null,  -- email|call|meeting|note
+  summary text not null,
+  happened_at timestamptz not null default now()
+);
+
+create table client_portal_tokens (
+  id uuid primary key default gen_random_uuid(),
+  client_id uuid not null references clients(id),
+  token text unique not null default gen_random_uuid()::text,
+  expires_at timestamptz,
+  created_at timestamptz default now()
+);
 ```
 
 **Entregáveis:**
-- Integração Stripe: gerar payment link por invoice, webhook de confirmação automática
-- Sistema de workspaces com convite por e-mail e roles
-- Configuração de webhooks customizados por evento
-- Checklist inline em tarefas da agenda
-- Timer Pomodoro com histórico de sessões
-- Widget Pomodoro flutuante (PiP style)
+- `/pipeline` — Kanban com drag-and-drop entre estágios, valor total por estágio
+- `/portal/[token]` — página pública: invoices, horas registradas, status de projetos
+- Ficha do cliente expandida com timeline de interações e score (1–5)
+- Botão "Gerar link do portal" em cada cliente
+- `/settings` → conectar Google Calendar (OAuth)
+- Botão "Emitir NF-e" ao marcar invoice como paga
+
+---
+
+### Fase 7 — Escala & Plataforma
+> **Objetivo:** Transformar o sistema pessoal em uma plataforma multi-usuário, com integrações de pagamento e ecossistema externo.
+
+| # | Funcionalidade | Complexidade | Impacto | Por que agora |
+|---|---|---|---|---|
+| 8  | Link de pagamento online (Stripe/MP) | Alta | 🔴 Alto | Encurta ciclo de recebimento |
+| 30 | Multi-usuário / Workspace | Muito alta | 🔴 Alto | Estúdios e parcerias |
+| 42 | Zapier / Make webhooks | Média | 🟡 Médio | Conectar com 1000+ ferramentas |
+| 45 | API REST pública | Alta | 🟡 Médio | Integrações com sistemas externos |
+| 43 | Extensão de navegador | Alta | 🟡 Médio | Timer sem abrir o app |
+| 50 | Modo offline (PWA) | Alta | 🟡 Médio | Trabalhar sem internet |
+| 14 | Pomodoro integrado | Média | 🟢 Baixo | Feature de nicho |
+| 31 | Time blocking no calendário | Alta | 🟢 Baixo | Planejamento do dia a dia |
+
+**Tecnologias adicionais:**
+- Stripe API + webhooks (pagamentos online)
+- Mercado Pago API (alternativa para BR)
+- Supabase multi-tenant com `organization_id` em todas as tabelas
+- Chrome Extension API (Manifest v3)
+- Workbox (Service Worker para offline)
+
+**Migrations:**
+```sql
+-- 011_plataforma.sql
+create table organizations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  owner_id uuid not null references auth.users(id),
+  plan text default 'free',  -- free|pro|team
+  stripe_customer_id text,
+  created_at timestamptz default now()
+);
+
+create table org_members (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id),
+  user_id uuid not null references auth.users(id),
+  role text not null default 'member',  -- owner|admin|member|viewer
+  unique(org_id, user_id)
+);
+
+create table payment_links (
+  id uuid primary key default gen_random_uuid(),
+  invoice_id uuid not null references invoices(id),
+  provider text not null,  -- stripe|mercadopago
+  link_url text not null,
+  status text default 'pending',  -- pending|paid|expired
+  created_at timestamptz default now()
+);
+
+create table webhooks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id),
+  url text not null,
+  events text[] not null,
+  secret text not null,
+  is_active boolean default true
+);
+```
+
+**Entregáveis:**
+- Botão "Gerar link de pagamento" na invoice → Stripe Checkout ou MP
+- Webhook Stripe confirma pagamento → status atualizado automaticamente
+- Sistema de organizações com convite por e-mail, roles, billing separado
+- Endpoint `/api/v1/*` com auth por API key para integrações
+- Painel de webhooks em `/settings` (URL, eventos, teste)
+- Chrome Extension com timer flutuante e quick-add de log
+- Cache offline com Workbox (dados dos últimos 7 dias disponíveis sem internet)
 
 ---
 
 ## Resumo do Roadmap
 
 ```
-HOJE               Fase 1         Fase 2         Fase 3         Fase 4         Fase 5         Fase 6
-  │                  │              │              │              │              │              │
-  ▼                  ▼              ▼              ▼              ▼              ▼              ▼
-Sistema          Polimento     Financeiro     Automação      Análise       CRM +          Escala +
-implementado     + CSV/Export  + Despesas     + Recorrência  + Heatmap     Portal         Pagamento
-(12 páginas)     + Onboarding  + Propostas    + Push Notif.  + Previsão    + Pipeline     + Multi-user
-                 + Atalhos     + Metas        + Resumo       + LTV         + Google Cal   + Stripe
-                 + 2FA         + Orçamento    + WhatsApp     + Kanban      + NF-e         + Modo Offline
-                               + Projeto      + Notif. Push  + Subtarefas  + Portal CLI
+v1 HOJE    Fase 1      Fase 2      Fase 3       Fase 4      Fase 5      Fase 6      Fase 7
+  ▼          ▼           ▼           ▼            ▼           ▼           ▼           ▼
+12 páginas  Config &   Financeiro  Projetos     Automação   Análise &   CRM &       Escala &
+10 tabelas  Exportação  Completo    Avançado     & Comunic.  Inteligên.  Cliente     Plataforma
+            ──────────  ──────────  ──────────   ──────────  ──────────  ──────────  ──────────
+            Logo/CNPJ   Despesas    Kanban       Cobrança    Rentabili.  Pipeline    Stripe/MP
+            CSV Export  Propostas   Subtarefas   Recorrente  LTV         Portal      Workspace
+            Atalhos     Metas       Templates    Resumo      Previsão    NF-e        API REST
+            Busca (⌘K)  Impostos    Checklist    WhatsApp    Heatmap     Google Cal  Extension
+            2FA         Pagto Parc. Férias/Folga Push Notif  IA Invoice  Score       Offline PWA
 ```
 
-### Páginas atualmente implementadas (v1)
+### Tabela de fases
 
-| Rota | Página | Status |
-|---|---|---|
-| `/dashboard` | Dashboard com KPIs e gráficos | ✅ |
-| `/clients` | Cadastro de clientes | ✅ |
-| `/jobs` | Gestão de jobs | ✅ |
-| `/logs` | Registro diário / Timesheet | ✅ |
-| `/invoices` | Invoices (PDF + e-mail PT/EN) | ✅ |
-| `/agenda` | Acompanhamento de Jobs (4 views) | ✅ |
-| `/projetos` | Gerenciador de projetos | ✅ |
-| `/projetos/[id]` | Gantt chart + lista de tarefas | ✅ |
-| `/diario` | Diário pessoal com calendário | ✅ |
-| `/disponibilidade` | Status de agenda / disponibilidade | ✅ |
-| `/reports` | Relatórios anuais | ✅ |
-| `/settings` | Configurações da conta | ✅ |
-
-| Fase | Funcionalidades | Complexidade geral | Pré-requisito |
-|---|---|---|---|
-| 1 — Polimento | 5 | Baixa | Nenhum |
-| 2 — Financeiro | 5 | Média | Fase 1 |
+| Fase | Foco | Features | Complexidade | Depende de |
+|---|---|---|---|---|
+| **1** | Config & Exportação | 6 | Baixa–Média | — |
+| **2** | Financeiro completo | 8 | Média–Alta | Fase 1 |
+| **3** | Projetos avançados | 6 | Média–Alta | v1 |
+| **4** | Automação | 7 | Alta | Fases 1, 2 |
+| **5** | Análise & IA | 7 | Média–Alta | Fases 1, 2, 3 |
+| **6** | CRM & Cliente | 6 | Alta–Muito Alta | Fases 1, 2, 4 |
+| **7** | Escala & Plataforma | 8 | Muito Alta | Todas |
+| **Total** | | **48 funcionalidades** | | |
 | 3 — Automação | 5 | Alta | Fase 2 |
 | 4 — Análise | 5 | Média | Fases 1 e 2 |
 | 5 — CRM | 5 | Alta | Fases 2 e 3 |

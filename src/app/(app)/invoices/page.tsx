@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { CreateInvoiceDialog } from "./create-invoice-dialog"
 import { InvoiceActions } from "./invoice-actions"
+import { CsvExportButton } from "@/components/csv-export-button"
 import { FileText, Plus } from "lucide-react"
 
 const statusMap: Record<string, { label: string; variant: "default" | "outline" | "success" | "warning" | "destructive" }> = {
@@ -38,9 +39,43 @@ export default async function InvoicesPage() {
           <h1 className="text-2xl font-bold">Invoices</h1>
           <p className="text-muted-foreground text-sm">{invoices?.length ?? 0} invoices gerados</p>
         </div>
-        <CreateInvoiceDialog jobs={(jobs ?? []) as any}>
-          <Button><Plus className="w-4 h-4" />Gerar Invoice</Button>
-        </CreateInvoiceDialog>
+        <div className="flex items-center gap-2">
+          <CsvExportButton
+            filename="invoices.csv"
+            data={(invoices ?? []).map(inv => {
+              const job = inv.jobs as { name: string; currency: string; clients: { name: string; email: string | null } | null } | null
+              return {
+                numero:   inv.invoice_number,
+                status:   inv.status,
+                job:      job?.name ?? "",
+                cliente:  job?.clients?.name ?? "",
+                periodo:  `${inv.period_start} a ${inv.period_end}`,
+                horas:    inv.total_hours_billed,
+                subtotal: inv.subtotal,
+                impostos: inv.tax_amount,
+                total:    inv.total,
+                moeda:    inv.currency,
+                pago_em:  inv.paid_at ?? "",
+              }
+            })}
+            columns={[
+              { key: "numero",   label: "Número" },
+              { key: "status",   label: "Status" },
+              { key: "job",      label: "Job" },
+              { key: "cliente",  label: "Cliente" },
+              { key: "periodo",  label: "Período" },
+              { key: "horas",    label: "Horas Faturadas" },
+              { key: "subtotal", label: "Subtotal" },
+              { key: "impostos", label: "Impostos" },
+              { key: "total",    label: "Total" },
+              { key: "moeda",    label: "Moeda" },
+              { key: "pago_em",  label: "Pago Em" },
+            ]}
+          />
+          <CreateInvoiceDialog jobs={(jobs ?? []) as any}>
+            <Button><Plus className="w-4 h-4" />Gerar Invoice</Button>
+          </CreateInvoiceDialog>
+        </div>
       </div>
 
       <div className="space-y-3">

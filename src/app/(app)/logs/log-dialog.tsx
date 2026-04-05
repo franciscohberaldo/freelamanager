@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { calculateTotal, formatHours } from "@/lib/utils"
+import { roundHours } from "@/lib/csv"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -29,9 +30,10 @@ interface Props {
   jobs: JobOption[]
   log?: DailyLog
   mode: "create" | "edit" | "duplicate"
+  hourRounding?: string
 }
 
-export function LogDialog({ children, jobs, log, mode }: Props) {
+export function LogDialog({ children, jobs, log, mode, hourRounding = "none" }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -90,13 +92,14 @@ export function LogDialog({ children, jobs, log, mode }: Props) {
     if (!form.job_id) { toast.error("Selecione um job"); return }
     setLoading(true)
 
+    const roundedHours = roundHours(form.hours_worked, hourRounding)
     const payload = {
       job_id:       form.job_id,
       date:         form.date,
       meetings:     form.meetings || null,
       requests:     form.requests || null,
       daily_rate:   form.daily_rate,
-      hours_worked: form.hours_worked,
+      hours_worked: roundedHours,
       hours_billed: form.hours_billed,
       total_value:  totalValue,
     }

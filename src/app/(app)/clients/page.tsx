@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ClientDialog } from "./client-dialog"
+import { CsvExportButton } from "@/components/csv-export-button"
 import { Plus, Users } from "lucide-react"
 
 export default async function ClientsPage() {
@@ -21,9 +22,26 @@ export default async function ClientsPage() {
           <h1 className="text-2xl font-bold">Clientes</h1>
           <p className="text-muted-foreground text-sm">{clients?.length ?? 0} clientes cadastrados</p>
         </div>
-        <ClientDialog mode="create">
-          <Button><Plus className="w-4 h-4" />Novo Cliente</Button>
-        </ClientDialog>
+        <div className="flex items-center gap-2">
+          <CsvExportButton
+            filename="clientes.csv"
+            data={(clients ?? []).map(c => ({
+              nome:     c.name,
+              empresa:  c.company ?? "",
+              email:    c.email ?? "",
+              telefone: c.phone ?? "",
+            }))}
+            columns={[
+              { key: "nome",     label: "Nome" },
+              { key: "empresa",  label: "Empresa" },
+              { key: "email",    label: "E-mail" },
+              { key: "telefone", label: "Telefone" },
+            ]}
+          />
+          <ClientDialog mode="create">
+            <Button><Plus className="w-4 h-4" />Novo Cliente</Button>
+          </ClientDialog>
+        </div>
       </div>
 
       <div className="grid gap-4">

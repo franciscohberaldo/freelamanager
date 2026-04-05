@@ -5,13 +5,14 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   BarChart3, Briefcase, CalendarDays, ClipboardList,
-  FileText, LayoutDashboard, LogOut, Moon, Settings,
+  FileText, LayoutDashboard, LogOut, Moon, Search, Settings,
   Sun, TrendingUp, Users, CalendarCheck, FolderKanban, BookText,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import { CommandPalette } from "@/components/command-palette"
 
 const navItems = [
   { href: "/dashboard",  label: "Dashboard",    icon: LayoutDashboard },
@@ -68,6 +69,20 @@ export function Sidebar() {
         ))}
       </nav>
 
+      {/* Search shortcut */}
+      <div className="px-3 pb-2">
+        <button
+          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, ctrlKey: true, bubbles: true }))}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground border bg-muted/30 hover:bg-accent transition-colors"
+        >
+          <Search className="w-3.5 h-3.5 shrink-0" />
+          <span className="flex-1 text-left text-xs">Buscar...</span>
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 font-mono text-[10px] bg-background border rounded px-1">
+            ⌘K
+          </kbd>
+        </button>
+      </div>
+
       {/* Footer */}
       <div className="px-3 pb-4 space-y-1 border-t pt-4">
         <Button
@@ -90,5 +105,8 @@ export function Sidebar() {
         </Button>
       </div>
     </aside>
+
+    {/* Global command palette — rendered once here, triggered by Cmd+K */}
+    <CommandPalette />
   )
 }

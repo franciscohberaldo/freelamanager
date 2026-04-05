@@ -16,6 +16,12 @@ export default async function LogsPage({
   const monthStart = format(new Date(year, month - 1, 1), "yyyy-MM-dd")
   const monthEnd   = format(new Date(year, month, 0),    "yyyy-MM-dd")
 
+  const { data: settings } = await supabase
+    .from("user_settings")
+    .select("hour_rounding")
+    .eq("user_id", user!.id)
+    .single()
+
   const { data: jobs } = await supabase
     .from("jobs")
     .select("id, name, hourly_rate, daily_rate, currency, clients(name)")
@@ -42,6 +48,7 @@ export default async function LogsPage({
       logs={(logs ?? []) as any}
       jobs={(jobs ?? []) as any}
       currentMonth={monthParam}
+      hourRounding={settings?.hour_rounding ?? "none"}
     />
   )
 }
