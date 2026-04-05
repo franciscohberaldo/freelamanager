@@ -5,16 +5,18 @@ import { Badge } from "@/components/ui/badge"
 import { DashboardCharts } from "./dashboard-charts"
 import { startOfMonth, endOfMonth, format } from "date-fns"
 import {
-  TrendingUp, Clock, FileText, Briefcase, AlertCircle, CheckCircle2,
+  TrendingUp, Clock, FileText, Briefcase, Target, Wallet,
 } from "lucide-react"
+import Link from "next/link"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   const now = new Date()
-  const monthStart = format(startOfMonth(now), "yyyy-MM-dd")
-  const monthEnd = format(endOfMonth(now), "yyyy-MM-dd")
+  const monthParam  = format(now, "yyyy-MM")
+  const monthStart  = format(startOfMonth(now), "yyyy-MM-dd")
+  const monthEnd    = format(endOfMonth(now), "yyyy-MM-dd")
 
   const [
     { data: monthLogs },
@@ -22,6 +24,8 @@ export default async function DashboardPage() {
     { data: recentInvoices },
     { data: upcomingEvents },
     { data: allMonthlyData },
+    { data: monthExpenses },
+    { data: goals },
   ] = await Promise.all([
     supabase
       .from("daily_logs")
@@ -53,18 +57,34 @@ export default async function DashboardPage() {
       .select("date, total_value, hours_billed")
       .eq("user_id", user!.id)
       .order("date"),
+    supabase
+      .from("expenses")
+      .select("amount")
+      .eq("user_id", user!.id)
+      .gte("date", monthStart)
+      .lte("date", monthEnd),
+    supabase
+      .from("user_goals")
+      .select("*")
+      .eq("user_id", user!.id)
+      .eq("period", monthParam),
   ])
 
-  const totalBilledMonth = monthLogs?.reduce((sum, l) => sum + l.total_value, 0) ?? 0
-  const totalHoursWorked = monthLogs?.reduce((sum, l) => sum + l.hours_worked, 0) ?? 0
-  const totalHoursBilled = monthLogs?.reduce((sum, l) => sum + l.hours_billed, 0) ?? 0
-  const pendingInvoices = recentInvoices?.filter(i => i.status === "sent").length ?? 0
+  const totalBilledMonth  = monthLogs?.reduce((sum, l) => sum + l.total_value, 0) ?? 0
+  const totalHoursWorked  = monthLogs?.reduce((sum, l) => sum + l.hours_worked, 0) ?? 0
+  const totalHoursBilled  = monthLogs?.reduce((sum, l) => sum + l.hours_billed, 0) ?? 0
+  const pendingInvoices   = recentInvoices?.filter(i => i.status === "sent").length ?? 0
+  const totalExpenses     = monthExpenses?.reduce((sum, e) => sum + e.amount, 0) ?? 0
+  const netRevenue        = totalBilledMonth - totalExpenses
+
+  const revenueGoal = goals?.find(g => g.type === "revenue_month")
+  const hoursGoal   = goals?.find(g => g.type === "hours_month")
 
   const invoiceStatusMap: Record<string, { label: string; variant: "default" | "success" | "warning" | "destructive" | "outline" }> = {
-    draft:    { label: "Rascunho", variant: "outline" },
-    sent:     { label: "Enviado",  variant: "warning" },
-    paid:     { label: "Pago",     variant: "success" },
-    overdue:  { label: "Vencido",  variant: "destructive" },
+    draft:   { label: "Rascunho", variant: "outline" },
+    sent:    { label: "Enviado",  variant: "warning" },
+    paid:    { label: "Pago",     variant: "success" },
+    overdue: { label: "Vencido",  variant: "destructive" },
   }
 
   const eventTypeIcons: Record<string, string> = {
@@ -114,12 +134,14 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Jobs ativos</CardTitle>
-            <Briefcase className="w-4 h-4 text-purple-500" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Despesas no mês</CardTitle>
+            <Wallet className="w-4 h-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{activeJobs?.length ?? 0}</p>
-            <p className="text-xs text-muted-foreground mt-1">em andamento</p>
+            <p className="text-2xl font-bold text-destructive">{formatCurrency(totalExpenses)}</p>
+            <p className={`text-xs mt-1 font-medium ${netRevenue >= 0 ? "text-green-600" : "text-red-500"}`}>
+              Líquido: {formatCurrency(netRevenue)}
+            </p>
           </CardContent>
         </Card>
 
@@ -130,10 +152,75 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{pendingInvoices}</p>
-            <p className="text-xs text-muted-foreground mt-1">aguardando pagamento</p>
+            <p className="text-xs text-muted-foreground mt-1">{activeJobs?.length ?? 0} jobs ativos</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Goals Progress */}
+      {(revenueGoal || hoursGoal) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {revenueGoal && (
+            <Card>
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Meta de receita</span>
+                  </div>
+                  <span className="text-sm font-semibold">
+                    {Math.min(Math.round((totalBilledMonth / revenueGoal.target) * 100), 100)}%
+                  </span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden mb-2">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all"
+                    style={{ width: `${Math.min((totalBilledMonth / revenueGoal.target) * 100, 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {formatCurrency(totalBilledMonth)} de {formatCurrency(revenueGoal.target)}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {hoursGoal && (
+            <Card>
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-medium">Meta de horas</span>
+                  </div>
+                  <span className="text-sm font-semibold">
+                    {Math.min(Math.round((totalHoursWorked / hoursGoal.target) * 100), 100)}%
+                  </span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden mb-2">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all"
+                    style={{ width: `${Math.min((totalHoursWorked / hoursGoal.target) * 100, 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {totalHoursWorked}h de {hoursGoal.target}h
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {!revenueGoal && !hoursGoal && (
+        <Link href="/metas" className="block">
+          <Card className="border-dashed hover:bg-accent/30 transition-colors cursor-pointer">
+            <CardContent className="py-4 flex items-center gap-3 text-muted-foreground">
+              <Target className="w-4 h-4" />
+              <p className="text-sm">Defina metas mensais de receita e horas → <span className="underline">Metas</span></p>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {/* Charts */}
       <DashboardCharts logs={allMonthlyData ?? []} />

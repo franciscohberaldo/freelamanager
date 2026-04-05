@@ -8,11 +8,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const year = parseInt(searchParams.year ?? String(new Date().getFullYear()))
+  const year      = parseInt(searchParams.year ?? String(new Date().getFullYear()))
   const yearStart = format(startOfYear(new Date(year, 0, 1)), "yyyy-MM-dd")
-  const yearEnd = format(endOfYear(new Date(year, 0, 1)), "yyyy-MM-dd")
+  const yearEnd   = format(endOfYear(new Date(year, 0, 1)),   "yyyy-MM-dd")
 
-  const [{ data: logs }, { data: invoices }, { data: jobs }] = await Promise.all([
+  const [{ data: logs }, { data: invoices }, { data: jobs }, { data: expenses }] = await Promise.all([
     supabase
       .from("daily_logs")
       .select("date, hours_worked, hours_billed, total_value, job_id")
@@ -29,39 +29,59 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
       .from("jobs")
       .select("id, name, hourly_rate, currency")
       .eq("user_id", user!.id),
+    supabase
+      .from("expenses")
+      .select("date, amount, category")
+      .eq("user_id", user!.id)
+      .gte("date", yearStart)
+      .lte("date", yearEnd),
   ])
 
-  const totalFaturado = logs?.reduce((s, l) => s + l.total_value, 0) ?? 0
-  const totalHorasTrabalhadas = logs?.reduce((s, l) => s + l.hours_worked, 0) ?? 0
-  const totalHorasFaturadas = logs?.reduce((s, l) => s + l.hours_billed, 0) ?? 0
-  const totalInvoicesPagos = invoices?.filter(i => i.status === "paid").reduce((s, i) => s + i.total, 0) ?? 0
-  const eficiencia = totalHorasTrabalhadas > 0
+  const totalFaturado          = logs?.reduce((s, l) => s + l.total_value, 0) ?? 0
+  const totalHorasTrabalhadas  = logs?.reduce((s, l) => s + l.hours_worked, 0) ?? 0
+  const totalHorasFaturadas    = logs?.reduce((s, l) => s + l.hours_billed, 0) ?? 0
+  const totalInvoicesPagos     = invoices?.filter(i => i.status === "paid").reduce((s, i) => s + i.total, 0) ?? 0
+  const totalDespesas          = expenses?.reduce((s, e) => s + e.amount, 0) ?? 0
+  const lucroLiquido           = totalFaturado - totalDespesas
+  const eficiencia             = totalHorasTrabalhadas > 0
     ? ((totalHorasFaturadas / totalHorasTrabalhadas) * 100).toFixed(1)
     : "0"
 
-  // Monthly breakdown
+  // Monthly breakdown — add expenses
   const monthly = Array.from({ length: 12 }, (_, i) => {
-    const month = String(i + 1).padStart(2, "0")
-    const key = `${year}-${month}`
-    const monthLogs = logs?.filter((l) => l.date.startsWith(key)) ?? []
+    const month    = String(i + 1).padStart(2, "0")
+    const key      = `${year}-${month}`
+    const monthLogs = logs?.filter(l => l.date.startsWith(key)) ?? []
+    const monthExp  = expenses?.filter(e => e.date.startsWith(key)) ?? []
     return {
-      month: new Date(year, i, 1).toLocaleString("pt-BR", { month: "short" }),
-      faturado: monthLogs.reduce((s, l) => s + l.total_value, 0),
+      month:            new Date(year, i, 1).toLocaleString("pt-BR", { month: "short" }),
+      faturado:         monthLogs.reduce((s, l) => s + l.total_value, 0),
       horasTrabalhadas: monthLogs.reduce((s, l) => s + l.hours_worked, 0),
-      horasFaturadas: monthLogs.reduce((s, l) => s + l.hours_billed, 0),
+      horasFaturadas:   monthLogs.reduce((s, l) => s + l.hours_billed, 0),
+      despesas:         monthExp.reduce((s, e) => s + e.amount, 0),
     }
   })
 
   // Per-job breakdown
   const byJob = jobs?.map((job) => {
-    const jobLogs = logs?.filter((l) => l.job_id === job.id) ?? []
+    const jobLogs = logs?.filter(l => l.job_id === job.id) ?? []
     return {
-      name: job.name,
+      name:     job.name,
       faturado: jobLogs.reduce((s, l) => s + l.total_value, 0),
-      horas: jobLogs.reduce((s, l) => s + l.hours_billed, 0),
+      horas:    jobLogs.reduce((s, l) => s + l.hours_billed, 0),
       currency: job.currency,
     }
   }).filter(j => j.faturado > 0).sort((a, b) => b.faturado - a.faturado)
+
+  // Expenses by category
+  const expByCategory: Record<string, number> = {}
+  expenses?.forEach(e => {
+    expByCategory[e.category] = (expByCategory[e.category] ?? 0) + e.amount
+  })
+  const catLabels: Record<string, string> = {
+    software: "Software/SaaS", hardware: "Hardware", curso: "Educação",
+    imposto: "Imposto/Contador", servico: "Serviço", outro: "Outro",
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -72,15 +92,12 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
         </div>
         <div className="flex gap-2">
           {[year - 1, year, year + 1].map((y) => (
-            <a
-              key={y}
-              href={`/reports?year=${y}`}
+            <a key={y} href={`/reports?year=${y}`}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 y === year
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-accent"
-              }`}
-            >
+              }`}>
               {y}
             </a>
           ))}
@@ -103,6 +120,24 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
         </Card>
         <Card>
           <CardContent className="py-4">
+            <p className="text-xs text-muted-foreground">Despesas totais</p>
+            <p className="text-xl font-bold mt-1 text-destructive">{formatCurrency(totalDespesas)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-xs text-muted-foreground">Lucro líquido estimado</p>
+            <p className={`text-xl font-bold mt-1 ${lucroLiquido >= 0 ? "text-green-600" : "text-destructive"}`}>
+              {formatCurrency(lucroLiquido)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Secondary KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="py-4">
             <p className="text-xs text-muted-foreground">Horas faturadas</p>
             <p className="text-xl font-bold mt-1">{totalHorasFaturadas.toFixed(1)}h</p>
           </CardContent>
@@ -112,6 +147,22 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
             <p className="text-xs text-muted-foreground">Eficiência de faturamento</p>
             <p className="text-xl font-bold mt-1">{eficiencia}%</p>
             <p className="text-xs text-muted-foreground">{totalHorasTrabalhadas.toFixed(1)}h trabalhadas</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-xs text-muted-foreground">Ticket médio/hora</p>
+            <p className="text-xl font-bold mt-1">
+              {totalHorasFaturadas > 0 ? formatCurrency(totalFaturado / totalHorasFaturadas) : "—"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-xs text-muted-foreground">Margem líquida</p>
+            <p className={`text-xl font-bold mt-1 ${lucroLiquido >= 0 ? "text-green-600" : "text-destructive"}`}>
+              {totalFaturado > 0 ? `${((lucroLiquido / totalFaturado) * 100).toFixed(1)}%` : "—"}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -136,10 +187,34 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
                       <span>{formatCurrency(job.faturado, job.currency)} · {job.horas.toFixed(1)}h</span>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
+                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Expenses by category */}
+      {totalDespesas > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Despesas por categoria</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(expByCategory).sort((a, b) => b[1] - a[1]).map(([cat, val]) => {
+                const pct = totalDespesas > 0 ? (val / totalDespesas) * 100 : 0
+                return (
+                  <div key={cat}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium">{catLabels[cat] ?? cat}</span>
+                      <span className="text-destructive">{formatCurrency(val)} · {pct.toFixed(0)}%</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-destructive/60 rounded-full transition-all" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                 )

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import {
   BarChart3, Briefcase, CalendarDays, ClipboardList,
   FileText, LayoutDashboard, LogOut, Moon, Search, Settings,
-  Sun, TrendingUp, Users, CalendarCheck, FolderKanban, BookText,
+  Sun, TrendingUp, Users, CalendarCheck, FolderKanban, BookText, Wallet, Target,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,8 @@ const navItems = [
   { href: "/jobs",       label: "Jobs",          icon: Briefcase },
   { href: "/clients",    label: "Clientes",      icon: Users },
   { href: "/invoices",   label: "Invoices",      icon: FileText },
+  { href: "/despesas",        label: "Despesas",          icon: Wallet },
+  { href: "/metas",           label: "Metas",             icon: Target },
   { href: "/projetos",        label: "Projetos",          icon: FolderKanban },
   { href: "/agenda",          label: "Acomp. de Jobs",    icon: CalendarDays },
   { href: "/diario",          label: "Diário",            icon: BookText },

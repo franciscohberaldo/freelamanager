@@ -19,11 +19,23 @@ export default async function InvoicesPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: invoices } = await supabase
-    .from("invoices")
-    .select("*, jobs(name, currency, clients(name, email))")
-    .eq("user_id", user!.id)
-    .order("created_at", { ascending: false })
+  const [{ data: invoices }, { data: payments }] = await Promise.all([
+    supabase
+      .from("invoices")
+      .select("*, jobs(name, currency, clients(name, email))")
+      .eq("user_id", user!.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("invoice_payments")
+      .select("invoice_id, amount")
+      .eq("user_id", user!.id),
+  ])
+
+  // Build map of invoice_id → total paid
+  const paidMap: Record<string, number> = {}
+  payments?.forEach(p => {
+    paidMap[p.invoice_id] = (paidMap[p.invoice_id] ?? 0) + p.amount
+  })
 
   const { data: jobs } = await supabase
     .from("jobs")
@@ -109,6 +121,11 @@ export default async function InvoicesPage() {
                       Pago em {formatDate(inv.paid_at)}
                     </p>
                   )}
+                  {paidMap[inv.id] && paidMap[inv.id] < inv.total && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                      Parcial: {formatCurrency(paidMap[inv.id], inv.currency)} de {formatCurrency(inv.total, inv.currency)}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-lg font-bold">{formatCurrency(inv.total, inv.currency)}</p>
@@ -118,7 +135,7 @@ export default async function InvoicesPage() {
                     </p>
                   )}
                 </div>
-                <InvoiceActions invoice={inv} clientEmail={job?.clients?.email ?? null} />
+                <InvoiceActions invoice={inv} clientEmail={job?.clients?.email ?? null} paidAmount={paidMap[inv.id] ?? 0} />
               </CardContent>
             </Card>
           )

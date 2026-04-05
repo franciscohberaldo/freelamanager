@@ -12,7 +12,8 @@
       "Bash(vercel --yes --name freela-manager)",
       "Bash(vercel env:*)",
       "Bash(npx tsc:*)",
-      "Bash(gh --version)"
+      "Bash(gh --version)",
+      "Bash(git add:*)"
     ],
     "additionalDirectories": [
       "d:\\FreelancerAdmin\\src\\app\\(app)\\projetos"
