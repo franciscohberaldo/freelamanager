@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
@@ -11,9 +11,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { downloadCsv } from "@/lib/csv"
-import { format, parseISO, subMonths, addMonths } from "date-fns"
+import { format, parseISO, subMonths, addMonths, isValid, parse } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Download, Loader2, Receipt } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Download, Upload, Loader2, Receipt } from "lucide-react"
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts"
 
 interface Expense {
@@ -145,10 +145,235 @@ function ExpenseDialog({
   )
 }
 
+// ─── CSV Import Dialog ──────────────────────────────────────────────────────
+
+interface CsvRow { [key: string]: string }
+
+function parseCsvText(text: string): { headers: string[]; rows: CsvRow[] } {
+  const lines = text.replace(/\r/g, "").split("\n").filter(Boolean)
+  if (lines.length < 2) return { headers: [], rows: [] }
+  const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""))
+  const rows = lines.slice(1).map(line => {
+    const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""))
+    return Object.fromEntries(headers.map((h, i) => [h, cols[i] ?? ""]))
+  })
+  return { headers, rows }
+}
+
+function guessDate(val: string): string {
+  // Try dd/MM/yyyy, yyyy-MM-dd, MM/dd/yyyy
+  const fmts = ["dd/MM/yyyy", "yyyy-MM-dd", "MM/dd/yyyy", "d/M/yyyy", "dd-MM-yyyy"]
+  for (const f of fmts) {
+    const d = parse(val, f, new Date())
+    if (isValid(d)) return format(d, "yyyy-MM-dd")
+  }
+  return format(new Date(), "yyyy-MM-dd")
+}
+
+function guessAmount(val: string): number {
+  // Remove currency symbols and thousands separators
+  const clean = val.replace(/[^0-9,.-]/g, "").replace(",", ".")
+  return parseFloat(clean) || 0
+}
+
+function ImportDialog({ open, onClose, onImported, currentMonth }: {
+  open: boolean; onClose: () => void; onImported: () => void; currentMonth: string
+}) {
+  const supabase = createClient()
+  const fileRef  = useRef<HTMLInputElement>(null)
+  const [step, setStep] = useState<"upload" | "map" | "preview">("upload")
+  const [headers, setHeaders]   = useState<string[]>([])
+  const [rows, setRows]         = useState<CsvRow[]>([])
+  const [loading, setLoading]   = useState(false)
+  const [colMap, setColMap]     = useState({ date: "", amount: "", description: "", category: "", notes: "" })
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const text = ev.target?.result as string
+      const { headers: h, rows: r } = parseCsvText(text)
+      if (!h.length) { toast.error("CSV inválido ou sem dados"); return }
+      setHeaders(h)
+      setRows(r)
+      // Auto-guess columns
+      const lower = h.map(x => x.toLowerCase())
+      setColMap({
+        date:        h[lower.findIndex(x => x.includes("dat") || x.includes("data"))] ?? "",
+        amount:      h[lower.findIndex(x => x.includes("val") || x.includes("amount") || x.includes("valor"))] ?? "",
+        description: h[lower.findIndex(x => x.includes("desc") || x.includes("hist") || x.includes("memo"))] ?? "",
+        category:    h[lower.findIndex(x => x.includes("cat"))] ?? "",
+        notes:       h[lower.findIndex(x => x.includes("obs") || x.includes("note") || x.includes("memo"))] ?? "",
+      })
+      setStep("map")
+    }
+    reader.readAsText(file, "UTF-8")
+  }
+
+  const preview = useMemo(() => {
+    if (!colMap.date || !colMap.amount || !colMap.description) return []
+    return rows.slice(0, 5).map(r => ({
+      date:        guessDate(r[colMap.date] ?? ""),
+      amount:      guessAmount(r[colMap.amount] ?? ""),
+      description: r[colMap.description] ?? "",
+      category:    r[colMap.category] ? (CATEGORIES.find(c => r[colMap.category]?.toLowerCase().includes(c.value))?.value ?? "outro") : "outro",
+      notes:       colMap.notes ? r[colMap.notes] ?? "" : "",
+    })).filter(r => r.amount > 0)
+  }, [rows, colMap])
+
+  async function handleImport() {
+    if (!colMap.date || !colMap.amount || !colMap.description) {
+      toast.error("Mapeie as colunas obrigatórias"); return
+    }
+    setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const toInsert = rows.map(r => ({
+      user_id:     user!.id,
+      date:        guessDate(r[colMap.date] ?? ""),
+      amount:      guessAmount(r[colMap.amount] ?? ""),
+      description: r[colMap.description] ?? "Importado",
+      category:    r[colMap.category]
+        ? (CATEGORIES.find(c => r[colMap.category]?.toLowerCase().includes(c.value))?.value ?? "outro")
+        : "outro",
+      notes:       colMap.notes ? r[colMap.notes] ?? null : null,
+    })).filter(r => r.amount > 0)
+
+    if (!toInsert.length) { toast.error("Nenhum item válido"); setLoading(false); return }
+
+    const { error } = await supabase.from("expenses").insert(toInsert)
+    if (error) { toast.error("Erro ao importar: " + error.message); setLoading(false); return }
+
+    toast.success(`${toInsert.length} despesas importadas!`)
+    onImported()
+    onClose()
+    setStep("upload")
+    setLoading(false)
+  }
+
+  function close() {
+    onClose()
+    setStep("upload")
+    setRows([])
+    setHeaders([])
+  }
+
+  const ColSelect = ({ field, label, required }: { field: keyof typeof colMap; label: string; required?: boolean }) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}{required && " *"}</Label>
+      <Select value={colMap[field] || "none"} onValueChange={v => setColMap(m => ({ ...m, [field]: v === "none" ? "" : v }))}>
+        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">—</SelectItem>
+          {headers.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && close()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Importar despesas via CSV</DialogTitle>
+          <DialogDescription className="sr-only">Importar extrato bancário ou planilha de despesas</DialogDescription>
+        </DialogHeader>
+
+        {step === "upload" && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Importe um extrato bancário ou planilha de despesas em formato CSV.
+              O sistema irá mapear as colunas automaticamente.
+            </p>
+            <div
+              className="border-2 border-dashed rounded-xl p-10 text-center cursor-pointer hover:bg-muted/30 transition-colors"
+              onClick={() => fileRef.current?.click()}
+            >
+              <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
+              <p className="text-sm font-medium">Clique para selecionar o arquivo CSV</p>
+              <p className="text-xs text-muted-foreground mt-1">ou arraste aqui</p>
+            </div>
+            <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
+          </div>
+        )}
+
+        {step === "map" && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {rows.length} linhas encontradas. Mapeie as colunas:
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <ColSelect field="date"        label="Data"      required />
+              <ColSelect field="amount"      label="Valor"     required />
+              <ColSelect field="description" label="Descrição" required />
+              <ColSelect field="category"    label="Categoria" />
+              <ColSelect field="notes"       label="Notas" />
+            </div>
+            <Button size="sm" onClick={() => setStep("preview")}
+              disabled={!colMap.date || !colMap.amount || !colMap.description}>
+              Visualizar preview →
+            </Button>
+          </div>
+        )}
+
+        {step === "preview" && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Preview dos primeiros {preview.length} itens válidos (de {rows.length} linhas):
+            </p>
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b bg-muted/30 text-muted-foreground">
+                    <th className="text-left px-3 py-2 font-medium">Data</th>
+                    <th className="text-left px-3 py-2 font-medium">Descrição</th>
+                    <th className="text-left px-3 py-2 font-medium">Categoria</th>
+                    <th className="text-right px-3 py-2 font-medium">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.map((r, i) => (
+                    <tr key={i} className="border-b">
+                      <td className="px-3 py-2">{r.date}</td>
+                      <td className="px-3 py-2 max-w-[200px] truncate">{r.description}</td>
+                      <td className="px-3 py-2">{CAT_MAP[r.category]?.label ?? r.category}</td>
+                      <td className="px-3 py-2 text-right font-medium text-destructive">{formatMoney(r.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Total a importar: {rows.filter(r => guessAmount(r[colMap.amount] ?? "") > 0).length} registros
+            </p>
+          </div>
+        )}
+
+        <DialogFooter>
+          {step !== "upload" && (
+            <Button variant="outline" size="sm" onClick={() => setStep(step === "preview" ? "map" : "upload")}>
+              ← Voltar
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={close}>Cancelar</Button>
+          {step === "preview" && (
+            <Button size="sm" onClick={handleImport} disabled={loading}>
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              Importar {rows.filter(r => guessAmount(r[colMap.amount] ?? "") > 0).length} despesas
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function DespesasClient({ expenses, yearExpenses, currentMonth }: Props) {
   const router = useRouter()
   const supabase = createClient()
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogOpen, setDialogOpen]   = useState(false)
+  const [importOpen, setImportOpen]   = useState(false)
   const [editing, setEditing] = useState<Expense | undefined>()
 
   const currentDate = parseISO(currentMonth + "-01")
@@ -221,6 +446,9 @@ export function DespesasClient({ expenses, yearExpenses, currentMonth }: Props) 
           <Button variant="outline" size="sm" className="gap-2" onClick={exportCsv} disabled={!expenses.length}>
             <Download className="w-4 h-4" /> CSV
           </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportOpen(true)}>
+            <Upload className="w-4 h-4" /> Importar
+          </Button>
           <div className="flex items-center border rounded-lg h-9">
             <Button variant="ghost" size="icon" className="h-9 w-8" onClick={() => router.push(`/despesas?month=${prevMonth}`)}>
               <ChevronLeft className="w-4 h-4" />
@@ -261,8 +489,8 @@ export function DespesasClient({ expenses, yearExpenses, currentMonth }: Props) 
                     </Pie>
                     <Tooltip formatter={(v: number) => formatMoney(v)} />
                     <Legend layout="vertical" align="right" verticalAlign="middle"
-                      formatter={(val, entry: {payload?: {value: number}}) =>
-                        `${val} — ${formatMoney(entry?.payload?.value ?? 0)}`
+                      formatter={(val, entry) =>
+                        `${val} — ${formatMoney((entry as any)?.payload?.value ?? 0)}`
                       }
                     />
                   </PieChart>
@@ -371,6 +599,13 @@ export function DespesasClient({ expenses, yearExpenses, currentMonth }: Props) 
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         onSaved={() => { setDialogOpen(false); router.refresh() }}
+      />
+
+      <ImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => router.refresh()}
+        currentMonth={currentMonth}
       />
     </div>
   )

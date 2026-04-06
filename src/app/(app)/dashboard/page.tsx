@@ -3,7 +3,8 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { DashboardCharts } from "./dashboard-charts"
-import { startOfMonth, endOfMonth, format } from "date-fns"
+import { ForecastChart } from "./forecast-chart"
+import { startOfMonth, endOfMonth, format, subMonths } from "date-fns"
 import {
   TrendingUp, Clock, FileText, Briefcase, Target, Wallet,
 } from "lucide-react"
@@ -18,6 +19,8 @@ export default async function DashboardPage() {
   const monthStart  = format(startOfMonth(now), "yyyy-MM-dd")
   const monthEnd    = format(endOfMonth(now), "yyyy-MM-dd")
 
+  const forecastStart = format(subMonths(now, 8), "yyyy-MM-dd")
+
   const [
     { data: monthLogs },
     { data: activeJobs },
@@ -26,6 +29,7 @@ export default async function DashboardPage() {
     { data: allMonthlyData },
     { data: monthExpenses },
     { data: goals },
+    { data: forecastLogs },
   ] = await Promise.all([
     supabase
       .from("daily_logs")
@@ -68,6 +72,12 @@ export default async function DashboardPage() {
       .select("*")
       .eq("user_id", user!.id)
       .eq("period", monthParam),
+    supabase
+      .from("daily_logs")
+      .select("date, total_value")
+      .eq("user_id", user!.id)
+      .gte("date", forecastStart)
+      .order("date"),
   ])
 
   const totalBilledMonth  = monthLogs?.reduce((sum, l) => sum + l.total_value, 0) ?? 0
@@ -224,6 +234,24 @@ export default async function DashboardPage() {
 
       {/* Charts */}
       <DashboardCharts logs={allMonthlyData ?? []} />
+
+      {/* Revenue Forecast */}
+      {(forecastLogs?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-violet-500" />
+              Previsão de receita — próximos 3 meses
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ForecastChart logs={forecastLogs ?? []} />
+            <p className="text-xs text-muted-foreground mt-3">
+              Projeção baseada em regressão linear dos últimos 6 meses de faturamento.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Bottom grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

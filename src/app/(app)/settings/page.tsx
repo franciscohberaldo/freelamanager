@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { SettingsForm } from "./settings-form"
 import { CompanyForm } from "./company-form"
+import { ExportButton } from "./export-button"
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -66,6 +67,20 @@ export default async function SettingsPage() {
             <span>Resend (envio de e-mail)</span>
             <span className="text-muted-foreground text-xs">Configure RESEND_API_KEY no .env</span>
           </div>
+          <div className="flex justify-between items-center text-sm">
+            <span>Claude AI (descrição de invoices)</span>
+            <span className="text-muted-foreground text-xs">Configure ANTHROPIC_API_KEY no .env</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Backup de dados</CardTitle>
+          <CardDescription>Exporte todos os seus dados como JSON para backup ou migração</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ExportButton />
         </CardContent>
       </Card>
     </div>

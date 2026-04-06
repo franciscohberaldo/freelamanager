@@ -45,6 +45,7 @@ export function Sidebar() {
   }
 
   return (
+    <>
     <aside className="flex flex-col w-64 border-r bg-card min-h-screen">
       {/* Logo */}
       <div className="flex items-center gap-2 px-6 py-5 border-b">
@@ -112,5 +113,6 @@ export function Sidebar() {
 
     {/* Global command palette — rendered once here, triggered by Cmd+K */}
     <CommandPalette />
+    </>
   )
 }

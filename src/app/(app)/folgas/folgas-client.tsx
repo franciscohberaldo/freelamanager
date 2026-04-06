@@ -189,7 +189,7 @@ export function FolgasClient({ timeOff, yearTimeOff, currentMonth }: Props) {
                   today ? "bg-blue-50/50 dark:bg-blue-950/20" : "",
                   off && inMonth ? "ring-1 ring-inset" : "",
                 ].join(" ")}
-                style={off && inMonth ? { ringColor: t?.color } : undefined}
+                style={off && inMonth ? { "--ring-color": t?.color } as React.CSSProperties : undefined}
               >
                 <div className={[
                   "text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full mb-1",

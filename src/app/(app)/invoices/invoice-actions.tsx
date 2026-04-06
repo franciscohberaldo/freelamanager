@@ -13,7 +13,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Download, Send, CheckCircle2, Loader2, DollarSign } from "lucide-react"
+import { MoreHorizontal, Download, Send, CheckCircle2, Loader2, DollarSign, Sparkles, Copy } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
 import { format } from "date-fns"
 import type { Invoice } from "@/lib/supabase/types"
 import type { InvoiceLang } from "@/lib/invoice-i18n"
@@ -145,9 +146,101 @@ function PaymentDialog({
   )
 }
 
+function AiDescriptionDialog({
+  invoiceId, open, onClose,
+}: { invoiceId: string; open: boolean; onClose: () => void }) {
+  const supabase = createClient()
+  const router   = useRouter()
+  const [loading, setLoading]           = useState(false)
+  const [description, setDescription]   = useState("")
+  const [saving, setSaving]             = useState(false)
+
+  async function generate() {
+    setLoading(true)
+    const res  = await fetch("/api/invoices/ai-description", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invoiceId }),
+    })
+    const data = await res.json()
+    if (res.ok) setDescription(data.description)
+    else toast.error(data.error ?? "Erro ao gerar descrição")
+    setLoading(false)
+  }
+
+  async function saveToNotes() {
+    setSaving(true)
+    const { error } = await supabase.from("invoices").update({ notes: description }).eq("id", invoiceId)
+    if (error) toast.error("Erro ao salvar")
+    else { toast.success("Descrição salva nas notas!"); router.refresh(); onClose() }
+    setSaving(false)
+  }
+
+  function copyToClipboard() {
+    navigator.clipboard.writeText(description)
+    toast.success("Copiado!")
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-violet-500" />
+            Descrição gerada por IA
+          </DialogTitle>
+          <DialogDescription className="sr-only">Gerar descrição do invoice com IA</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          {!description && !loading && (
+            <p className="text-sm text-muted-foreground">
+              Clique em "Gerar" para criar uma descrição profissional baseada nos itens do invoice.
+            </p>
+          )}
+          {loading && (
+            <div className="flex items-center justify-center py-8 gap-3 text-muted-foreground">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm">Gerando com Claude AI...</span>
+            </div>
+          )}
+          {description && !loading && (
+            <Textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={6}
+              className="text-sm"
+            />
+          )}
+        </div>
+        <DialogFooter className="gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>Fechar</Button>
+          {description && (
+            <>
+              <Button type="button" variant="outline" onClick={copyToClipboard}>
+                <Copy className="w-4 h-4" /> Copiar
+              </Button>
+              <Button type="button" onClick={saveToNotes} disabled={saving}>
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                Salvar em notas
+              </Button>
+            </>
+          )}
+          {!description && (
+            <Button type="button" onClick={generate} disabled={loading}>
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              <Sparkles className="w-4 h-4" /> Gerar
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) {
   const [loading, setLoading]     = useState(false)
   const [payOpen, setPayOpen]     = useState(false)
+  const [aiOpen, setAiOpen]       = useState(false)
   const router   = useRouter()
   const supabase = createClient()
 
@@ -225,6 +318,12 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
             🇺🇸 English
           </DropdownMenuItem>
 
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setAiOpen(true)} className="text-violet-600">
+            <Sparkles className="w-4 h-4" />
+            Gerar descrição com IA
+          </DropdownMenuItem>
+
           {invoice.status !== "paid" && (
             <>
               <DropdownMenuSeparator />
@@ -247,6 +346,12 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
         paidSoFar={paidAmount}
         open={payOpen}
         onClose={() => setPayOpen(false)}
+      />
+
+      <AiDescriptionDialog
+        invoiceId={invoice.id}
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
       />
     </>
   )

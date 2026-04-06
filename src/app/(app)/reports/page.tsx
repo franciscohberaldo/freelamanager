@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { formatCurrency } from "@/lib/utils"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ReportsCharts } from "./reports-charts"
-import { format, startOfYear, endOfYear } from "date-fns"
+import { Card, CardContent } from "@/components/ui/card"
+import { ReportsClient } from "./reports-client"
+import { format, startOfYear, endOfYear, subMonths, startOfMonth, endOfMonth } from "date-fns"
 
 export default async function ReportsPage({ searchParams }: { searchParams: { year?: string } }) {
   const supabase = await createClient()
@@ -12,7 +12,20 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
   const yearStart = format(startOfYear(new Date(year, 0, 1)), "yyyy-MM-dd")
   const yearEnd   = format(endOfYear(new Date(year, 0, 1)),   "yyyy-MM-dd")
 
-  const [{ data: logs }, { data: invoices }, { data: jobs }, { data: expenses }] = await Promise.all([
+  // Last 6 months for client trend
+  const now = new Date()
+  const trend3Start  = format(startOfMonth(subMonths(now, 3)), "yyyy-MM-dd")
+  const trend3Mid    = format(startOfMonth(subMonths(now, 3)), "yyyy-MM-dd")
+  const trendPrev3Start = format(startOfMonth(subMonths(now, 6)), "yyyy-MM-dd")
+
+  const [
+    { data: logs },
+    { data: invoices },
+    { data: jobs },
+    { data: expenses },
+    { data: allInvoices },
+    { data: clients },
+  ] = await Promise.all([
     supabase
       .from("daily_logs")
       .select("date, hours_worked, hours_billed, total_value, job_id")
@@ -27,7 +40,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
       .lte("period_start", yearEnd),
     supabase
       .from("jobs")
-      .select("id, name, hourly_rate, currency")
+      .select("id, name, hourly_rate, currency, contract_value, clients(id, name, company)")
       .eq("user_id", user!.id),
     supabase
       .from("expenses")
@@ -35,19 +48,29 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
       .eq("user_id", user!.id)
       .gte("date", yearStart)
       .lte("date", yearEnd),
+    // All time invoices for LTV
+    supabase
+      .from("invoices")
+      .select("total, status, period_start, job_id")
+      .eq("user_id", user!.id),
+    supabase
+      .from("clients")
+      .select("id, name, company")
+      .eq("user_id", user!.id),
   ])
 
-  const totalFaturado          = logs?.reduce((s, l) => s + l.total_value, 0) ?? 0
-  const totalHorasTrabalhadas  = logs?.reduce((s, l) => s + l.hours_worked, 0) ?? 0
-  const totalHorasFaturadas    = logs?.reduce((s, l) => s + l.hours_billed, 0) ?? 0
-  const totalInvoicesPagos     = invoices?.filter(i => i.status === "paid").reduce((s, i) => s + i.total, 0) ?? 0
-  const totalDespesas          = expenses?.reduce((s, e) => s + e.amount, 0) ?? 0
-  const lucroLiquido           = totalFaturado - totalDespesas
-  const eficiencia             = totalHorasTrabalhadas > 0
+  // ── Summary KPIs ──────────────────────────────────────────────────
+  const totalFaturado         = logs?.reduce((s, l) => s + l.total_value, 0) ?? 0
+  const totalHorasTrabalhadas = logs?.reduce((s, l) => s + l.hours_worked, 0) ?? 0
+  const totalHorasFaturadas   = logs?.reduce((s, l) => s + l.hours_billed, 0) ?? 0
+  const totalInvoicesPagos    = invoices?.filter(i => i.status === "paid").reduce((s, i) => s + i.total, 0) ?? 0
+  const totalDespesas         = expenses?.reduce((s, e) => s + e.amount, 0) ?? 0
+  const lucroLiquido          = totalFaturado - totalDespesas
+  const eficiencia            = totalHorasTrabalhadas > 0
     ? ((totalHorasFaturadas / totalHorasTrabalhadas) * 100).toFixed(1)
     : "0"
 
-  // Monthly breakdown — add expenses
+  // ── Monthly data ──────────────────────────────────────────────────
   const monthly = Array.from({ length: 12 }, (_, i) => {
     const month    = String(i + 1).padStart(2, "0")
     const key      = `${year}-${month}`
@@ -62,8 +85,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
     }
   })
 
-  // Per-job breakdown
-  const byJob = jobs?.map((job) => {
+  // ── Per-job summary ───────────────────────────────────────────────
+  const byJob = jobs?.map(job => {
     const jobLogs = logs?.filter(l => l.job_id === job.id) ?? []
     return {
       name:     job.name,
@@ -71,17 +94,76 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
       horas:    jobLogs.reduce((s, l) => s + l.hours_billed, 0),
       currency: job.currency,
     }
-  }).filter(j => j.faturado > 0).sort((a, b) => b.faturado - a.faturado)
+  }).filter(j => j.faturado > 0).sort((a, b) => b.faturado - a.faturado) ?? []
 
-  // Expenses by category
+  // ── Expenses by category ─────────────────────────────────────────
   const expByCategory: Record<string, number> = {}
-  expenses?.forEach(e => {
-    expByCategory[e.category] = (expByCategory[e.category] ?? 0) + e.amount
+  expenses?.forEach(e => { expByCategory[e.category] = (expByCategory[e.category] ?? 0) + e.amount })
+
+  // ── Rentabilidade por job ─────────────────────────────────────────
+  const jobsRent = jobs?.map(job => {
+    const jobLogs = logs?.filter(l => l.job_id === job.id) ?? []
+    const client  = job.clients as unknown as { id: string; name: string; company: string | null } | null
+    return {
+      id:            job.id,
+      name:          job.name,
+      clientName:    client?.name ?? "",
+      status:        "active",
+      currency:      job.currency,
+      hourlyRate:    job.hourly_rate,
+      contractValue: job.contract_value ?? null,
+      horasWorked:   jobLogs.reduce((s, l) => s + l.hours_worked, 0),
+      horasBilled:   jobLogs.reduce((s, l) => s + l.hours_billed, 0),
+      faturado:      jobLogs.reduce((s, l) => s + l.total_value, 0),
+    }
+  }) ?? []
+
+  // ── Client LTV ────────────────────────────────────────────────────
+  // Build jobId → clientId map
+  const jobClientMap: Record<string, string> = {}
+  jobs?.forEach(job => {
+    const client = job.clients as unknown as { id: string } | null
+    if (client) jobClientMap[job.id] = client.id
   })
-  const catLabels: Record<string, string> = {
-    software: "Software/SaaS", hardware: "Hardware", curso: "Educação",
-    imposto: "Imposto/Contador", servico: "Serviço", outro: "Outro",
-  }
+
+  // Map clientId → job count
+  const clientJobCount: Record<string, number> = {}
+  jobs?.forEach(job => {
+    const cid = jobClientMap[job.id]
+    if (cid) clientJobCount[cid] = (clientJobCount[cid] ?? 0) + 1
+  })
+
+  const clientsLTV = clients?.map(cl => {
+    const clInvoices = allInvoices?.filter(i => jobClientMap[i.job_id] === cl.id) ?? []
+    const paidInvoices = clInvoices.filter(i => i.status === "paid")
+    const totalRevenue = paidInvoices.reduce((s, i) => s + i.total, 0)
+    const ticketMedio  = paidInvoices.length > 0 ? totalRevenue / paidInvoices.length : 0
+    const dates        = paidInvoices.map(i => i.period_start).sort()
+    const firstDate    = dates[0] ?? null
+    const lastDate     = dates[dates.length - 1] ?? null
+
+    // Trend: last 3 months vs prev 3 months (by period_start)
+    const last3 = paidInvoices
+      .filter(i => i.period_start >= format(subMonths(now, 3), "yyyy-MM-dd"))
+      .reduce((s, i) => s + i.total, 0)
+    const prev3 = paidInvoices
+      .filter(i => i.period_start >= format(subMonths(now, 6), "yyyy-MM-dd") && i.period_start < format(subMonths(now, 3), "yyyy-MM-dd"))
+      .reduce((s, i) => s + i.total, 0)
+
+    return {
+      id:           cl.id,
+      name:         cl.name,
+      company:      cl.company,
+      totalRevenue,
+      jobCount:     clientJobCount[cl.id] ?? 0,
+      invoiceCount: paidInvoices.length,
+      firstDate,
+      lastDate,
+      ticketMedio,
+      last3,
+      prev3,
+    }
+  }).filter(c => c.totalRevenue > 0) ?? []
 
   return (
     <div className="p-6 space-y-6">
@@ -91,7 +173,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
           <p className="text-muted-foreground text-sm">Visão anual — {year}</p>
         </div>
         <div className="flex gap-2">
-          {[year - 1, year, year + 1].map((y) => (
+          {[year - 1, year, year + 1].map(y => (
             <a key={y} href={`/reports?year=${y}`}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 y === year
@@ -167,62 +249,19 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
         </Card>
       </div>
 
-      {/* Charts */}
-      <ReportsCharts monthly={monthly} />
-
-      {/* Per job */}
-      {byJob && byJob.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Faturamento por Job</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {byJob.map((job) => {
-                const pct = totalFaturado > 0 ? (job.faturado / totalFaturado) * 100 : 0
-                return (
-                  <div key={job.name}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium">{job.name}</span>
-                      <span>{formatCurrency(job.faturado, job.currency)} · {job.horas.toFixed(1)}h</span>
-                    </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Expenses by category */}
-      {totalDespesas > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Despesas por categoria</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {Object.entries(expByCategory).sort((a, b) => b[1] - a[1]).map(([cat, val]) => {
-                const pct = totalDespesas > 0 ? (val / totalDespesas) * 100 : 0
-                return (
-                  <div key={cat}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium">{catLabels[cat] ?? cat}</span>
-                      <span className="text-destructive">{formatCurrency(val)} · {pct.toFixed(0)}%</span>
-                    </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-destructive/60 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Tabbed content */}
+      <ReportsClient
+        year={year}
+        monthly={monthly}
+        byJob={byJob}
+        expByCategory={expByCategory}
+        totalFaturado={totalFaturado}
+        totalDespesas={totalDespesas}
+        totalHorasFaturadas={totalHorasFaturadas}
+        jobs={jobsRent}
+        clients={clientsLTV}
+        logs={(logs ?? []).map(l => ({ date: l.date, hours_worked: l.hours_worked }))}
+      />
     </div>
   )
 }
