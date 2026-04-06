@@ -13,7 +13,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Download, Send, CheckCircle2, Loader2, DollarSign, Sparkles, Copy } from "lucide-react"
+import { MoreHorizontal, Download, Send, CheckCircle2, Loader2, DollarSign, Sparkles, Copy, CreditCard } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { format } from "date-fns"
 import type { Invoice } from "@/lib/supabase/types"
@@ -238,9 +238,10 @@ function AiDescriptionDialog({
 }
 
 export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) {
-  const [loading, setLoading]     = useState(false)
-  const [payOpen, setPayOpen]     = useState(false)
-  const [aiOpen, setAiOpen]       = useState(false)
+  const [loading, setLoading]         = useState(false)
+  const [payOpen, setPayOpen]         = useState(false)
+  const [aiOpen, setAiOpen]           = useState(false)
+  const [linkLoading, setLinkLoading] = useState(false)
   const router   = useRouter()
   const supabase = createClient()
 
@@ -270,6 +271,24 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
       toast.error(data.error ?? "Erro ao enviar e-mail")
     }
     setLoading(false)
+  }
+
+  async function generatePaymentLink() {
+    setLinkLoading(true)
+    const res = await fetch("/api/invoices/payment-link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invoiceId: invoice.id }),
+    })
+    const data = await res.json()
+    if (res.ok && data.url) {
+      navigator.clipboard.writeText(data.url)
+      toast.success("Link de pagamento copiado!")
+      window.open(data.url, "_blank")
+    } else {
+      toast.error(data.error ?? "Erro ao gerar link")
+    }
+    setLinkLoading(false)
   }
 
   async function downloadPdf(lang: InvoiceLang) {
@@ -319,6 +338,10 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={generatePaymentLink} disabled={linkLoading} className="text-emerald-600">
+            {linkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+            Gerar link de pagamento
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setAiOpen(true)} className="text-violet-600">
             <Sparkles className="w-4 h-4" />
             Gerar descrição com IA

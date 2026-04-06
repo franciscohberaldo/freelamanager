@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
+import { SwRegister } from "@/components/sw-register"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -36,6 +37,7 @@ export default function RootLayout({
         >
           {children}
           <Toaster richColors position="top-right" />
+          <SwRegister />
         </ThemeProvider>
       </body>
     </html>

@@ -3,16 +3,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { SettingsForm } from "./settings-form"
 import { CompanyForm } from "./company-form"
 import { ExportButton } from "./export-button"
+import { ApiKeysPanel } from "./api-keys-panel"
+import { WebhooksPanel } from "./webhooks-panel"
 
 export default async function SettingsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: settings } = await supabase
-    .from("user_settings")
-    .select("*")
-    .eq("user_id", user!.id)
-    .single()
+  const [{ data: settings }, { data: apiKeys }, { data: webhooks }] = await Promise.all([
+    supabase.from("user_settings").select("*").eq("user_id", user!.id).single(),
+    supabase.from("api_keys").select("id, name, key_prefix, is_active, last_used, created_at")
+      .eq("user_id", user!.id).order("created_at", { ascending: false }),
+    supabase.from("webhooks").select("id, name, url, events, is_active, last_fired, secret")
+      .eq("user_id", user!.id).order("created_at", { ascending: false }),
+  ])
 
   return (
     <div className="p-6 space-y-6 max-w-2xl">
@@ -55,6 +59,28 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">API Keys</CardTitle>
+          <CardDescription>
+            Gere chaves para acessar seus dados via <code className="text-xs">GET /api/v1/*</code>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ApiKeysPanel apiKeys={apiKeys ?? []} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Webhooks</CardTitle>
+          <CardDescription>Envie eventos para URLs externas (Zapier, Make, Slack, etc.)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <WebhooksPanel webhooks={webhooks ?? []} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">Integrações</CardTitle>
           <CardDescription>Serviços externos conectados ao sistema</CardDescription>
         </CardHeader>
@@ -70,6 +96,10 @@ export default async function SettingsPage() {
           <div className="flex justify-between items-center text-sm">
             <span>Claude AI (descrição de invoices)</span>
             <span className="text-muted-foreground text-xs">Configure ANTHROPIC_API_KEY no .env</span>
+          </div>
+          <div className="flex justify-between items-center text-sm">
+            <span>Stripe (link de pagamento)</span>
+            <span className="text-muted-foreground text-xs">Configure STRIPE_SECRET_KEY no .env</span>
           </div>
         </CardContent>
       </Card>
