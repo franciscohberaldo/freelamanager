@@ -44,14 +44,16 @@ export function TaskDialog({ children, jobs, open, onOpenChange, task }: Props) 
   const isEdit = !!task
 
   const [form, setForm] = useState({
-    job_id:      task?.job_id ?? "",
-    title:       task?.title ?? "",
-    description: task?.description ?? "",
-    task_status: task?.task_status ?? "working_on_it",
-    priority:    task?.priority ?? "",
-    budget:      task?.budget?.toString() ?? "",
-    start_date:  task?.start_date ?? "",
-    event_date:  task?.event_date ?? format(new Date(), "yyyy-MM-dd"),
+    job_id:         task?.job_id ?? "",
+    title:          task?.title ?? "",
+    description:    task?.description ?? "",
+    task_status:    task?.task_status ?? "working_on_it",
+    priority:       task?.priority ?? "",
+    budget:         task?.budget?.toString() ?? "",
+    start_date:     task?.start_date ?? "",
+    event_date:     task?.event_date ?? format(new Date(), "yyyy-MM-dd"),
+    recurrence:     (task as any)?.recurrence ?? "none",
+    recurrence_end: (task as any)?.recurrence_end ?? "",
   })
 
   function upd(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
@@ -62,16 +64,18 @@ export function TaskDialog({ children, jobs, open, onOpenChange, task }: Props) 
     setLoading(true)
 
     const payload = {
-      job_id:      form.job_id || null,
-      title:       form.title,
-      description: form.description || null,
-      type:        "milestone" as const,
-      task_status: form.task_status as AgendaEvent["task_status"],
-      priority:    (form.priority || null) as AgendaEvent["priority"],
-      budget:      form.budget ? parseFloat(form.budget) : null,
-      start_date:  form.start_date || null,
-      event_date:  form.event_date,
-      is_done:     form.task_status === "done",
+      job_id:         form.job_id || null,
+      title:          form.title,
+      description:    form.description || null,
+      type:           "milestone" as const,
+      task_status:    form.task_status as AgendaEvent["task_status"],
+      priority:       (form.priority || null) as AgendaEvent["priority"],
+      budget:         form.budget ? parseFloat(form.budget) : null,
+      start_date:     form.start_date || null,
+      event_date:     form.event_date,
+      is_done:        form.task_status === "done",
+      recurrence:     form.recurrence,
+      recurrence_end: form.recurrence_end || null,
     }
 
     if (isEdit) {
@@ -172,6 +176,28 @@ export function TaskDialog({ children, jobs, open, onOpenChange, task }: Props) 
           <div className="space-y-2">
             <Label>Notas</Label>
             <Textarea value={form.description} onChange={e => upd("description", e.target.value)} rows={2} placeholder="Observações..." />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Recorrência</Label>
+              <Select value={form.recurrence} onValueChange={v => upd("recurrence", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem recorrência</SelectItem>
+                  <SelectItem value="daily">Diária</SelectItem>
+                  <SelectItem value="weekly">Semanal</SelectItem>
+                  <SelectItem value="biweekly">Quinzenal</SelectItem>
+                  <SelectItem value="monthly">Mensal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {form.recurrence !== "none" && (
+              <div className="space-y-2">
+                <Label>Repetir até</Label>
+                <Input type="date" value={form.recurrence_end} onChange={e => upd("recurrence_end", e.target.value)} />
+              </div>
+            )}
           </div>
 
           <DialogFooter>

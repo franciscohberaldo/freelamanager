@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import {
   BarChart3, Briefcase, CalendarDays, ClipboardList,
   FileText, LayoutDashboard, LogOut, Moon, Search, Settings,
-  Sun, TrendingUp, Users, CalendarCheck, FolderKanban, BookText, Wallet, Target, CalendarOff,
+  Sun, TrendingUp, Users, CalendarCheck, FolderKanban, BookText, Wallet, Target, CalendarOff, Zap,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,7 @@ const navItems = [
   { href: "/disponibilidade", label: "Status de Agenda",  icon: CalendarCheck },
   { href: "/folgas",          label: "Folgas / Férias",   icon: CalendarOff },
   { href: "/reports",         label: "Relatórios",        icon: TrendingUp },
+  { href: "/automacoes",      label: "Automações",         icon: Zap },
   { href: "/settings",   label: "Configurações", icon: Settings },
 ]
 
