@@ -16,7 +16,8 @@ import { CommandPalette } from "@/components/command-palette"
 
 const navItems = [
   { href: "/dashboard",  label: "Dashboard",    icon: LayoutDashboard },
-  { href: "/logs",       label: "Registro Diário", icon: ClipboardList },
+  { href: "/logs",       label: "Tracking Diário", icon: ClipboardList },
+  { href: "/diario",    label: "Diário",          icon: BookText },
   { href: "/jobs",       label: "Jobs",          icon: Briefcase },
   { href: "/clients",    label: "Clientes",      icon: Users },
   { href: "/pipeline",   label: "Pipeline",      icon: KanbanSquare },
@@ -25,7 +26,6 @@ const navItems = [
   { href: "/metas",           label: "Metas",             icon: Target },
   { href: "/projetos",        label: "Projetos",          icon: FolderKanban },
   { href: "/agenda",          label: "Acomp. de Jobs",    icon: CalendarDays },
-  { href: "/diario",          label: "Diário",            icon: BookText },
   { href: "/disponibilidade", label: "Status de Agenda",  icon: CalendarCheck },
   { href: "/folgas",          label: "Folgas / Férias",   icon: CalendarOff },
   { href: "/reports",         label: "Relatórios",        icon: TrendingUp },
