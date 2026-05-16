@@ -36,6 +36,32 @@ const TYPES: { value: string; label: string; emoji: string; color: string }[] = 
 const TYPE_MAP = Object.fromEntries(TYPES.map(t => [t.value, t]))
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 
+async function syncAvailabilityForDate(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  date: string,
+) {
+  const today = format(new Date(), "yyyy-MM-dd")
+  if (date !== today) return
+
+  const { count } = await supabase
+    .from("time_off")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("date", today)
+
+  const hasTimeOffToday = (count ?? 0) > 0
+  const newStatus = hasTimeOffToday ? "indisponivel" as const : "disponivel" as const
+
+  const { error } = await supabase
+    .from("user_availability")
+    .upsert(
+      { user_id: userId, status: newStatus },
+      { onConflict: "user_id" },
+    )
+  if (error) console.error("Failed to sync availability:", error.message)
+}
+
 export function FolgasClient({ timeOff, yearTimeOff, currentMonth }: Props) {
   const router   = useRouter()
   const supabase = createClient()
@@ -89,6 +115,7 @@ export function FolgasClient({ timeOff, yearTimeOff, currentMonth }: Props) {
         user_id: user!.id, date: selectedDate, type: form.type, note: form.note || null,
       })
       if (error) { toast.error("Erro ao salvar"); setLoading(false); return }
+      await syncAvailabilityForDate(supabase, user!.id, selectedDate)
     }
 
     toast.success("Dia registrado!")
@@ -103,6 +130,7 @@ export function FolgasClient({ timeOff, yearTimeOff, currentMonth }: Props) {
     if (!existing) { setDialogOpen(false); return }
     const { error } = await supabase.from("time_off").delete().eq("id", existing.id)
     if (error) { toast.error("Erro ao excluir"); return }
+    await syncAvailabilityForDate(supabase, existing.user_id, selectedDate)
     toast.success("Dia removido")
     setDialogOpen(false)
     router.refresh()
@@ -226,11 +254,12 @@ export function FolgasClient({ timeOff, yearTimeOff, currentMonth }: Props) {
                   {entry.note && <p className="text-xs text-muted-foreground mt-0.5">{entry.note}</p>}
                 </div>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                  onClick={() => {
-                    supabase.from("time_off").delete().eq("id", entry.id).then(({ error }) => {
-                      if (error) toast.error("Erro ao excluir")
-                      else { toast.success("Removido"); router.refresh() }
-                    })
+                  onClick={async () => {
+                    const { error } = await supabase.from("time_off").delete().eq("id", entry.id)
+                    if (error) { toast.error("Erro ao excluir"); return }
+                    await syncAvailabilityForDate(supabase, entry.user_id, entry.date)
+                    toast.success("Removido")
+                    router.refresh()
                   }}>
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
