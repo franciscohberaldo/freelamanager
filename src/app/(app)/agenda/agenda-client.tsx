@@ -1,24 +1,33 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ComponentProps } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Plus, Table2, GitBranch, BarChart2, CalendarDays } from "lucide-react"
+import { Plus, Table2, GitBranch, BarChart2, CalendarDays, Clock, CalendarOff } from "lucide-react"
 import { TaskDialog } from "./task-dialog"
 import { TableView } from "./table-view"
 import { GanttView } from "./gantt-view"
 import { CalendarView } from "./calendar-view"
 import { TimelineView } from "./timeline-view"
+import { AvailabilityClient } from "../disponibilidade/availability-client"
+import { FolgasClient } from "../folgas/folgas-client"
 import type { AgendaEvent } from "@/lib/supabase/types"
 
 interface Job { id: string; name: string; start_date: string | null; end_date: string | null; status: string }
 
+type AvailabilityProps = ComponentProps<typeof AvailabilityClient>
+type FolgasProps = ComponentProps<typeof FolgasClient>
+
 interface Props {
   events: (AgendaEvent & { jobs: { name: string } | null })[]
   jobs: Job[]
+  availability: AvailabilityProps["availability"]
+  timeOff: FolgasProps["timeOff"]
+  yearTimeOff: FolgasProps["yearTimeOff"]
+  currentMonth: string
 }
 
-export function AgendaClient({ events, jobs }: Props) {
+export function AgendaClient({ events, jobs, availability, timeOff, yearTimeOff, currentMonth }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   return (
@@ -42,6 +51,8 @@ export function AgendaClient({ events, jobs }: Props) {
               { value: "timeline", label: "Timeline", icon: GitBranch },
               { value: "gantt",    label: "Gantt",    icon: BarChart2 },
               { value: "calendar", label: "Calendário", icon: CalendarDays },
+              { value: "disponibilidade", label: "Disponibilidade", icon: Clock },
+              { value: "folgas",   label: "Folgas",   icon: CalendarOff },
             ].map(({ value, label, icon: Icon }) => (
               <TabsTrigger
                 key={value}
@@ -66,6 +77,12 @@ export function AgendaClient({ events, jobs }: Props) {
         </TabsContent>
         <TabsContent value="calendar" className="flex-1 m-0 overflow-auto p-6">
           <CalendarView events={events} />
+        </TabsContent>
+        <TabsContent value="disponibilidade" className="flex-1 m-0 overflow-auto p-6">
+          <AvailabilityClient availability={availability} />
+        </TabsContent>
+        <TabsContent value="folgas" className="flex-1 m-0 overflow-auto p-6">
+          <FolgasClient timeOff={timeOff} yearTimeOff={yearTimeOff} currentMonth={currentMonth} />
         </TabsContent>
       </Tabs>
     </div>
