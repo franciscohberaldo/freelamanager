@@ -1,0 +1,18 @@
+{
+  "id": "d66f9097-6857-41cc-9dab-b12c8ba69e1a",
+  "runtime": "bash",
+  "purpose": "S06 verification: admin PDF uses shared generator, portal client has buttons",
+  "script_chars": 316,
+  "started_at": "2026-05-16T19:57:16.331Z",
+  "finished_at": "2026-05-16T19:57:16.405Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 74,
+  "stdout_bytes": 1124,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\d66f9097-6857-41cc-9dab-b12c8ba69e1a.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\d66f9097-6857-41cc-9dab-b12c8ba69e1a.stderr"
+}

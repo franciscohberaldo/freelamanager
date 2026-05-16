@@ -32,52 +32,6 @@ This file is the explicit capability and coverage contract for the project.
 - Primary owning slice: M001/S02
 - Validation: mapped
 
-### R009 — Timer auto-stop em 8h com notificação visual (toast)
-- Class: continuity
-- Status: active
-- Description: Timer auto-stop em 8h com notificação visual (toast)
-- Why it matters: Freelancer esquece timer ligado e registra 24h — corrompe dados de horas e relatórios
-- Source: inferred
-- Primary owning slice: M001/S04
-- Validation: mapped
-- Notes: Limite configurável em Settings, default 8h
-
-### R010 — Badge de notificações na sidebar — contagem de invoices vencidas, metas atrasadas, deals parados
-- Class: failure-visibility
-- Status: active
-- Description: Badge de notificações na sidebar — contagem de invoices vencidas, metas atrasadas, deals parados
-- Why it matters: Sem notificações visuais, freelancer não percebe items que precisam de atenção urgente
-- Source: inferred
-- Primary owning slice: M001/S04
-- Validation: mapped
-
-### R011 — Command palette (Cmd+K) busca dados reais de clientes, jobs e invoices
-- Class: primary-user-loop
-- Status: active
-- Description: Command palette (Cmd+K) busca dados reais de clientes, jobs e invoices
-- Why it matters: Command palette existe mas não conecta com dados — atalho de navegação desperdiçado
-- Source: inferred
-- Primary owning slice: M001/S05
-- Validation: mapped
-
-### R012 — Paginação em todas as listas — 25 items por página com load more
-- Class: operability
-- Status: active
-- Description: Paginação em todas as listas — 25 items por página com load more
-- Why it matters: Tudo carrega de uma vez — com muitos dados a UI trava
-- Source: inferred
-- Primary owning slice: M001/S05
-- Validation: mapped
-
-### R013 — Client portal com download de PDF e confirmação de pagamento pelo cliente
-- Class: core-capability
-- Status: active
-- Description: Client portal com download de PDF e confirmação de pagamento pelo cliente
-- Why it matters: Portal existe mas cliente não pode baixar invoice nem confirmar que pagou — perde a utilidade de self-service
-- Source: user
-- Primary owning slice: M001/S06
-- Validation: mapped
-
 ## Validated
 
 ### R001 — Payment dialog deve respeitar a moeda da invoice (USD, EUR, BRL) em vez de hardcodar BRL
@@ -126,6 +80,52 @@ This file is the explicit capability and coverage contract for the project.
 - Primary owning slice: M001/S03
 - Validation: Revenue-at-risk widget renders in daily view showing overdue invoice totals grouped by currency + stale active jobs (no daily_log in 14 days) with rate display. Widget always renders (positive empty state when no risk). Verified via tsc --noEmit (0 errors), next build success, and code review confirming formatCurrency per-invoice currency usage.
 
+### R009 — Timer auto-stop em 8h com notificação visual (toast)
+- Class: continuity
+- Status: validated
+- Description: Timer auto-stop em 8h com notificação visual (toast)
+- Why it matters: Freelancer esquece timer ligado e registra 24h — corrompe dados de horas e relatórios
+- Source: inferred
+- Primary owning slice: M001/S04
+- Validation: Timer auto-stops at configured max hours (default 8h) with toast notification. Settings card persists preference to localStorage. npx tsc --noEmit passes.
+- Notes: Limite configurável em Settings, default 8h
+
+### R010 — Badge de notificações na sidebar — contagem de invoices vencidas, metas atrasadas, deals parados
+- Class: failure-visibility
+- Status: validated
+- Description: Badge de notificações na sidebar — contagem de invoices vencidas, metas atrasadas, deals parados
+- Why it matters: Sem notificações visuais, freelancer não percebe items que precisam de atenção urgente
+- Source: inferred
+- Primary owning slice: M001/S04
+- Validation: Red badges on sidebar show overdue invoice count (Invoices nav item) and stalled deal count (Clientes nav item). Queries use head:true for efficiency. npx tsc --noEmit passes.
+
+### R011 — Command palette (Cmd+K) busca dados reais de clientes, jobs e invoices
+- Class: primary-user-loop
+- Status: validated
+- Description: Command palette (Cmd+K) busca dados reais de clientes, jobs e invoices
+- Why it matters: Command palette existe mas não conecta com dados — atalho de navegação desperdiçado
+- Source: inferred
+- Primary owning slice: M001/S05
+- Validation: npx tsc --noEmit passes; npx next build passes; command palette searches clients by name/company/email, invoices by number/status, with direct navigation hrefs
+
+### R012 — Paginação em todas as listas — 25 items por página com load more
+- Class: operability
+- Status: validated
+- Description: Paginação em todas as listas — 25 items por página com load more
+- Why it matters: Tudo carrega de uma vez — com muitos dados a UI trava
+- Source: inferred
+- Primary owning slice: M001/S05
+- Validation: npx next build passes; clients/jobs/invoices/logs/despesas pages use .range(0,24) + usePaginatedList hook with LoadMoreButton after 25 items; pipeline uses .range(0,49) for kanban
+
+### R013 — Client portal com download de PDF e confirmação de pagamento pelo cliente
+- Class: core-capability
+- Status: validated
+- Description: Client portal com download de PDF e confirmação de pagamento pelo cliente
+- Why it matters: Portal existe mas cliente não pode baixar invoice nem confirmar que pagou — perde a utilidade de self-service
+- Source: user
+- Primary owning slice: M001/S06
+- Validation: TypeScript compiles with zero errors. Portal API routes authenticate via token using service-role client. PDF download route returns valid PDF via shared generator. Payment confirmation route sets client_confirmed_at. Security: invalid token→404, wrong client→403. Portal client component provides download and confirm buttons.
+
 ## Deferred
 
 ## Out of Scope
@@ -142,15 +142,15 @@ This file is the explicit capability and coverage contract for the project.
 | R006 | primary-user-loop | validated | M001/S03 | none | Dashboard defaults to "Hoje" tab with daily KPIs (hours today, tasks count, overdue invoices), agenda section, overdue invoice list, and goal progress bars. Server fetches all data; client-side Tabs switch between daily and monthly views instantly. Verified via tsc --noEmit (0 errors), next build success (7.61 kB), and browser smoke test. |
 | R007 | differentiator | validated | M001/S03 | none | Revenue-at-risk widget renders in daily view showing overdue invoice totals grouped by currency + stale active jobs (no daily_log in 14 days) with rate display. Widget always renders (positive empty state when no risk). Verified via tsc --noEmit (0 errors), next build success, and code review confirming formatCurrency per-invoice currency usage. |
 | R008 | integration | active | M001/S02 | none | mapped |
-| R009 | continuity | active | M001/S04 | none | mapped |
-| R010 | failure-visibility | active | M001/S04 | none | mapped |
-| R011 | primary-user-loop | active | M001/S05 | none | mapped |
-| R012 | operability | active | M001/S05 | none | mapped |
-| R013 | core-capability | active | M001/S06 | none | mapped |
+| R009 | continuity | validated | M001/S04 | none | Timer auto-stops at configured max hours (default 8h) with toast notification. Settings card persists preference to localStorage. npx tsc --noEmit passes. |
+| R010 | failure-visibility | validated | M001/S04 | none | Red badges on sidebar show overdue invoice count (Invoices nav item) and stalled deal count (Clientes nav item). Queries use head:true for efficiency. npx tsc --noEmit passes. |
+| R011 | primary-user-loop | validated | M001/S05 | none | npx tsc --noEmit passes; npx next build passes; command palette searches clients by name/company/email, invoices by number/status, with direct navigation hrefs |
+| R012 | operability | validated | M001/S05 | none | npx next build passes; clients/jobs/invoices/logs/despesas pages use .range(0,24) + usePaginatedList hook with LoadMoreButton after 25 items; pipeline uses .range(0,49) for kanban |
+| R013 | core-capability | validated | M001/S06 | none | TypeScript compiles with zero errors. Portal API routes authenticate via token using service-role client. PDF download route returns valid PDF via shared generator. Payment confirmation route sets client_confirmed_at. Security: invalid token→404, wrong client→403. Portal client component provides download and confirm buttons. |
 
 ## Coverage Summary
 
-- Active requirements: 8
-- Mapped to slices: 8
-- Validated: 5 (R001, R002, R003, R006, R007)
+- Active requirements: 3
+- Mapped to slices: 3
+- Validated: 10 (R001, R002, R003, R006, R007, R009, R010, R011, R012, R013)
 - Unmapped active requirements: 0

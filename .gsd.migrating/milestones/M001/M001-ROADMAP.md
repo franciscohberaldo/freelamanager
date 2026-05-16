@@ -23,13 +23,13 @@
 - [x] **S03: S03** `risk:medium` `depends:[]`
   > After this: Abrir o app mostra horas de hoje, tarefas da agenda, invoices vencidas, receita em risco, progresso das metas. Toggle alterna pra visao mensal.
 
-- [ ] **S04: S04** `risk:low` `depends:[]`
+- [x] **S04: S04** `risk:low` `depends:[]`
   > After this: Timer para automaticamente em 8h com toast. Badge na sidebar mostra contagem de invoices vencidas e deals parados.
 
-- [ ] **S05: Command Palette & Paginacao** `risk:low` `depends:[S01]`
+- [x] **S05: S05** `risk:low` `depends:[]`
   > After this: Cmd+K busca e encontra cliente por nome. Lista de logs com 50+ items mostra carregar mais apos 25.
 
-- [ ] **S06: Client Portal Melhorado** `risk:low` `depends:[S01]`
+- [x] **S06: S06** `risk:low` `depends:[]`
   > After this: Cliente acessa portal via token, faz download do PDF, marca pagamento como feito.
 
 ## Boundary Map

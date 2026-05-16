@@ -1,0 +1,43 @@
+=== Portal Auth ===
+import { createAdminClient } from "@/lib/supabase/admin"
+
+export async function validatePortalToken(
+  token: string
+): Promise<{ client_id: string; user_id: string } | null> {
+  const supabase = createAdminClient()
+
+  const { data, error } = await supabase
+    .from("client_portal_tokens")
+    .select("client_id, user_id")
+    .eq("token", token)
+    .single()
+
+  if (error || !data) return null
+  return { client_id: data.client_id, user_id: data.user_id }
+}
+
+=== PDF Route (token check) ===
+1:import { NextRequest, NextResponse } from "next/server"
+8:  const token = searchParams.get("token")
+11:  if (!token || !invoiceId) {
+12:    return NextResponse.json({ error: "Missing parameters" }, { status: 400 })
+15:  const auth = await validatePortalToken(token)
+17:    return new NextResponse(null, { status: 404 })
+30:    return new NextResponse(null, { status: 404 })
+36:    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+73:  return new NextResponse(pdfBuffer, {
+
+=== Confirm Route (token check) ===
+1:import { NextRequest, NextResponse } from "next/server"
+6:  let body: { token?: string; invoice_id?: string }
+10:    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+13:  const { token, invoice_id } = body
+15:  if (!token || !invoice_id) {
+16:    return NextResponse.json({ error: "Missing parameters" }, { status: 400 })
+19:  const auth = await validatePortalToken(token)
+21:    return new NextResponse(null, { status: 404 })
+34:    return new NextResponse(null, { status: 404 })
+40:    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+47:    .update({ client_confirmed_at: confirmedAt })
+51:    return NextResponse.json({ error: "Update failed" }, { status: 500 })
+54:  return NextResponse.json({ success: true, confirmed_at: confirmedAt })

@@ -5,12 +5,13 @@ export default async function ClientsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [{ data: clients }, { data: deals }, { data: pipelineClients }] = await Promise.all([
+  const [{ data: clients, count: clientsCount }, { data: deals }, { data: pipelineClients }] = await Promise.all([
     supabase
       .from("clients")
-      .select("*, client_contacts(*)")
+      .select("*, client_contacts(*)", { count: "exact" })
       .eq("user_id", user!.id)
-      .order("name"),
+      .order("name")
+      .range(0, 24),
     supabase
       .from("sales_pipeline")
       .select("*, clients(id, name, company)")
@@ -26,6 +27,7 @@ export default async function ClientsPage() {
   return (
     <ClientsPageClient
       clients={clients ?? []}
+      clientsCount={clientsCount ?? 0}
       deals={deals ?? []}
       pipelineClients={pipelineClients ?? []}
     />

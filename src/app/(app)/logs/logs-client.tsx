@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LogDialog } from "./log-dialog"
 import { LogTimerButton } from "./log-timer-button"
+import { LoadMoreButton } from "@/components/load-more-button"
+import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { Plus, Play, Search, SlidersHorizontal, ChevronLeft, ChevronRight, Download } from "lucide-react"
 import type { DailyLog } from "@/lib/supabase/types"
 
@@ -28,6 +30,7 @@ interface LogWithJob extends DailyLog {
 
 interface Props {
   logs: LogWithJob[]
+  logsCount: number
   jobs: JobOption[]
   currentMonth: string
   hourRounding: string
@@ -48,9 +51,18 @@ function formatHoursShort(h: number) {
   return `${hrs}h ${String(min).padStart(2, "0")}min`
 }
 
-export function LogsClient({ logs, jobs, currentMonth, hourRounding }: Props) {
+export function LogsClient({ logs, logsCount, jobs, currentMonth, hourRounding }: Props) {
   const [search, setSearch] = useState("")
   const router = useRouter()
+
+  const { items: logItems, loadMore, hasMore, loading: loadingMore } = usePaginatedList({
+    table: "daily_logs",
+    select: "*, jobs(name, hourly_rate, currency, clients(name))",
+    orderBy: { column: "date", ascending: false },
+    pageSize: 25,
+    initialData: logs as never[],
+    initialCount: logsCount,
+  })
 
   const currentDate = parseISO(currentMonth + "-01")
   const prevMonth   = format(subMonths(currentDate, 1), "yyyy-MM")
@@ -58,9 +70,10 @@ export function LogsClient({ logs, jobs, currentMonth, hourRounding }: Props) {
   const monthLabel  = format(currentDate, "MMMM 'de' yyyy", { locale: ptBR })
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return logs
+    const allLogs = logItems as LogWithJob[]
+    if (!search.trim()) return allLogs
     const q = search.toLowerCase()
-    return logs.filter(l => {
+    return allLogs.filter(l => {
       const job = l.jobs as LogWithJob["jobs"]
       return (
         job?.name?.toLowerCase().includes(q) ||
@@ -69,7 +82,7 @@ export function LogsClient({ logs, jobs, currentMonth, hourRounding }: Props) {
         l.requests?.toLowerCase().includes(q)
       )
     })
-  }, [logs, search])
+  }, [logItems, search])
 
   const totals = useMemo(() => ({
     hours: filtered.reduce((s, l) => s + l.hours_worked, 0),
@@ -255,6 +268,7 @@ export function LogsClient({ logs, jobs, currentMonth, hourRounding }: Props) {
             })}
           </tbody>
         </table>
+        <LoadMoreButton hasMore={hasMore} loading={loadingMore} onClick={loadMore} />
       </div>
     </div>
   )

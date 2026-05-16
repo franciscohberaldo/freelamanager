@@ -1,0 +1,18 @@
+{
+  "id": "6065bdbb-b777-4788-8f61-060a9acc5f04",
+  "runtime": "bash",
+  "purpose": "S06 verification: confirm all key files exist",
+  "script_chars": 396,
+  "started_at": "2026-05-16T19:56:54.182Z",
+  "finished_at": "2026-05-16T19:56:54.252Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 70,
+  "stdout_bytes": 656,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\6065bdbb-b777-4788-8f61-060a9acc5f04.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\6065bdbb-b777-4788-8f61-060a9acc5f04.stderr"
+}

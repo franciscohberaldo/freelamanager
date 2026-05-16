@@ -1,0 +1,11 @@
+=== Key files ===
+-rw-r--r-- 1 Chico 197121 1560 May 16 16:54 src/app/api/portal/confirm-payment/route.ts
+-rw-r--r-- 1 Chico 197121 2678 May 16 16:53 src/app/api/portal/pdf/route.ts
+-rw-r--r-- 1 Chico 197121 6981 May 16 16:55 src/app/portal/[token]/page.tsx
+-rw-r--r-- 1 Chico 197121 6047 May 16 16:55 src/app/portal/[token]/portal-client.tsx
+-rw-r--r-- 1 Chico 197121 6358 May 16 16:52 src/lib/invoice-pdf.ts
+-rw-r--r-- 1 Chico 197121  463 May 16 16:52 src/lib/portal-auth.ts
+-rw-r--r-- 1 Chico 197121  257 May 16 16:51 src/lib/supabase/admin.ts
+
+=== Migration ===
+-rw-r--r-- 1 Chico 197121 78 May 16 16:53 supabase/migrations/012_portal_confirmation.sql

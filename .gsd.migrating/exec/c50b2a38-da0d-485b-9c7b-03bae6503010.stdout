@@ -1,0 +1,40 @@
+├ ƒ /api/v1/expenses                     0 B                0 B
+├ ƒ /api/v1/invoices                     0 B                0 B
+├ ƒ /api/v1/jobs                         0 B                0 B
+├ ƒ /api/v1/logs                         0 B                0 B
+├ ƒ /api/webhooks/stripe                 0 B                0 B
+├ ƒ /api/webhooks/test                   0 B                0 B
+├ ƒ /automacoes                          9.62 kB         210 kB
+├ ƒ /clients                             6.99 kB         227 kB
+├ ƒ /clients/[id]                        7.12 kB         222 kB
+├ ƒ /dashboard                           7.67 kB         233 kB
+├ ƒ /despesas                            21.3 kB         321 kB
+├ ƒ /diario                              8.89 kB         215 kB
+├ ƒ /disponibilidade                     7.38 kB         182 kB
+├ ƒ /folgas                              4.22 kB         193 kB
+├ ƒ /icon-192.png                        0 B                0 B
+├ ƒ /icon-512.png                        0 B                0 B
+├ ƒ /invoices                            17.6 kB         223 kB
+├ ƒ /jobs                                29.4 kB         235 kB
+├ ○ /login                               4.18 kB         179 kB
+├ ƒ /logs                                8.94 kB         215 kB
+├ ○ /manifest.webmanifest                0 B                0 B
+├ ƒ /metas                               4.81 kB         179 kB
+├ ○ /offline                             557 B            88 kB
+├ ƒ /pipeline                            607 B           212 kB
+├ ƒ /portal/[token]                      152 B          87.6 kB
+├ ƒ /projetos                            6.07 kB         221 kB
+├ ƒ /projetos/[id]                       9.17 kB         226 kB
+├ ƒ /reports                             7.63 kB         222 kB
+└ ƒ /settings                            9.83 kB         216 kB
++ First Load JS shared by all            87.4 kB
+  ├ chunks/2117-809c93eddee8cf8f.js      31.8 kB
+  ├ chunks/fd9d1056-245a8df1c65c3720.js  53.6 kB
+  └ other shared chunks (total)          2.01 kB
+
+
+ƒ Middleware                             79.2 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

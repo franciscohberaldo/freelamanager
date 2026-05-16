@@ -31,7 +31,7 @@ export default async function LogsPage({
 
   let query = supabase
     .from("daily_logs")
-    .select("*, jobs(name, hourly_rate, currency, clients(name))")
+    .select("*, jobs(name, hourly_rate, currency, clients(name))", { count: "exact" })
     .eq("user_id", user!.id)
     .gte("date", monthStart)
     .lte("date", monthEnd)
@@ -41,11 +41,12 @@ export default async function LogsPage({
     query = query.eq("job_id", searchParams.job_id)
   }
 
-  const { data: logs } = await query
+  const { data: logs, count: logsCount } = await query.range(0, 24)
 
   return (
     <LogsClient
       logs={(logs ?? []) as unknown as (import("@/lib/supabase/types").DailyLog & { jobs: { name: string; hourly_rate: number; currency: string; clients: { name: string } | null } | null })[]}
+      logsCount={logsCount ?? 0}
       jobs={(jobs ?? []) as unknown as { id: string; name: string; hourly_rate: number; daily_rate: number; currency: string; clients: { name: string } | null }[]}
       currentMonth={monthParam}
       hourRounding={settings?.hour_rounding ?? "none"}

@@ -1,0 +1,18 @@
+{
+  "id": "f07c8b9c-752c-4dcd-8cf9-4bcd061ba944",
+  "runtime": "bash",
+  "purpose": "S06 verification: token auth and error handling",
+  "script_chars": 379,
+  "started_at": "2026-05-16T19:57:04.988Z",
+  "finished_at": "2026-05-16T19:57:05.064Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 76,
+  "stdout_bytes": 1826,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\f07c8b9c-752c-4dcd-8cf9-4bcd061ba944.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\f07c8b9c-752c-4dcd-8cf9-4bcd061ba944.stderr"
+}

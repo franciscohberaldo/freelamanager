@@ -17,13 +17,14 @@ export default async function DespesasPage({
   const monthEnd   = format(new Date(year, month, 0), "yyyy-MM-dd")
 
   // Load expenses for the month
-  const { data: expenses } = await supabase
+  const { data: expenses, count: expensesCount } = await supabase
     .from("expenses")
-    .select("*")
+    .select("*", { count: "exact" })
     .eq("user_id", user!.id)
     .gte("date", monthStart)
     .lte("date", monthEnd)
     .order("date", { ascending: false })
+    .range(0, 24)
 
   // Also load totals per category for the whole year (for the chart)
   const yearStart = `${year}-01-01`
@@ -38,6 +39,7 @@ export default async function DespesasPage({
   return (
     <DespesasClient
       expenses={expenses ?? []}
+      expensesCount={expensesCount ?? 0}
       yearExpenses={yearExpenses ?? []}
       currentMonth={monthParam}
     />

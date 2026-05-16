@@ -3,6 +3,8 @@
 import { useState, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { usePaginatedList } from "@/hooks/use-paginated-list"
+import { LoadMoreButton } from "@/components/load-more-button"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,6 +25,7 @@ interface Expense {
 
 interface Props {
   expenses: Expense[]
+  expensesCount: number
   yearExpenses: { date: string; amount: number; category: string }[]
   currentMonth: string
 }
@@ -369,24 +372,35 @@ function ImportDialog({ open, onClose, onImported, currentMonth }: {
   )
 }
 
-export function DespesasClient({ expenses, yearExpenses, currentMonth }: Props) {
+export function DespesasClient({ expenses, expensesCount, yearExpenses, currentMonth }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [dialogOpen, setDialogOpen]   = useState(false)
   const [importOpen, setImportOpen]   = useState(false)
   const [editing, setEditing] = useState<Expense | undefined>()
 
+  const { items: expenseItems, loadMore, hasMore, loading: loadingMore } = usePaginatedList({
+    table: "expenses",
+    select: "*",
+    orderBy: { column: "date", ascending: false },
+    pageSize: 25,
+    initialData: expenses as never[],
+    initialCount: expensesCount,
+  })
+
   const currentDate = parseISO(currentMonth + "-01")
   const prevMonth   = format(subMonths(currentDate, 1), "yyyy-MM")
   const nextMonth   = format(addMonths(currentDate, 1), "yyyy-MM")
   const monthLabel  = format(currentDate, "MMMM 'de' yyyy", { locale: ptBR })
 
-  const total = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses])
+  const typedExpenses = expenseItems as Expense[]
+
+  const total = useMemo(() => typedExpenses.reduce((s, e) => s + e.amount, 0), [typedExpenses])
 
   // Pie chart: by category this month
   const pieData = useMemo(() => {
     const byCategory: Record<string, number> = {}
-    expenses.forEach(e => {
+    typedExpenses.forEach(e => {
       byCategory[e.category] = (byCategory[e.category] ?? 0) + e.amount
     })
     return Object.entries(byCategory).map(([cat, val]) => ({
@@ -394,7 +408,7 @@ export function DespesasClient({ expenses, yearExpenses, currentMonth }: Props) 
       value: val,
       color: CAT_MAP[cat]?.color ?? "#94a3b8",
     })).sort((a, b) => b.value - a.value)
-  }, [expenses])
+  }, [typedExpenses])
 
   // Monthly totals for the year (for bar)
   const monthlyTotals = useMemo(() => {
@@ -416,7 +430,7 @@ export function DespesasClient({ expenses, yearExpenses, currentMonth }: Props) 
 
   function exportCsv() {
     downloadCsv(
-      expenses.map(e => ({
+      typedExpenses.map(e => ({
         data:        e.date,
         categoria:   CAT_MAP[e.category]?.label ?? e.category,
         descricao:   e.description,
@@ -443,7 +457,7 @@ export function DespesasClient({ expenses, yearExpenses, currentMonth }: Props) 
           <p className="text-muted-foreground text-sm mt-0.5">Controle de gastos do negócio</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2" onClick={exportCsv} disabled={!expenses.length}>
+          <Button variant="outline" size="sm" className="gap-2" onClick={exportCsv} disabled={!typedExpenses.length}>
             <Download className="w-4 h-4" /> CSV
           </Button>
           <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportOpen(true)}>
@@ -465,13 +479,13 @@ export function DespesasClient({ expenses, yearExpenses, currentMonth }: Props) 
       </div>
 
       {/* Summary + Chart */}
-      {expenses.length > 0 && (
+      {typedExpenses.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Total card */}
           <div className="border rounded-xl p-5 bg-card space-y-1">
             <p className="text-sm text-muted-foreground">Total no mês</p>
             <p className="text-3xl font-bold text-destructive">{formatMoney(total)}</p>
-            <p className="text-xs text-muted-foreground">{expenses.length} registro{expenses.length !== 1 ? "s" : ""}</p>
+            <p className="text-xs text-muted-foreground">{typedExpenses.length} registro{typedExpenses.length !== 1 ? "s" : ""}</p>
           </div>
 
           {/* Pie chart */}
@@ -502,7 +516,7 @@ export function DespesasClient({ expenses, yearExpenses, currentMonth }: Props) 
       )}
 
       {/* Expenses list */}
-      {expenses.length === 0 ? (
+      {typedExpenses.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border rounded-xl bg-card">
           <Receipt className="w-10 h-10 opacity-30 mb-3" />
           <p className="font-medium">Nenhuma despesa neste mês</p>
@@ -521,7 +535,7 @@ export function DespesasClient({ expenses, yearExpenses, currentMonth }: Props) 
               </tr>
             </thead>
             <tbody>
-              {expenses.map(exp => {
+              {typedExpenses.map(exp => {
                 const cat = CAT_MAP[exp.category]
                 return (
                   <tr key={exp.id} className="border-b hover:bg-muted/20 transition-colors group">
@@ -565,6 +579,7 @@ export function DespesasClient({ expenses, yearExpenses, currentMonth }: Props) 
               </tr>
             </tfoot>
           </table>
+          <LoadMoreButton hasMore={hasMore} loading={loadingMore} onClick={loadMore} />
         </div>
       )}
 

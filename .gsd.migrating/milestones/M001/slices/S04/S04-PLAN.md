@@ -31,7 +31,7 @@ Upstream surfaces consumed: sidebar.tsx (9-item navItems from S02), log-timer-bu
   - Files: `src/app/(app)/settings/timer-settings.tsx`, `src/app/(app)/settings/page.tsx`
   - Verify: npx tsc --noEmit
 
-- [ ] **T03: Add notification badges to sidebar nav items** `est:45m`
+- [x] **T03: Add notification badges to sidebar nav items** `est:45m`
   Why: Without visual cues, freelancer misses overdue invoices and stalled deals (R010). The sidebar is a 'use client' component that persists across navigations — ideal place for count badges.
   - Files: `src/components/layout/sidebar.tsx`
   - Verify: npx tsc --noEmit

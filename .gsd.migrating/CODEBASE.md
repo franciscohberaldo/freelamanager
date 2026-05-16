@@ -1,7 +1,7 @@
 # Codebase Map
 
-Generated: 2026-05-16T13:19:46Z | Files: 320 | Described: 0/320
-<!-- gsd:codebase-meta {"generatedAt":"2026-05-16T13:19:46Z","fingerprint":"ceeb8faa436cebd54a3d9cb1c1167e35bbd8c2d0","fileCount":320,"truncated":false} -->
+Generated: 2026-05-16T19:56:30Z | Files: 334 | Described: 0/334
+<!-- gsd:codebase-meta {"generatedAt":"2026-05-16T19:56:30Z","fingerprint":"5e128a3b0ba2244aa21c6d9882099b30db4f7595","fileCount":334,"truncated":false} -->
 
 ### (root)/
 - `.gitignore`
@@ -32,26 +32,7 @@ Generated: 2026-05-16T13:19:46Z | Files: 320 | Described: 0/320
 - `.gsd.migrating/STATE.md`
 
 ### .gsd.migrating/activity/
-- `.gsd.migrating/activity/001-complete-slice-M001-S02.jsonl`
-- `.gsd.migrating/activity/001-complete-slice-M001-S03.jsonl`
-- `.gsd.migrating/activity/001-execute-task-M001-S01-T01.jsonl`
-- `.gsd.migrating/activity/001-execute-task-M001-S01-T02.jsonl`
-- `.gsd.migrating/activity/001-execute-task-M001-S03-T01.jsonl`
-- `.gsd.migrating/activity/001-execute-task-M001-S03-T04.jsonl`
-- `.gsd.migrating/activity/001-plan-slice-M001-S01.jsonl`
-- `.gsd.migrating/activity/001-plan-slice-M001-S04.jsonl`
-- `.gsd.migrating/activity/001-reactive-execute-M001-S02-reactive+T03,T04.jsonl`
-- `.gsd.migrating/activity/001-research-slice-M001-parallel-research.jsonl`
-- `.gsd.migrating/activity/001-research-slice-M001-S01.jsonl`
-- `.gsd.migrating/activity/002-complete-slice-M001-S01.jsonl`
-- `.gsd.migrating/activity/002-execute-task-M001-S02-T02.jsonl`
-- `.gsd.migrating/activity/002-execute-task-M001-S03-T02.jsonl`
-- `.gsd.migrating/activity/002-plan-slice-M001-S02.jsonl`
-- `.gsd.migrating/activity/002-plan-slice-M001-S03.jsonl`
-- `.gsd.migrating/activity/002-research-slice-M001-S04.jsonl`
-- `.gsd.migrating/activity/003-execute-task-M001-S02-T01.jsonl`
-- `.gsd.migrating/activity/003-execute-task-M001-S02-T05.jsonl`
-- `.gsd.migrating/activity/003-execute-task-M001-S03-T03.jsonl`
+- *(22 files: 22 .jsonl)*
 
 ### .gsd.migrating/audit/
 - `.gsd.migrating/audit/events.jsonl`
@@ -137,7 +118,9 @@ Generated: 2026-05-16T13:19:46Z | Files: 320 | Described: 0/320
 
 ### .gsd.migrating/milestones/M001/slices/S04/tasks/
 - `.gsd.migrating/milestones/M001/slices/S04/tasks/T01-PLAN.md`
+- `.gsd.migrating/milestones/M001/slices/S04/tasks/T01-SUMMARY.md`
 - `.gsd.migrating/milestones/M001/slices/S04/tasks/T02-PLAN.md`
+- `.gsd.migrating/milestones/M001/slices/S04/tasks/T02-SUMMARY.md`
 - `.gsd.migrating/milestones/M001/slices/S04/tasks/T03-PLAN.md`
 
 ### .gsd.migrating/milestones/M001/slices/S05/
@@ -155,7 +138,7 @@ Generated: 2026-05-16T13:19:46Z | Files: 320 | Described: 0/320
 - `.gsd.migrating/runtime/write-gate-state.json`
 
 ### .gsd.migrating/runtime/units/
-- *(21 files: 21 .json)*
+- *(22 files: 22 .json)*
 
 ### public/
 - `public/sw.js`
@@ -307,6 +290,12 @@ Generated: 2026-05-16T13:19:46Z | Files: 320 | Described: 0/320
 ### src/app/api/invoices/send-email/
 - `src/app/api/invoices/send-email/route.ts`
 
+### src/app/api/portal/confirm-payment/
+- `src/app/api/portal/confirm-payment/route.ts`
+
+### src/app/api/portal/pdf/
+- `src/app/api/portal/pdf/route.ts`
+
 ### src/app/api/v1/
 - `src/app/api/v1/route.ts`
 
@@ -342,10 +331,12 @@ Generated: 2026-05-16T13:19:46Z | Files: 320 | Described: 0/320
 
 ### src/app/portal/[token]/
 - `src/app/portal/[token]/page.tsx`
+- `src/app/portal/[token]/portal-client.tsx`
 
 ### src/components/
 - `src/components/command-palette.tsx`
 - `src/components/csv-export-button.tsx`
+- `src/components/load-more-button.tsx`
 - `src/components/sw-register.tsx`
 - `src/components/theme-provider.tsx`
 
@@ -368,15 +359,21 @@ Generated: 2026-05-16T13:19:46Z | Files: 320 | Described: 0/320
 - `src/components/ui/tabs.tsx`
 - `src/components/ui/textarea.tsx`
 
+### src/hooks/
+- `src/hooks/use-paginated-list.ts`
+
 ### src/lib/
 - `src/lib/api-auth.ts`
 - `src/lib/csv.ts`
 - `src/lib/invoice-i18n.ts`
+- `src/lib/invoice-pdf.ts`
+- `src/lib/portal-auth.ts`
 - `src/lib/utils.ts`
 - `src/lib/webhook-events.ts`
 - `src/lib/webhooks.ts`
 
 ### src/lib/supabase/
+- `src/lib/supabase/admin.ts`
 - `src/lib/supabase/client.ts`
 - `src/lib/supabase/middleware.ts`
 - `src/lib/supabase/server.ts`
@@ -394,3 +391,4 @@ Generated: 2026-05-16T13:19:46Z | Files: 320 | Described: 0/320
 - `supabase/migrations/009_automacoes.sql`
 - `supabase/migrations/010_crm.sql`
 - `supabase/migrations/011_plataforma.sql`
+- `supabase/migrations/012_portal_confirmation.sql`

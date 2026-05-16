@@ -1,0 +1,26 @@
+=== Timer auto-stop (MAX_HOURS check) ===
+26:    const stored = localStorage.getItem("timer_max_hours")
+
+=== Timer settings component ===
+-rw-r--r-- 1 Chico 197121 1732 May 16 10:17 src/app/(app)/settings/timer-settings.tsx
+
+=== Timer settings imported in page ===
+8:import { TimerSettings } from "./timer-settings"
+61:      <TimerSettings />
+
+=== Sidebar badges ===
+14:import { Badge } from "@/components/ui/badge"
+36:  const [overdueInvoices, setOverdueInvoices] = useState(0)
+37:  const [stalledDeals, setStalledDeals] = useState(0)
+40:    async function fetchBadgeCounts() {
+41:      const { count: overdueCount } = await supabase
+44:        .eq("status", "overdue")
+49:      const { count: stalledCount } = await supabase
+55:      setOverdueInvoices(overdueCount ?? 0)
+56:      setStalledDeals(stalledCount ?? 0)
+59:    fetchBadgeCounts()
+82:          const badgeCount =
+83:            href === "/invoices" ? overdueInvoices :
+84:            href === "/clients" ? stalledDeals : 0
+99:              {badgeCount > 0 && (
+100:                <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[10px] justify-center">

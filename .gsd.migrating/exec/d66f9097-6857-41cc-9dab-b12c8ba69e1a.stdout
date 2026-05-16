@@ -1,0 +1,19 @@
+=== Admin PDF route uses shared generator ===
+3:import { generateInvoicePDF } from "@/lib/invoice-pdf"
+41:  const pdfBytes = await generateInvoicePDF({
+
+=== Portal client component ===
+3:import { useState } from "react"
+17:  client_confirmed_at: string | null
+33:  const [confirmedIds, setConfirmedIds] = useState<Record<string, string>>({})
+34:  const [loadingDownload, setLoadingDownload] = useState<string | null>(null)
+35:  const [loadingConfirm, setLoadingConfirm] = useState<string | null>(null)
+40:      const res = await fetch(`/api/portal/pdf?token=${encodeURIComponent(token)}&invoice_id=${encodeURIComponent(invoiceId)}`)
+42:        console.error("PDF download failed:", res.status)
+49:      a.download = `invoice-${invoiceNumber}.pdf`
+55:      console.error("PDF download error:", err)
+64:      const res = await fetch("/api/portal/confirm-payment", {
+74:      setConfirmedIds(prev => ({ ...prev, [invoiceId]: data.confirmed_at }))
+83:    if (confirmedIds[inv.id]) return false
+84:    if (inv.client_confirmed_at) return false
+94:          const isConfirmed = !!confirmedIds[inv.id] || !!inv.client_confirmed_at

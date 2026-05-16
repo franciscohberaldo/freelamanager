@@ -1,12 +1,12 @@
 {
-  "compiledAt": "2026-05-16T13:19:46.752Z",
+  "compiledAt": "2026-05-16T19:58:29.343Z",
   "milestoneId": "M001",
   "pipeline": {
     "clarifyRoundLimit": 3,
     "researchSynthesized": true,
     "draftContextIncluded": false,
     "finalizedContextIncluded": true,
-    "sourcePhase": "executing"
+    "sourcePhase": "validating-milestone"
   },
   "nodes": [
     {
@@ -288,12 +288,14 @@
       "dependsOn": [
         "execute-task:M001:S04:T02"
       ],
-      "writes": [],
+      "writes": [
+        "src/components/layout/sidebar.tsx"
+      ],
       "metadata": {
         "unitType": "execute-task",
         "unitId": "M001.S04.T03",
-        "title": "Add notification badges to sidebar nav items",
-        "status": "pending"
+        "title": "Added red notification badges to sidebar nav showing overdue invoice count and stalled deal count",
+        "status": "complete"
       }
     },
     {
@@ -306,7 +308,143 @@
         "unitType": "complete-slice",
         "unitId": "M001.S04",
         "title": "S04",
-        "status": "pending"
+        "status": "complete"
+      }
+    },
+    {
+      "id": "execute-task:M001:S05:T01",
+      "kind": "unit",
+      "dependsOn": [],
+      "writes": [
+        "src/components/command-palette.tsx"
+      ],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S05.T01",
+        "title": "Added multi-field search (name/company/email for clients, number/status for invoices), user_id filtering, and direct client detail hrefs to command palette",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "execute-task:M001:S05:T02",
+      "kind": "unit",
+      "dependsOn": [
+        "execute-task:M001:S05:T01"
+      ],
+      "writes": [
+        "src/hooks/use-paginated-list.ts",
+        "src/components/load-more-button.tsx"
+      ],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S05.T02",
+        "title": "Created reusable usePaginatedList hook with generic Supabase .range() pagination and LoadMoreButton component using shadcn/ui Button",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "execute-task:M001:S05:T03",
+      "kind": "unit",
+      "dependsOn": [
+        "execute-task:M001:S05:T02"
+      ],
+      "writes": [
+        "src/app/(app)/clients/page.tsx",
+        "src/app/(app)/clients/clients-page-client.tsx",
+        "src/app/(app)/jobs/page.tsx",
+        "src/app/(app)/jobs/jobs-client.tsx",
+        "src/app/(app)/invoices/page.tsx",
+        "src/app/(app)/invoices/invoices-client.tsx",
+        "src/app/(app)/logs/page.tsx",
+        "src/app/(app)/logs/logs-client.tsx",
+        "src/app/(app)/despesas/page.tsx",
+        "src/app/(app)/despesas/despesas-client.tsx",
+        "src/app/(app)/pipeline/page.tsx"
+      ],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S05.T03",
+        "title": "Wired usePaginatedList hook and LoadMoreButton into clients, jobs, invoices, logs, despesas pages with .range(0,24) server queries and pipeline with .range(0,49)",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "complete-slice:M001:S05",
+      "kind": "verification",
+      "dependsOn": [
+        "execute-task:M001:S05:T03"
+      ],
+      "metadata": {
+        "unitType": "complete-slice",
+        "unitId": "M001.S05",
+        "title": "S05",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "execute-task:M001:S06:T01",
+      "kind": "unit",
+      "dependsOn": [],
+      "writes": [
+        "src/lib/supabase/admin.ts",
+        "src/lib/invoice-pdf.ts",
+        "src/lib/portal-auth.ts",
+        "src/app/api/invoices/pdf/route.ts"
+      ],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S06.T01",
+        "title": "Extracted shared PDF generator, created service-role admin client, and portal token validator",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "execute-task:M001:S06:T02",
+      "kind": "unit",
+      "dependsOn": [
+        "execute-task:M001:S06:T01"
+      ],
+      "writes": [
+        "supabase/migrations/012_portal_confirmation.sql",
+        "src/app/api/portal/pdf/route.ts",
+        "src/app/api/portal/confirm-payment/route.ts",
+        "src/lib/supabase/types.ts"
+      ],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S06.T02",
+        "title": "Created portal PDF download and payment confirmation API routes with migration adding client_confirmed_at column",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "execute-task:M001:S06:T03",
+      "kind": "unit",
+      "dependsOn": [
+        "execute-task:M001:S06:T02"
+      ],
+      "writes": [
+        "src/app/portal/[token]/portal-client.tsx",
+        "src/app/portal/[token]/page.tsx"
+      ],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S06.T03",
+        "title": "Built portal client component with PDF download and payment confirmation buttons, integrated into server page",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "complete-slice:M001:S06",
+      "kind": "verification",
+      "dependsOn": [
+        "execute-task:M001:S06:T03"
+      ],
+      "metadata": {
+        "unitType": "complete-slice",
+        "unitId": "M001.S06",
+        "title": "S06",
+        "status": "complete"
       }
     }
   ]

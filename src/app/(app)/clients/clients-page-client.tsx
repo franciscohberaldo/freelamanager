@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { ClientDialog } from "./client-dialog"
 import { CsvExportButton } from "@/components/csv-export-button"
+import { LoadMoreButton } from "@/components/load-more-button"
+import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { PipelineClient } from "@/app/(app)/pipeline/pipeline-client"
 import { Plus, Users, Star, ChevronRight } from "lucide-react"
 import Link from "next/link"
@@ -39,22 +41,31 @@ interface PipelineClient_ { id: string; name: string; company: string | null }
 
 interface Props {
   clients: Client[]
+  clientsCount: number
   deals: Deal[]
   pipelineClients: PipelineClient_[]
 }
 
-export function ClientsPageClient({ clients, deals, pipelineClients }: Props) {
+export function ClientsPageClient({ clients, clientsCount, deals, pipelineClients }: Props) {
+  const { items: clientList, loadMore, hasMore, loading } = usePaginatedList({
+    table: "clients",
+    select: "*, client_contacts(*)",
+    orderBy: { column: "name", ascending: true },
+    pageSize: 25,
+    initialData: clients as never[],
+    initialCount: clientsCount,
+  })
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Clientes</h1>
-          <p className="text-muted-foreground text-sm">{clients.length} clientes cadastrados</p>
+          <p className="text-muted-foreground text-sm">{clientsCount} clientes cadastrados</p>
         </div>
         <div className="flex items-center gap-2">
           <CsvExportButton
             filename="clientes.csv"
-            data={clients.map(c => ({
+            data={(clientList as unknown as Client[]).map(c => ({
               nome:     c.name,
               empresa:  c.company ?? "",
               email:    c.email ?? "",
@@ -81,7 +92,7 @@ export function ClientsPageClient({ clients, deals, pipelineClients }: Props) {
 
         <TabsContent value="clientes">
           <div className="grid gap-4 mt-2">
-            {clients.length === 0 && (
+            {clientList.length === 0 && (
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
                   <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -89,7 +100,7 @@ export function ClientsPageClient({ clients, deals, pipelineClients }: Props) {
                 </CardContent>
               </Card>
             )}
-            {clients.map((client) => {
+            {(clientList as unknown as Client[]).map((client) => {
               const score = client.score
               return (
                 <Card key={client.id} className="hover:shadow-md transition-shadow">
@@ -130,6 +141,7 @@ export function ClientsPageClient({ clients, deals, pipelineClients }: Props) {
                 </Card>
               )
             })}
+            <LoadMoreButton hasMore={hasMore} loading={loading} onClick={loadMore} />
           </div>
         </TabsContent>
 

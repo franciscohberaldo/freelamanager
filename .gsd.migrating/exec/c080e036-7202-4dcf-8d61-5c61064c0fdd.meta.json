@@ -1,0 +1,18 @@
+{
+  "id": "c080e036-7202-4dcf-8d61-5c61064c0fdd",
+  "runtime": "bash",
+  "purpose": "S04 verify key implementations exist",
+  "script_chars": 570,
+  "started_at": "2026-05-16T19:28:41.727Z",
+  "finished_at": "2026-05-16T19:28:41.852Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 125,
+  "stdout_bytes": 1132,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\c080e036-7202-4dcf-8d61-5c61064c0fdd.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\c080e036-7202-4dcf-8d61-5c61064c0fdd.stderr"
+}

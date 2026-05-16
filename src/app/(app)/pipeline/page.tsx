@@ -10,7 +10,8 @@ export default async function PipelinePage() {
       .from("sales_pipeline")
       .select("*, clients(id, name, company)")
       .eq("user_id", user!.id)
-      .order("position"),
+      .order("position")
+      .range(0, 49),
     supabase
       .from("clients")
       .select("id, name, company")
