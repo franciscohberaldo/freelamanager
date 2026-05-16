@@ -18,7 +18,6 @@ export async function GET() {
     { data: goals },
     { data: projects },
     { data: agendaEvents },
-    { data: diaryEntries },
     { data: settings },
   ] = await Promise.all([
     supabase.from("clients").select("*").eq("user_id", uid),
@@ -30,7 +29,6 @@ export async function GET() {
     supabase.from("user_goals").select("*").eq("user_id", uid),
     supabase.from("projects").select("*").eq("user_id", uid),
     supabase.from("agenda_events").select("*").eq("user_id", uid).order("event_date"),
-    supabase.from("diary_entries").select("*").eq("user_id", uid).order("date"),
     supabase.from("user_settings").select("*").eq("user_id", uid).single(),
   ])
 
@@ -48,7 +46,6 @@ export async function GET() {
       user_goals:   goals        ?? [],
       projects:     projects     ?? [],
       agenda_events: agendaEvents ?? [],
-      diary_entries: diaryEntries ?? [],
       user_settings: settings    ?? null,
     },
   }

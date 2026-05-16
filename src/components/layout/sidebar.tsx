@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import {
   BarChart3, Briefcase, CalendarDays, ClipboardList,
   FileText, LayoutDashboard, LogOut, Moon, Search, Settings,
-  Sun, TrendingUp, Users, CalendarCheck, FolderKanban, BookText, Wallet, Target, CalendarOff, Zap, KanbanSquare,
+  Sun, TrendingUp, Users, CalendarCheck, FolderKanban, Wallet, Target, CalendarOff, Zap, KanbanSquare,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,6 @@ import { CommandPalette } from "@/components/command-palette"
 const navItems = [
   { href: "/dashboard",  label: "Dashboard",    icon: LayoutDashboard },
   { href: "/logs",       label: "Tracking Diário", icon: ClipboardList },
-  { href: "/diario",    label: "Diário",          icon: BookText },
   { href: "/jobs",       label: "Jobs",          icon: Briefcase },
   { href: "/clients",    label: "Clientes",      icon: Users },
   { href: "/pipeline",   label: "Pipeline",      icon: KanbanSquare },

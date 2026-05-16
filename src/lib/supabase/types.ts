@@ -130,17 +130,6 @@ type ProjectTaskItemInsert = {
   task_id: string; text: string; is_done?: boolean; position?: number
 }
 
-type DailyJournalRow = {
-  id: string; user_id: string; date: string; content: string | null;
-  mood: 'great' | 'good' | 'okay' | 'bad' | 'terrible' | null;
-  highlights: string[]; created_at: string; updated_at: string
-}
-type DailyJournalInsert = {
-  user_id: string; date: string; content?: string | null;
-  mood?: 'great' | 'good' | 'okay' | 'bad' | 'terrible' | null;
-  highlights?: string[]
-}
-
 type UserSettingsRow = {
   user_id: string; company_name: string | null; cnpj_cpf: string | null;
   logo_url: string | null; invoice_color: string; hour_rounding: string;
@@ -305,7 +294,6 @@ export type Database = {
       projects:             { Row: ProjectRow;            Insert: ProjectInsert;            Update: Partial<ProjectInsert>;            Relationships: [] }
       project_tasks:        { Row: ProjectTaskRow;        Insert: ProjectTaskInsert;        Update: Partial<ProjectTaskInsert>;        Relationships: [] }
       project_task_items:   { Row: ProjectTaskItemRow;    Insert: ProjectTaskItemInsert;    Update: Partial<ProjectTaskItemInsert>;    Relationships: [] }
-      daily_journal:        { Row: DailyJournalRow;       Insert: DailyJournalInsert;       Update: Partial<DailyJournalInsert>;       Relationships: [] }
       user_settings:        { Row: UserSettingsRow;       Insert: UserSettingsInsert;       Update: Partial<UserSettingsInsert>;       Relationships: [] }
       expenses:             { Row: ExpenseRow;            Insert: ExpenseInsert;            Update: Partial<ExpenseInsert>;            Relationships: [] }
       invoice_payments:     { Row: InvoicePaymentRow;     Insert: InvoicePaymentInsert;     Update: Partial<InvoicePaymentInsert>;     Relationships: [] }
@@ -347,7 +335,6 @@ export type UserAvailability = Database['public']['Tables']['user_availability']
 export type Project = Database['public']['Tables']['projects']['Row']
 export type ProjectTask = Database['public']['Tables']['project_tasks']['Row']
 export type ProjectTaskItem = Database['public']['Tables']['project_task_items']['Row']
-export type DailyJournal = Database['public']['Tables']['daily_journal']['Row']
 export type UserSettings = Database['public']['Tables']['user_settings']['Row']
 export type Expense = Database['public']['Tables']['expenses']['Row']
 export type InvoicePayment = Database['public']['Tables']['invoice_payments']['Row']
