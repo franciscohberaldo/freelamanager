@@ -52,14 +52,15 @@ type InvoiceRow = {
   subtotal: number; tax_rate: number; tax_amount: number; total: number;
   currency: 'BRL' | 'USD' | 'EUR'; status: 'draft' | 'sent' | 'paid' | 'overdue';
   sent_at: string | null; paid_at: string | null; due_date: string | null;
-  notes: string | null; created_at: string; updated_at: string
+  notes: string | null; client_confirmed_at: string | null; created_at: string; updated_at: string
 }
 type InvoiceInsert = {
   user_id: string; job_id: string; invoice_number: string; period_start: string;
   period_end: string; total_hours_billed: number; subtotal: number; tax_rate: number;
   tax_amount: number; total: number; currency: 'BRL' | 'USD' | 'EUR';
   status: 'draft' | 'sent' | 'paid' | 'overdue'; sent_at?: string | null;
-  paid_at?: string | null; due_date?: string | null; notes?: string | null
+  paid_at?: string | null; due_date?: string | null; notes?: string | null;
+  client_confirmed_at?: string | null
 }
 
 type InvoiceItemRow = { id: string; invoice_id: string; log_id: string | null; date: string; description: string | null; hours_billed: number; rate: number; subtotal: number }
