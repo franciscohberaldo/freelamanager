@@ -37,7 +37,7 @@ export default async function DashboardPage() {
       .lte("date", monthEnd),
     supabase
       .from("jobs")
-      .select("id, name, hourly_rate, currency, clients(name)")
+      .select("id, name, hourly_rate, daily_rate, currency, clients(name)")
       .eq("user_id", user!.id)
       .eq("status", "active"),
     supabase
@@ -122,6 +122,8 @@ export default async function DashboardPage() {
         overdueInvoices: (overdueInvoices ?? []) as unknown as { id: string; invoice_number: string; total: number; currency: string; status: string; due_date: string; jobs: { name: string; clients: { name: string } | null } | null }[],
         goals: (goals ?? []) as unknown as { id: string; type: string; target: number; period: string }[],
         monthLogs: monthLogs ?? [],
+        activeJobs: (activeJobs ?? []) as unknown as { id: string; name: string; hourly_rate: number; daily_rate: number; currency: string; clients: { name: string } | null }[],
+        recentDailyLogs: (recentDailyLogs ?? []) as unknown as { date: string; jobs: { id: string; name: string } | null }[],
       }}
     />
   )

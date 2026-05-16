@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, CheckCircle2, AlertTriangle, Target, FileText } from "lucide-react"
 import Link from "next/link"
+import { RevenueAtRisk, type StaleJobInput, type RecentDailyLog } from "./revenue-at-risk"
 
 interface TodayLog {
   id: string
@@ -53,6 +54,8 @@ export interface DailyViewProps {
   overdueInvoices: OverdueInvoice[]
   goals: Goal[]
   monthLogs: MonthLog[]
+  activeJobs: StaleJobInput[]
+  recentDailyLogs: RecentDailyLog[]
 }
 
 const eventTypeIcons: Record<string, string> = {
@@ -69,6 +72,8 @@ export function DailyView({
   overdueInvoices,
   goals,
   monthLogs,
+  activeJobs,
+  recentDailyLogs,
 }: DailyViewProps) {
   const totalHoursToday = todayLogs.reduce((sum, l) => sum + l.hours_worked, 0)
   const totalValueToday = todayLogs.reduce((sum, l) => sum + l.total_value, 0)
@@ -301,6 +306,13 @@ export function DailyView({
           </CardContent>
         </Card>
       )}
+
+      {/* Revenue at Risk */}
+      <RevenueAtRisk
+        overdueInvoices={overdueInvoices}
+        activeJobs={activeJobs}
+        recentDailyLogs={recentDailyLogs}
+      />
     </div>
   )
 }
