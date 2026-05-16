@@ -1,0 +1,28 @@
+{"ts":"2026-05-16T01:29:25.080Z","flowId":"auto-orchestrator-1778894965078","seq":1,"eventType":"iteration-start","data":{"source":"auto-orchestrator","name":"start"}}
+{"ts":"2026-05-16T01:29:25.908Z","flowId":"auto-orchestrator-1778894965078","seq":2,"eventType":"guard-block","data":{"source":"auto-orchestrator","name":"advance-blocked","reason":"Unhandled phase \"planning\" — run /gsd doctor to diagnose."}}
+{"ts":"2026-05-16T01:29:25.922Z","flowId":"57af72f3-156e-4c63-87c9-9b95c34c5d08","seq":1,"eventType":"iteration-start","data":{"iteration":1}}
+{"ts":"2026-05-16T01:29:26.238Z","flowId":"57af72f3-156e-4c63-87c9-9b95c34c5d08","seq":2,"eventType":"dispatch-match","rule":"planning (no research, not S01) → research-slice","data":{"unitType":"research-slice","unitId":"M001/S01"}}
+{"ts":"2026-05-16T01:29:26.360Z","flowId":"57af72f3-156e-4c63-87c9-9b95c34c5d08","seq":3,"eventType":"unit-start","data":{"unitType":"research-slice","unitId":"M001/S01"}}
+{"ts":"2026-05-16T01:31:28.177Z","flowId":"57af72f3-156e-4c63-87c9-9b95c34c5d08","seq":4,"eventType":"unit-end","data":{"unitType":"research-slice","unitId":"M001/S01","status":"completed","artifactVerified":true},"causedBy":{"flowId":"57af72f3-156e-4c63-87c9-9b95c34c5d08","seq":3}}
+{"ts":"2026-05-16T01:31:28.182Z","flowId":"57af72f3-156e-4c63-87c9-9b95c34c5d08","seq":5,"eventType":"post-unit-finalize-start","data":{"iteration":1,"unitType":"research-slice","unitId":"M001/S01"}}
+{"ts":"2026-05-16T01:31:28.365Z","flowId":"57af72f3-156e-4c63-87c9-9b95c34c5d08","seq":6,"eventType":"post-unit-finalize-end","data":{"iteration":1,"unitType":"research-slice","unitId":"M001/S01","status":"completed","action":"break","reason":"step-wizard"}}
+{"ts":"2026-05-16T01:31:28.368Z","flowId":"57af72f3-156e-4c63-87c9-9b95c34c5d08","seq":7,"eventType":"iteration-end","data":{"iteration":1}}
+{"ts":"2026-05-16T12:18:54.811Z","flowId":"auto-orchestrator-1778933934808","seq":1,"eventType":"iteration-start","data":{"source":"auto-orchestrator","name":"start"}}
+{"ts":"2026-05-16T12:18:55.445Z","flowId":"auto-orchestrator-1778933934808","seq":2,"eventType":"guard-block","data":{"source":"auto-orchestrator","name":"advance-blocked","reason":"Unhandled phase \"planning\" — run /gsd doctor to diagnose."}}
+{"ts":"2026-05-16T12:18:55.461Z","flowId":"56ef18d5-f21b-4a25-87e5-8aee763e9b32","seq":1,"eventType":"iteration-start","data":{"iteration":1}}
+{"ts":"2026-05-16T12:18:56.224Z","flowId":"56ef18d5-f21b-4a25-87e5-8aee763e9b32","seq":2,"eventType":"dispatch-match","rule":"planning → plan-slice","data":{"unitType":"plan-slice","unitId":"M001/S01"}}
+{"ts":"2026-05-16T12:18:56.279Z","flowId":"56ef18d5-f21b-4a25-87e5-8aee763e9b32","seq":3,"eventType":"unit-start","data":{"unitType":"plan-slice","unitId":"M001/S01"}}
+{"ts":"2026-05-16T12:22:18.573Z","flowId":"56ef18d5-f21b-4a25-87e5-8aee763e9b32","seq":4,"eventType":"unit-end","data":{"unitType":"plan-slice","unitId":"M001/S01","status":"completed","artifactVerified":true},"causedBy":{"flowId":"56ef18d5-f21b-4a25-87e5-8aee763e9b32","seq":3}}
+{"ts":"2026-05-16T12:22:18.578Z","flowId":"56ef18d5-f21b-4a25-87e5-8aee763e9b32","seq":5,"eventType":"post-unit-finalize-start","data":{"iteration":1,"unitType":"plan-slice","unitId":"M001/S01"}}
+{"ts":"2026-05-16T12:22:18.777Z","flowId":"56ef18d5-f21b-4a25-87e5-8aee763e9b32","seq":6,"eventType":"post-unit-finalize-end","data":{"iteration":1,"unitType":"plan-slice","unitId":"M001/S01","status":"completed","action":"next"}}
+{"ts":"2026-05-16T12:22:18.780Z","flowId":"56ef18d5-f21b-4a25-87e5-8aee763e9b32","seq":7,"eventType":"iteration-end","data":{"iteration":1}}
+{"ts":"2026-05-16T12:22:18.793Z","flowId":"7f92db2c-3e2b-4a77-bc66-a4cdaaeca137","seq":1,"eventType":"iteration-start","data":{"iteration":2}}
+{"ts":"2026-05-16T12:22:18.966Z","flowId":"542f36ae-ee89-42da-b052-271105dc474e","seq":1,"eventType":"iteration-start","data":{"iteration":3}}
+{"ts":"2026-05-16T12:22:19.157Z","flowId":"542f36ae-ee89-42da-b052-271105dc474e","seq":2,"eventType":"dispatch-match","rule":"executing → execute-task","data":{"unitType":"execute-task","unitId":"M001/S01/T01"}}
+{"ts":"2026-05-16T12:22:19.336Z","flowId":"542f36ae-ee89-42da-b052-271105dc474e","seq":3,"eventType":"unit-start","data":{"unitType":"execute-task","unitId":"M001/S01/T01"}}
+{"ts":"2026-05-16T12:22:32.697Z","flowId":"auto-orchestrator-1778934152694","seq":1,"eventType":"iteration-start","data":{"source":"auto-orchestrator","name":"start"}}
+{"ts":"2026-05-16T12:22:32.868Z","flowId":"auto-orchestrator-1778934152694","seq":2,"eventType":"guard-block","data":{"source":"auto-orchestrator","name":"advance-blocked","reason":"Unhandled phase \"executing\" — run /gsd doctor to diagnose."}}
+{"ts":"2026-05-16T12:22:32.882Z","flowId":"a18b714f-d6c6-44cd-b9c8-5d5d93c9184a","seq":1,"eventType":"iteration-start","data":{"iteration":1}}
+{"ts":"2026-05-16T12:22:33.068Z","flowId":"a18b714f-d6c6-44cd-b9c8-5d5d93c9184a","seq":2,"eventType":"dispatch-match","rule":"executing → execute-task","data":{"unitType":"execute-task","unitId":"M001/S01/T01"}}
+{"ts":"2026-05-16T12:22:33.114Z","flowId":"75fb5039-3e06-41e7-b13d-8110eb243b4e","seq":0,"eventType":"auto-exit","data":{"reason":"other","milestoneId":"M001","milestoneMerged":false,"isolationMode":"none","worktreeActive":false,"exitedAt":"2026-05-16T12:22:33.114Z"}}
+{"ts":"2026-05-16T12:23:46.121Z","flowId":"542f36ae-ee89-42da-b052-271105dc474e","seq":4,"eventType":"unit-end","data":{"unitType":"execute-task","unitId":"M001/S01/T01","status":"crash-recovered","artifactVerified":false},"causedBy":{"flowId":"542f36ae-ee89-42da-b052-271105dc474e","seq":3}}

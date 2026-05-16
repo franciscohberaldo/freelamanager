@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/recurring-invoices",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/keep-alive",
+      "schedule": "0 6 */4 * *"
     }
   ]
 }

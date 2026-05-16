@@ -1,0 +1,52 @@
+{
+  "compiledAt": "2026-05-16T12:22:32.971Z",
+  "milestoneId": "M001",
+  "pipeline": {
+    "clarifyRoundLimit": 3,
+    "researchSynthesized": true,
+    "draftContextIncluded": false,
+    "finalizedContextIncluded": true,
+    "sourcePhase": "executing"
+  },
+  "nodes": [
+    {
+      "id": "execute-task:M001:S01:T01",
+      "kind": "unit",
+      "dependsOn": [],
+      "writes": [],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S01.T01",
+        "title": "Complete types.ts with all 27 tables and composite types",
+        "status": "pending"
+      }
+    },
+    {
+      "id": "execute-task:M001:S01:T02",
+      "kind": "unit",
+      "dependsOn": [
+        "execute-task:M001:S01:T01"
+      ],
+      "writes": [],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S01.T02",
+        "title": "Eliminate all as-any casts and fix PaymentDialog currency bug",
+        "status": "pending"
+      }
+    },
+    {
+      "id": "complete-slice:M001:S01",
+      "kind": "verification",
+      "dependsOn": [
+        "execute-task:M001:S01:T02"
+      ],
+      "metadata": {
+        "unitType": "complete-slice",
+        "unitId": "M001.S01",
+        "title": "Types & Bug Fixes",
+        "status": "pending"
+      }
+    }
+  ]
+}
