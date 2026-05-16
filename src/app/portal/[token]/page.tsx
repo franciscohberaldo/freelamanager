@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { PortalInvoices } from "./portal-client"
 
 export default async function PortalPage({ params }: { params: { token: string } }) {
   const supabase = await createClient()
@@ -32,7 +33,7 @@ export default async function PortalPage({ params }: { params: { token: string }
       .eq("user_id", user_id),
     supabase
       .from("invoices")
-      .select("invoice_number, total, currency, status, period_start, period_end, due_date")
+      .select("id, invoice_number, total, currency, status, period_start, period_end, due_date, client_confirmed_at")
       .eq("user_id", user_id)
       .in("job_id", (await supabase.from("jobs").select("id").eq("client_id", client_id).eq("user_id", user_id)).data?.map(j => j.id) ?? [])
       .order("created_at", { ascending: false }),
@@ -44,13 +45,6 @@ export default async function PortalPage({ params }: { params: { token: string }
   ])
 
   if (!client) notFound()
-
-  const INV_STATUS: Record<string, { label: string; class: string }> = {
-    draft:   { label: "Rascunho", class: "bg-gray-100 text-gray-600" },
-    sent:    { label: "Enviado",  class: "bg-amber-100 text-amber-700" },
-    paid:    { label: "Pago",     class: "bg-green-100 text-green-700" },
-    overdue: { label: "Vencido",  class: "bg-red-100 text-red-700" },
-  }
 
   const JOB_STATUS: Record<string, string> = {
     proposal: "Proposta", active: "Em andamento", paused: "Pausado", completed: "Finalizado",
@@ -156,31 +150,7 @@ export default async function PortalPage({ params }: { params: { token: string }
 
         {/* Invoices */}
         {invoices && invoices.length > 0 && (
-          <div>
-            <h2 className="text-base font-semibold text-gray-900 mb-3">Invoices</h2>
-            <div className="bg-white rounded-xl border divide-y">
-              {invoices.map((inv, i) => {
-                const st = INV_STATUS[inv.status] ?? { label: inv.status, class: "bg-gray-100 text-gray-600" }
-                return (
-                  <div key={i} className="px-5 py-4 flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900">#{inv.invoice_number}</p>
-                      <p className="text-sm text-gray-500">
-                        {format(new Date(inv.period_start + "T12:00"), "MMM yyyy", { locale: ptBR })}
-                        {inv.due_date && ` · vence ${format(new Date(inv.due_date + "T12:00"), "dd/MM")}`}
-                      </p>
-                    </div>
-                    <div className="text-right flex items-center gap-3">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${st.class}`}>
-                        {st.label}
-                      </span>
-                      <p className="font-semibold text-gray-900">{formatCurrency(inv.total, inv.currency)}</p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+          <PortalInvoices invoices={invoices} token={params.token} />
         )}
 
         <p className="text-center text-xs text-gray-400 pb-4">
