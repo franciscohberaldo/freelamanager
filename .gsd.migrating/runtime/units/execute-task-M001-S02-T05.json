@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "unitType": "execute-task",
+  "unitId": "M001/S02/T05",
+  "startedAt": 1778935818055,
+  "updatedAt": 1778935971245,
+  "phase": "finalized",
+  "wrapupWarningSent": false,
+  "continueHereFired": false,
+  "timeoutAt": null,
+  "lastProgressAt": 1778935971244,
+  "progressCount": 0,
+  "lastProgressKind": "finalize-success",
+  "recoveryAttempts": 0
+}

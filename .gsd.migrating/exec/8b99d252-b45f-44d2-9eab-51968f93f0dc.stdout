@@ -1,0 +1,102 @@
+=== Dashboard overdue invoices query ===
+src/app/(app)/dashboard/page.tsx:28:    { data: overdueInvoices },
+src/app/(app)/dashboard/page.tsx:94:      .select("id, invoice_number, total, currency, status, due_date, jobs(name, clients(name))")
+src/app/(app)/dashboard/page.tsx:96:      .in("status", ["overdue"])
+src/app/(app)/dashboard/page.tsx:97:      .order("due_date"),
+src/app/(app)/dashboard/page.tsx:122:        overdueInvoices: (overdueInvoices ?? []) as unknown as { id: string; invoice_number: string; total: number; currency: string; status: string; due_date: string; jobs: { name: string; clients: { name: string } | null } | null }[],
+src/app/(app)/dashboard/daily-view.tsx:34:  due_date: string
+src/app/(app)/dashboard/daily-view.tsx:54:  overdueInvoices: OverdueInvoice[]
+src/app/(app)/dashboard/daily-view.tsx:72:  overdueInvoices,
+src/app/(app)/dashboard/daily-view.tsx:140:            <CardTitle className="text-sm font-medium text-muted-foreground">Invoices vencidas</CardTitle>
+src/app/(app)/dashboard/daily-view.tsx:145:              <p className="text-2xl font-bold">{overdueInvoices.length}</p>
+src/app/(app)/dashboard/daily-view.tsx:146:              {overdueInvoices.length > 0 && (
+src/app/(app)/dashboard/daily-view.tsx:151:              {overdueInvoices.length > 0
+src/app/(app)/dashboard/daily-view.tsx:152:                ? formatCurrency(overdueInvoices.reduce((sum, inv) => sum + inv.total, 0))
+src/app/(app)/dashboard/daily-view.tsx:153:                : "Nenhum invoice vencido"}
+src/app/(app)/dashboard/daily-view.tsx:278:      {overdueInvoices.length > 0 && (
+src/app/(app)/dashboard/daily-view.tsx:283:              Invoices vencidas
+src/app/(app)/dashboard/daily-view.tsx:290:            {overdueInvoices.map((inv) => (
+src/app/(app)/dashboard/daily-view.tsx:298:                    · Vencido em {formatDate(inv.due_date)}
+src/app/(app)/dashboard/daily-view.tsx:312:        overdueInvoices={overdueInvoices}
+src/app/(app)/dashboard/revenue-at-risk.tsx:23:  overdueInvoices: {
+src/app/(app)/dashboard/revenue-at-risk.tsx:85:  overdueInvoices,
+src/app/(app)/dashboard/revenue-at-risk.tsx:92:  for (const inv of overdueInvoices) {
+src/app/(app)/dashboard/revenue-at-risk.tsx:99:  const hasRisk = overdueInvoices.length > 0 || staleJobs.length > 0
+src/app/(app)/dashboard/revenue-at-risk.tsx:109:              Nenhum invoice vencido e todos os jobs ativos com atividade recente.
+src/app/(app)/dashboard/revenue-at-risk.tsx:126:            <p className="text-sm font-medium mb-1">Invoices vencidos</p>
+
+=== Pipeline / deals data ===
+src/app/(app)/clients/clients-page-client.tsx:8:import { PipelineClient } from "@/app/(app)/pipeline/pipeline-client"
+src/app/(app)/clients/clients-page-client.tsx:42:  deals: Deal[]
+src/app/(app)/clients/clients-page-client.tsx:43:  pipelineClients: PipelineClient_[]
+src/app/(app)/clients/clients-page-client.tsx:46:export function ClientsPageClient({ clients, deals, pipelineClients }: Props) {
+src/app/(app)/clients/clients-page-client.tsx:79:          <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
+src/app/(app)/clients/clients-page-client.tsx:136:        <TabsContent value="pipeline">
+src/app/(app)/clients/clients-page-client.tsx:137:          <PipelineClient deals={deals} clients={pipelineClients} />
+src/app/(app)/clients/page.tsx:8:  const [{ data: clients }, { data: deals }, { data: pipelineClients }] = await Promise.all([
+src/app/(app)/clients/page.tsx:15:      .from("sales_pipeline")
+src/app/(app)/clients/page.tsx:29:      deals={deals ?? []}
+src/app/(app)/clients/page.tsx:30:      pipelineClients={pipelineClients ?? []}
+
+=== user_settings table schema ===
+type UserSettingsRow = {
+  user_id: string; company_name: string | null; cnpj_cpf: string | null;
+  logo_url: string | null; invoice_color: string; hour_rounding: string;
+  created_at: string; updated_at: string
+}
+type UserSettingsInsert = {
+  user_id: string; company_name?: string | null; cnpj_cpf?: string | null;
+  logo_url?: string | null; invoice_color?: string; hour_rounding?: string
+}
+
+type ExpenseRow = {
+  id: string; user_id: string;
+  category: 'software' | 'hardware' | 'curso' | 'imposto' | 'servico' | 'outro';
+  description: string; amount: number; date: string; notes: string | null;
+  created_at: string; updated_at: string
+}
+type ExpenseInsert = {
+  user_id: string; category: 'software' | 'hardware' | 'curso' | 'imposto' | 'servico' | 'outro';
+  description: string; amount: number; date: string; notes?: string | null
+}
+
+type InvoicePaymentRow = {
+  id: string; invoice_id: string; user_id: string; amount: number;
+  paid_at: string; method: 'pix' | 'ted' | 'cartao' | 'boleto' | 'outro' | null;
+  notes: string | null; created_at: string
+}
+type InvoicePaymentInsert = {
+  invoice_id: string; user_id: string; amount: number; paid_at: string;
+  method?: 'pix' | 'ted' | 'cartao' | 'boleto' | 'outro' | null; notes?: string | null
+}
+
+type UserGoalRow = {
+  id: string; user_id: string; type: 'hours_month' | 'revenue_month';
+  target: number; period: string; created_at: string
+}
+type UserGoalInsert = {
+--
+      user_settings:        { Row: UserSettingsRow;       Insert: UserSettingsInsert;       Update: Partial<UserSettingsInsert>;       Relationships: [] }
+      expenses:             { Row: ExpenseRow;            Insert: ExpenseInsert;            Update: Partial<ExpenseInsert>;            Relationships: [] }
+      invoice_payments:     { Row: InvoicePaymentRow;     Insert: InvoicePaymentInsert;     Update: Partial<InvoicePaymentInsert>;     Relationships: [] }
+
+=== Layout file (where Sidebar is rendered) ===
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+import { Sidebar } from "@/components/layout/sidebar"
+
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) redirect("/login")
+
+  return (
+    <div className="flex min-h-screen">
+      <Sidebar />
+      <main className="flex-1 overflow-auto">
+        {children}
+      </main>
+    </div>
+  )
+}

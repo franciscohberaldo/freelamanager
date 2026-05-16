@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
@@ -16,16 +16,52 @@ export function LogTimerButton({ logId, hoursWorked }: Props) {
   const [active, setActive] = useState(false)
   const [seconds, setSeconds] = useState(0)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const secondsRef = useRef(0)
+  const activeRef = useRef(false)
+  const maxHoursRef = useRef(8)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    if (active) {
-      intervalRef.current = setInterval(() => setSeconds((s) => s + 1), 1000)
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current)
+    const stored = localStorage.getItem("timer_max_hours")
+    if (stored) {
+      const parsed = parseFloat(stored)
+      if (!isNaN(parsed) && parsed > 0) {
+        maxHoursRef.current = parsed
+      }
     }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [])
+
+  useEffect(() => {
+    if (active) {
+      activeRef.current = true
+      intervalRef.current = setInterval(() => {
+        secondsRef.current += 1
+        setSeconds(secondsRef.current)
+        const maxSeconds = maxHoursRef.current * 3600
+        if (secondsRef.current >= maxSeconds && activeRef.current) {
+          activeRef.current = false
+          setActive(false)
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current)
+            intervalRef.current = null
+          }
+          toast.warning(`Timer parou automaticamente após ${maxHoursRef.current}h`)
+        }
+      }, 1000)
+    } else {
+      activeRef.current = false
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
   }, [active])
 
   async function handleStop() {

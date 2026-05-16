@@ -1,0 +1,18 @@
+{
+  "id": "c31b1e8c-7049-40a5-bd47-4c22e6c0d80e",
+  "runtime": "bash",
+  "purpose": "S02 verification: Clients has Pipeline tab",
+  "script_chars": 128,
+  "started_at": "2026-05-16T12:54:59.325Z",
+  "finished_at": "2026-05-16T12:54:59.377Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 52,
+  "stdout_bytes": 344,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\c31b1e8c-7049-40a5-bd47-4c22e6c0d80e.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\c31b1e8c-7049-40a5-bd47-4c22e6c0d80e.stderr"
+}

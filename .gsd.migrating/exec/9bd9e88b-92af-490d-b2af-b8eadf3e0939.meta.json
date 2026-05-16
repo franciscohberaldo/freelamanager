@@ -1,0 +1,18 @@
+{
+  "id": "9bd9e88b-92af-490d-b2af-b8eadf3e0939",
+  "runtime": "bash",
+  "purpose": "S03 verification: confirm dashboard in build output",
+  "script_chars": 86,
+  "started_at": "2026-05-16T13:11:01.544Z",
+  "finished_at": "2026-05-16T13:11:25.246Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 23702,
+  "stdout_bytes": 75,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\9bd9e88b-92af-490d-b2af-b8eadf3e0939.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\9bd9e88b-92af-490d-b2af-b8eadf3e0939.stderr"
+}

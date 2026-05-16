@@ -17,10 +17,10 @@
 - [x] **S01: S01** `risk:high` `depends:[]`
   > After this: Registrar pagamento em invoice USD — mostra valor em USD, não BRL. Build compila sem `as any`.
 
-- [ ] **S02: S02** `risk:medium` `depends:[]`
+- [x] **S02: S02** `risk:medium` `depends:[]`
   > After this: Sidebar tem 9 itens. Agenda mostra abas Tarefas/Disponibilidade/Folgas. Clientes mostra aba Pipeline. Folga criada aparece como indisponivel.
 
-- [ ] **S03: Dashboard do Dia** `risk:medium` `depends:[S01]`
+- [x] **S03: S03** `risk:medium` `depends:[]`
   > After this: Abrir o app mostra horas de hoje, tarefas da agenda, invoices vencidas, receita em risco, progresso das metas. Toggle alterna pra visao mensal.
 
 - [ ] **S04: Timer & Notificacoes** `risk:low` `depends:[S02]`

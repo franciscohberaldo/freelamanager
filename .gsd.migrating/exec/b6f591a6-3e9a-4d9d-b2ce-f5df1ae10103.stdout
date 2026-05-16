@@ -1,0 +1,5 @@
+39:async function syncAvailabilityForDate(
+57:    .from("user_availability")
+118:      await syncAvailabilityForDate(supabase, user!.id, selectedDate)
+133:    await syncAvailabilityForDate(supabase, existing.user_id, selectedDate)
+260:                    await syncAvailabilityForDate(supabase, entry.user_id, entry.date)

@@ -1,0 +1,18 @@
+{
+  "id": "b6f591a6-3e9a-4d9d-b2ce-f5df1ae10103",
+  "runtime": "bash",
+  "purpose": "S02 verification: Folgas syncs availability",
+  "script_chars": 127,
+  "started_at": "2026-05-16T12:55:00.196Z",
+  "finished_at": "2026-05-16T12:55:00.248Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 52,
+  "stdout_bytes": 322,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\b6f591a6-3e9a-4d9d-b2ce-f5df1ae10103.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\b6f591a6-3e9a-4d9d-b2ce-f5df1ae10103.stderr"
+}

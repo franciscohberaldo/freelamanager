@@ -1,0 +1,18 @@
+{
+  "id": "442556c7-1142-4e37-9a2a-374f2b9c6f19",
+  "runtime": "node",
+  "purpose": "S02 verification: exact sidebar item count",
+  "script_chars": 647,
+  "started_at": "2026-05-16T12:55:10.549Z",
+  "finished_at": "2026-05-16T12:55:10.589Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 40,
+  "stdout_bytes": 139,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\442556c7-1142-4e37-9a2a-374f2b9c6f19.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\442556c7-1142-4e37-9a2a-374f2b9c6f19.stderr"
+}

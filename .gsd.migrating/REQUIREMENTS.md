@@ -23,24 +23,6 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: mapped
 - Notes: Agenda+Disponibilidade+Folgas; Pipeline como aba de Clientes; Diário vira Tracking em Logs; Despesas+Metas+Automações em Settings
 
-### R006 — Dashboard do dia como tela principal — horas hoje, tarefas, invoices vencidas, receita em risco, metas
-- Class: primary-user-loop
-- Status: active
-- Description: Dashboard do dia como tela principal — horas hoje, tarefas, invoices vencidas, receita em risco, metas
-- Why it matters: Freelancer precisa abrir o app e em 5 segundos saber o que fazer hoje e se está no caminho das metas
-- Source: user
-- Primary owning slice: M001/S03
-- Validation: mapped
-
-### R007 — Widget de receita em risco — invoices overdue + jobs sem log recente = dinheiro que pode escapar
-- Class: differentiator
-- Status: active
-- Description: Widget de receita em risco — invoices overdue + jobs sem log recente = dinheiro que pode escapar
-- Why it matters: Freelancer perde receita por não acompanhar invoices vencidas e jobs abandonados
-- Source: inferred
-- Primary owning slice: M001/S03
-- Validation: mapped
-
 ### R008 — Folgas bloqueia disponibilidade automaticamente — folga criada marca dia como indisponível
 - Class: integration
 - Status: active
@@ -126,6 +108,24 @@ This file is the explicit capability and coverage contract for the project.
 - Primary owning slice: M001/S01
 - Validation: grep -rn "as any" src/ returns zero matches. npx tsc --noEmit exits 0. npx next build succeeds.
 
+### R006 — Dashboard do dia como tela principal — horas hoje, tarefas, invoices vencidas, receita em risco, metas
+- Class: primary-user-loop
+- Status: validated
+- Description: Dashboard do dia como tela principal — horas hoje, tarefas, invoices vencidas, receita em risco, metas
+- Why it matters: Freelancer precisa abrir o app e em 5 segundos saber o que fazer hoje e se está no caminho das metas
+- Source: user
+- Primary owning slice: M001/S03
+- Validation: Dashboard defaults to "Hoje" tab with daily KPIs (hours today, tasks count, overdue invoices), agenda section, overdue invoice list, and goal progress bars. Server fetches all data; client-side Tabs switch between daily and monthly views instantly. Verified via tsc --noEmit (0 errors), next build success (7.61 kB), and browser smoke test.
+
+### R007 — Widget de receita em risco — invoices overdue + jobs sem log recente = dinheiro que pode escapar
+- Class: differentiator
+- Status: validated
+- Description: Widget de receita em risco — invoices overdue + jobs sem log recente = dinheiro que pode escapar
+- Why it matters: Freelancer perde receita por não acompanhar invoices vencidas e jobs abandonados
+- Source: inferred
+- Primary owning slice: M001/S03
+- Validation: Revenue-at-risk widget renders in daily view showing overdue invoice totals grouped by currency + stale active jobs (no daily_log in 14 days) with rate display. Widget always renders (positive empty state when no risk). Verified via tsc --noEmit (0 errors), next build success, and code review confirming formatCurrency per-invoice currency usage.
+
 ## Deferred
 
 ## Out of Scope
@@ -139,8 +139,8 @@ This file is the explicit capability and coverage contract for the project.
 | R003 | quality-attribute | validated | M001/S01 | none | grep -rn "as any" src/ returns zero matches. npx tsc --noEmit exits 0. npx next build succeeds. |
 | R004 | constraint | active | M001/S02 | none | mapped |
 | R005 | primary-user-loop | active | M001/S02 | none | mapped |
-| R006 | primary-user-loop | active | M001/S03 | none | mapped |
-| R007 | differentiator | active | M001/S03 | none | mapped |
+| R006 | primary-user-loop | validated | M001/S03 | none | Dashboard defaults to "Hoje" tab with daily KPIs (hours today, tasks count, overdue invoices), agenda section, overdue invoice list, and goal progress bars. Server fetches all data; client-side Tabs switch between daily and monthly views instantly. Verified via tsc --noEmit (0 errors), next build success (7.61 kB), and browser smoke test. |
+| R007 | differentiator | validated | M001/S03 | none | Revenue-at-risk widget renders in daily view showing overdue invoice totals grouped by currency + stale active jobs (no daily_log in 14 days) with rate display. Widget always renders (positive empty state when no risk). Verified via tsc --noEmit (0 errors), next build success, and code review confirming formatCurrency per-invoice currency usage. |
 | R008 | integration | active | M001/S02 | none | mapped |
 | R009 | continuity | active | M001/S04 | none | mapped |
 | R010 | failure-visibility | active | M001/S04 | none | mapped |
@@ -150,7 +150,7 @@ This file is the explicit capability and coverage contract for the project.
 
 ## Coverage Summary
 
-- Active requirements: 10
-- Mapped to slices: 10
-- Validated: 3 (R001, R002, R003)
+- Active requirements: 8
+- Mapped to slices: 8
+- Validated: 5 (R001, R002, R003, R006, R007)
 - Unmapped active requirements: 0

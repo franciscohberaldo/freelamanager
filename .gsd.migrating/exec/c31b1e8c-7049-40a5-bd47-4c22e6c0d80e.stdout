@@ -1,0 +1,7 @@
+5:import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+77:        <TabsList>
+78:          <TabsTrigger value="clientes">Clientes</TabsTrigger>
+79:          <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
+80:        </TabsList>
+82:        <TabsContent value="clientes">
+136:        <TabsContent value="pipeline">

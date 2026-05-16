@@ -1,0 +1,31 @@
+├ ƒ /despesas                            20.7 kB         320 kB
+├ ƒ /diario                              8.83 kB         215 kB
+├ ƒ /disponibilidade                     7.33 kB         182 kB
+├ ƒ /folgas                              4.22 kB         193 kB
+├ ƒ /icon-192.png                        0 B                0 B
+├ ƒ /icon-512.png                        0 B                0 B
+├ ƒ /invoices                            17.2 kB         220 kB
+├ ƒ /jobs                                30.1 kB         233 kB
+├ ○ /login                               4.12 kB         179 kB
+├ ƒ /logs                                8.15 kB         214 kB
+├ ○ /manifest.webmanifest                0 B                0 B
+├ ƒ /metas                               4.75 kB         179 kB
+├ ○ /offline                             557 B            88 kB
+├ ƒ /pipeline                            607 B           212 kB
+├ ƒ /portal/[token]                      152 B          87.6 kB
+├ ƒ /projetos                            6.02 kB         220 kB
+├ ƒ /projetos/[id]                       9.11 kB         226 kB
+├ ƒ /reports                             7.57 kB         222 kB
+└ ƒ /settings                            9.26 kB         215 kB
++ First Load JS shared by all            87.4 kB
+  ├ chunks/2117-809c93eddee8cf8f.js      31.8 kB
+  ├ chunks/fd9d1056-245a8df1c65c3720.js  53.6 kB
+  └ other shared chunks (total)          2.01 kB
+
+
+ƒ Middleware                             79.2 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+EXIT: 0

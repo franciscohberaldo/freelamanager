@@ -1,0 +1,10 @@
+0
+---
+const navItems = [
+  { href: "/dashboard", label: "Dashboard",      icon: LayoutDashboard },
+  { href: "/logs",      label: "Tracking Diário", icon: ClipboardList },
+--
+        {navItems.map(({ href, label, icon: Icon }) => (
+---
+navItems not found via regex, trying alternate
+navItems mentions: 2

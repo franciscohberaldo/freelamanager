@@ -1,5 +1,5 @@
 {
-  "compiledAt": "2026-05-16T12:44:20.853Z",
+  "compiledAt": "2026-05-16T13:17:16.179Z",
   "milestoneId": "M001",
   "pipeline": {
     "clarifyRoundLimit": 3,
@@ -91,12 +91,15 @@
       "dependsOn": [
         "execute-task:M001:S02:T01"
       ],
-      "writes": [],
+      "writes": [
+        "src/app/(app)/agenda/page.tsx",
+        "src/app/(app)/agenda/agenda-client.tsx"
+      ],
       "metadata": {
         "unitType": "execute-task",
         "unitId": "M001.S02.T02",
-        "title": "Consolidate Agenda page with Disponibilidade and Folgas tabs",
-        "status": "pending"
+        "title": "Consolidated Agenda page with Disponibilidade and Folgas as new tabs (6 total: Tabela, Timeline, Gantt, Calendário, Disponibilidade, Folgas)",
+        "status": "complete"
       }
     },
     {
@@ -105,12 +108,16 @@
       "dependsOn": [
         "execute-task:M001:S02:T02"
       ],
-      "writes": [],
+      "writes": [
+        "src/app/(app)/clients/clients-page-client.tsx",
+        "src/app/(app)/clients/page.tsx",
+        "src/components/command-palette.tsx"
+      ],
       "metadata": {
         "unitType": "execute-task",
         "unitId": "M001.S02.T03",
-        "title": "Consolidate Clients page with Pipeline tab",
-        "status": "pending"
+        "title": "Consolidated Clients page with Pipeline as a second tab; created ClientsPageClient with Tabs layout",
+        "status": "complete"
       }
     },
     {
@@ -119,12 +126,15 @@
       "dependsOn": [
         "execute-task:M001:S02:T03"
       ],
-      "writes": [],
+      "writes": [
+        "src/components/layout/sidebar.tsx",
+        "src/components/command-palette.tsx"
+      ],
       "metadata": {
         "unitType": "execute-task",
         "unitId": "M001.S02.T04",
-        "title": "Reduce sidebar to 9 items and update command palette",
-        "status": "pending"
+        "title": "Reduced sidebar to exactly 9 nav items and updated command palette to match",
+        "status": "complete"
       }
     },
     {
@@ -133,12 +143,14 @@
       "dependsOn": [
         "execute-task:M001:S02:T04"
       ],
-      "writes": [],
+      "writes": [
+        "src/app/(app)/folgas/folgas-client.tsx"
+      ],
       "metadata": {
         "unitType": "execute-task",
         "unitId": "M001.S02.T05",
-        "title": "Folgas blocks disponibilidade — auto-update user_availability on time_off insert",
-        "status": "pending"
+        "title": "Added auto-sync of user_availability status when folgas are created or deleted for today's date",
+        "status": "complete"
       }
     },
     {
@@ -151,6 +163,144 @@
         "unitType": "complete-slice",
         "unitId": "M001.S02",
         "title": "S02",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "execute-task:M001:S03:T01",
+      "kind": "unit",
+      "dependsOn": [],
+      "writes": [
+        "src/app/(app)/dashboard/page.tsx",
+        "src/app/(app)/dashboard/dashboard-client.tsx",
+        "src/app/(app)/dashboard/monthly-view.tsx"
+      ],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S03.T01",
+        "title": "Split dashboard page.tsx into server-only data fetcher + client shell with Hoje/Mensal tabs + extracted monthly view component",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "execute-task:M001:S03:T02",
+      "kind": "unit",
+      "dependsOn": [
+        "execute-task:M001:S03:T01"
+      ],
+      "writes": [
+        "src/app/(app)/dashboard/daily-view.tsx",
+        "src/app/(app)/dashboard/dashboard-client.tsx",
+        "src/app/(app)/dashboard/page.tsx"
+      ],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S03.T02",
+        "title": "Built daily-view.tsx with KPI cards (hours today, tasks, overdue invoices), agenda section, overdue invoice list, and goal progress bars with today's contribution highlighted",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "execute-task:M001:S03:T03",
+      "kind": "unit",
+      "dependsOn": [
+        "execute-task:M001:S03:T02"
+      ],
+      "writes": [
+        "src/app/(app)/dashboard/revenue-at-risk.tsx",
+        "src/app/(app)/dashboard/daily-view.tsx",
+        "src/app/(app)/dashboard/page.tsx"
+      ],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S03.T03",
+        "title": "Built revenue-at-risk widget combining overdue invoice totals (grouped by currency) with stale active jobs (no daily_log in 14 days), integrated into daily dashboard view",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "execute-task:M001:S03:T04",
+      "kind": "unit",
+      "dependsOn": [
+        "execute-task:M001:S03:T03"
+      ],
+      "writes": [
+        "src/app/(app)/dashboard/page.tsx",
+        "src/app/(app)/dashboard/dashboard-client.tsx",
+        "src/app/(app)/dashboard/daily-view.tsx",
+        "src/app/(app)/dashboard/monthly-view.tsx",
+        "src/app/(app)/dashboard/revenue-at-risk.tsx"
+      ],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S03.T04",
+        "title": "Verified dashboard visual polish, TypeScript clean build, Next.js production build, and dev server smoke test — both Hoje and Mensal tabs render correctly",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "complete-slice:M001:S03",
+      "kind": "verification",
+      "dependsOn": [
+        "execute-task:M001:S03:T04"
+      ],
+      "metadata": {
+        "unitType": "complete-slice",
+        "unitId": "M001.S03",
+        "title": "S03",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "execute-task:M001:S04:T01",
+      "kind": "unit",
+      "dependsOn": [],
+      "writes": [],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S04.T01",
+        "title": "Add timer auto-stop with configurable max hours",
+        "status": "pending"
+      }
+    },
+    {
+      "id": "execute-task:M001:S04:T02",
+      "kind": "unit",
+      "dependsOn": [
+        "execute-task:M001:S04:T01"
+      ],
+      "writes": [],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S04.T02",
+        "title": "Add Timer settings card to Settings page",
+        "status": "pending"
+      }
+    },
+    {
+      "id": "execute-task:M001:S04:T03",
+      "kind": "unit",
+      "dependsOn": [
+        "execute-task:M001:S04:T02"
+      ],
+      "writes": [],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S04.T03",
+        "title": "Add notification badges to sidebar nav items",
+        "status": "pending"
+      }
+    },
+    {
+      "id": "complete-slice:M001:S04",
+      "kind": "verification",
+      "dependsOn": [
+        "execute-task:M001:S04:T03"
+      ],
+      "metadata": {
+        "unitType": "complete-slice",
+        "unitId": "M001.S04",
+        "title": "Timer & Notificacoes",
         "status": "pending"
       }
     }

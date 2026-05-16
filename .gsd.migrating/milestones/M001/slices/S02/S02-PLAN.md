@@ -26,22 +26,22 @@ Consumes S01's complete types from src/lib/supabase/types.ts. Produces the conso
   - Files: `src/app/(app)/diario/journal-client.tsx`, `src/components/layout/sidebar.tsx`, `src/components/command-palette.tsx`, `src/app/api/export/route.ts`, `src/lib/supabase/types.ts`
   - Verify: npx tsc --noEmit
 
-- [ ] **T02: Consolidate Agenda page with Disponibilidade and Folgas tabs** `est:45m`
+- [x] **T02: Consolidate Agenda page with Disponibilidade and Folgas tabs** `est:45m`
   Why: R005 — Disponibilidade and Folgas are currently standalone routes that fragment the scheduling experience. Both belong as tabs in the Agenda page, which already demonstrates the Tabs pattern with 4 views.
   - Files: `src/app/(app)/agenda/page.tsx`, `src/app/(app)/agenda/agenda-client.tsx`, `src/app/(app)/disponibilidade/availability-client.tsx`, `src/app/(app)/folgas/folgas-client.tsx`
   - Verify: npx tsc --noEmit
 
-- [ ] **T03: Consolidate Clients page with Pipeline tab** `est:40m`
+- [x] **T03: Consolidate Clients page with Pipeline tab** `est:40m`
   Why: R005 — Pipeline is a CRM view tied to clients. Embedding it as a tab in /clients reduces sidebar items and co-locates related concerns.
   - Files: `src/app/(app)/clients/page.tsx`, `src/app/(app)/clients/clients-page-client.tsx`, `src/app/(app)/pipeline/pipeline-client.tsx`
   - Verify: npx tsc --noEmit
 
-- [ ] **T04: Reduce sidebar to 9 items and update command palette** `est:20m`
+- [x] **T04: Reduce sidebar to 9 items and update command palette** `est:20m`
   Why: R005 final — after T01-T03, merged routes are accessible via tabs. Remove their standalone sidebar entries to reach exactly 9 items. Update command palette to match.
   - Files: `src/components/layout/sidebar.tsx`, `src/components/command-palette.tsx`
   - Verify: npx tsc --noEmit
 
-- [ ] **T05: Folgas blocks disponibilidade — auto-update user_availability on time_off insert** `est:25m`
+- [x] **T05: Folgas blocks disponibilidade — auto-update user_availability on time_off insert** `est:25m`
   Why: R008 — currently folgas and disponibilidade are disconnected. A freelancer can appear available on a day they marked as folga. After creating a folga, the system must mark that day as unavailable.
   - Files: `src/app/(app)/folgas/folgas-client.tsx`
   - Verify: npx tsc --noEmit

@@ -1,0 +1,79 @@
+=== Pipeline STAGES constant ===
+const STAGES = [
+  { key: "lead",         label: "Lead",        color: "#94a3b8" },
+  { key: "contacted",    label: "Contatado",   color: "#3b82f6" },
+  { key: "proposal",     label: "Proposta",    color: "#f59e0b" },
+  { key: "negotiation",  label: "Negociação",  color: "#a855f7" },
+  { key: "won",          label: "Fechado",     color: "#22c55e" },
+  { key: "lost",         label: "Perdido",     color: "#ef4444" },
+]
+
+const STAGE_MAP = Object.fromEntries(STAGES.map(s => [s.key, s]))
+
+function DealDialog({
+  deal, clients, open, onClose,
+}: { deal?: Deal; clients: Client[]; open: boolean; onClose: () => void }) {
+  const supabase = createClient()
+  const router   = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [form, setForm] = useState({
+    title:          deal?.title          ?? "",
+    client_id:      deal?.client_id      ?? "none",
+    stage:          deal?.stage          ?? "lead",
+    value:          deal?.value          ?? "",
+    expected_close: deal?.expected_close ?? "",
+    notes:          deal?.notes          ?? "",
+  })
+
+=== revenue-at-risk stale jobs logic ===
+
+  const now = new Date()
+  const stale: StaleJob[] = []
+
+  for (const job of activeJobs) {
+    const lastDate = jobLastLogDate.get(job.id)
+    const daysSince = lastDate
+      ? differenceInDays(now, parseISO(lastDate))
+      : 14
+
+    if (daysSince >= 14) {
+      const clientName = (job.clients as unknown as { name: string } | null)?.name ?? "—"
+      const rate = job.daily_rate > 0
+        ? `${formatCurrency(job.daily_rate, job.currency)}/dia`
+        : job.hourly_rate > 0
+          ? `${formatCurrency(job.hourly_rate, job.currency)}/h`
+          : "—"
+
+      stale.push({
+        id: job.id,
+        name: job.name,
+        clientName,
+        rate,
+        daysSinceLastLog: daysSince,
+      })
+    }
+  }
+
+  return stale.sort((a, b) => b.daysSinceLastLog - a.daysSinceLastLog)
+}
+
+export function RevenueAtRisk({
+  overdueInvoices,
+  activeJobs,
+  recentDailyLogs,
+}: RevenueAtRiskProps) {
+  const staleJobs = computeStaleJobs(activeJobs, recentDailyLogs)
+
+  const invoiceByCurrency = new Map<string, number>()
+  for (const inv of overdueInvoices) {
+
+=== Existing goals query (for badge: metas atrasadas) ===
+24:    { data: goals },
+69:      .from("user_goals")
+116:        goals: (goals ?? []) as unknown as { id: string; type: string; target: number; period: string }[],
+123:        goals: (goals ?? []) as unknown as { id: string; type: string; target: number; period: string }[],
+
+=== logs page timer usage ===
+12:import { LogTimerButton } from "./log-timer-button"
+134:              Iniciar timer
+247:                      <LogTimerButton logId={log.id} hoursWorked={log.hours_worked} />

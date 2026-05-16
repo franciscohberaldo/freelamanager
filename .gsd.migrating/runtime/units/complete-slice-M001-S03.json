@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "unitType": "complete-slice",
+  "unitId": "M001/S03",
+  "startedAt": 1778937014566,
+  "updatedAt": 1778937164254,
+  "phase": "finalized",
+  "wrapupWarningSent": false,
+  "continueHereFired": false,
+  "timeoutAt": null,
+  "lastProgressAt": 1778937164253,
+  "progressCount": 0,
+  "lastProgressKind": "finalize-success",
+  "recoveryAttempts": 0
+}

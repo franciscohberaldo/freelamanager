@@ -1,0 +1,68 @@
+=== Pipeline client - deal stages and stalled logic ===
+18:  id: string; user_id: string; stage: string; title: string
+48:    stage:          deal?.stage          ?? "lead",
+66:      stage:          form.stage,
+105:              <Select value={form.stage} onValueChange={v => set("stage", v)}>
+172:  const dragOver = useRef<string | null>(null) // target stage
+184:    setDeals(d => d.map(x => x.id === dealId ? { ...x, stage: newStage } : x))
+185:    const { error } = await supabase.from("sales_pipeline").update({ stage: newStage }).eq("id", dealId)
+190:  function onDragOver(e: React.DragEvent, stage: string) { e.preventDefault(); dragOver.current = stage }
+202:    totalByStage[d.stage] = (totalByStage[d.stage] ?? 0) + (d.value ?? 0)
+206:  const pipelineTotal = deals.filter(d => !["won","lost"].includes(d.stage)).reduce((s, d) => s + (d.value ?? 0), 0)
+214:            {deals.filter(d => !["won","lost"].includes(d.stage)).length} oportunidades em aberto · {formatCurrency(pipelineTotal)} no pipeline
+231:        {STAGES.map(stage => {
+232:          const stageDeals = deals.filter(d => d.stage === stage.key)
+233:          const stageTotal = stageDeals.reduce((s, d) => s + (d.value ?? 0), 0)
+236:              key={stage.key}
+238:              onDragOver={e => onDragOver(e, stage.key)}
+244:                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: stage.color }} />
+245:                  <span className="text-sm font-semibold">{stage.label}</span>
+247:                    {stageDeals.length}
+250:                {stageTotal > 0 && (
+
+=== Sales pipeline type ===
+type SalesPipelineRow = {
+  id: string; user_id: string; client_id: string | null;
+  stage: 'lead' | 'contacted' | 'proposal' | 'negotiation' | 'won' | 'lost';
+  title: string; value: number | null; expected_close: string | null;
+  notes: string | null; position: number; created_at: string; updated_at: string
+}
+type SalesPipelineInsert = {
+  user_id: string; client_id?: string | null;
+  stage?: 'lead' | 'contacted' | 'proposal' | 'negotiation' | 'won' | 'lost';
+  title: string; value?: number | null; expected_close?: string | null;
+  notes?: string | null; position?: number
+}
+
+type ClientInteractionRow = {
+  id: string; user_id: string; client_id: string;
+  type: 'email' | 'call' | 'meeting' | 'note' | 'proposal';
+  summary: string; happened_at: string; created_at: string
+}
+type ClientInteractionInsert = {
+  user_id: string; client_id: string;
+  type: 'email' | 'call' | 'meeting' | 'note' | 'proposal';
+  summary: string; happened_at?: string
+--
+      sales_pipeline:       { Row: SalesPipelineRow;      Insert: SalesPipelineInsert;      Update: Partial<SalesPipelineInsert>;      Relationships: [] }
+      client_interactions:  { Row: ClientInteractionRow;  Insert: ClientInteractionInsert;  Update: Partial<ClientInteractionInsert>;  Relationships: [] }
+      client_portal_tokens: { Row: ClientPortalTokenRow;  Insert: ClientPortalTokenInsert;  Update: Partial<ClientPortalTokenInsert>;  Relationships: [] }
+      api_keys:             { Row: ApiKeyRow;             Insert: ApiKeyInsert;             Update: Partial<ApiKeyInsert>;             Relationships: [] }
+      webhooks:             { Row: WebhookRow;            Insert: WebhookInsert;            Update: Partial<WebhookInsert>;            Relationships: [] }
+      payment_links:        { Row: PaymentLinkRow;        Insert: PaymentLinkInsert;        Update: Partial<PaymentLinkInsert>;        Relationships: [] }
+      webhook_deliveries:   { Row: WebhookDeliveryRow;    Insert: WebhookDeliveryInsert;    Update: Partial<WebhookDeliveryInsert>;    Relationships: [] }
+
+=== user_settings in Supabase (actual DB columns) ===
+src/app/(app)/logs/page.tsx:20:    .from("user_settings")
+src/app/(app)/settings/company-form.tsx:48:    const { error } = await supabase.from("user_settings").upsert({
+src/app/(app)/settings/page.tsx:14:    supabase.from("user_settings").select("*").eq("user_id", user!.id).single(),
+src/app/api/cron/keep-alive/route.ts:11:  const { error } = await supabase.from("user_settings").select("id").limit(1)
+src/app/api/export/route.ts:32:    supabase.from("user_settings").select("*").eq("user_id", uid).single(),
+src/app/api/invoices/pdf/route.ts:53:      .from("user_settings")
+src/lib/supabase/types.ts:297:      user_settings:        { Row: UserSettingsRow;       Insert: UserSettingsInsert;       Update: Partial<UserSettingsInsert>;       Relationships: [] }
+
+=== Sonner Toaster setup ===
+src/app/layout.tsx:4:import { Toaster } from "@/components/ui/sonner"
+src/app/layout.tsx:39:          <Toaster richColors position="top-right" />
+src/app/layout.tsx
+src/components/ui/sonner.tsx

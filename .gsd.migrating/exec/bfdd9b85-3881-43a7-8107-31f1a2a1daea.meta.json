@@ -1,0 +1,18 @@
+{
+  "id": "bfdd9b85-3881-43a7-8107-31f1a2a1daea",
+  "runtime": "bash",
+  "purpose": "S02 verification: sidebar has exactly 9 items",
+  "script_chars": 646,
+  "started_at": "2026-05-16T12:54:43.803Z",
+  "finished_at": "2026-05-16T12:54:43.966Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 163,
+  "stdout_bytes": 305,
+  "stderr_bytes": 49,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\bfdd9b85-3881-43a7-8107-31f1a2a1daea.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\bfdd9b85-3881-43a7-8107-31f1a2a1daea.stderr"
+}

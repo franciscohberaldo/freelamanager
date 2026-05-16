@@ -5,6 +5,7 @@ import { CompanyForm } from "./company-form"
 import { ExportButton } from "./export-button"
 import { ApiKeysPanel } from "./api-keys-panel"
 import { WebhooksPanel } from "./webhooks-panel"
+import { TimerSettings } from "./timer-settings"
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -56,6 +57,8 @@ export default async function SettingsPage() {
           <SettingsForm />
         </CardContent>
       </Card>
+
+      <TimerSettings />
 
       <Card>
         <CardHeader>

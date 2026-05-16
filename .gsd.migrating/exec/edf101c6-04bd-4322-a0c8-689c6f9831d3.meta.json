@@ -1,0 +1,18 @@
+{
+  "id": "edf101c6-04bd-4322-a0c8-689c6f9831d3",
+  "runtime": "bash",
+  "purpose": "Pipeline stages, stale logic, goals query, timer usage pattern",
+  "script_chars": 547,
+  "started_at": "2026-05-16T13:13:41.897Z",
+  "finished_at": "2026-05-16T13:13:42.041Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 144,
+  "stdout_bytes": 2756,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\edf101c6-04bd-4322-a0c8-689c6f9831d3.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\edf101c6-04bd-4322-a0c8-689c6f9831d3.stderr"
+}

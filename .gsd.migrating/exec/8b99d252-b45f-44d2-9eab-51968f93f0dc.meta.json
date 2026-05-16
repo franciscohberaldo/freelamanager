@@ -1,0 +1,18 @@
+{
+  "id": "8b99d252-b45f-44d2-9eab-51968f93f0dc",
+  "runtime": "bash",
+  "purpose": "Explore overdue invoices, deals data, user_settings, and layout",
+  "script_chars": 646,
+  "started_at": "2026-05-16T13:13:20.426Z",
+  "finished_at": "2026-05-16T13:13:20.544Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 118,
+  "stdout_bytes": 6130,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\8b99d252-b45f-44d2-9eab-51968f93f0dc.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\8b99d252-b45f-44d2-9eab-51968f93f0dc.stderr"
+}

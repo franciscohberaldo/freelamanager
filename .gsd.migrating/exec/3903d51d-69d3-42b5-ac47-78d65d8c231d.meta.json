@@ -1,0 +1,18 @@
+{
+  "id": "3903d51d-69d3-42b5-ac47-78d65d8c231d",
+  "runtime": "bash",
+  "purpose": "Pipeline stages, sales_pipeline type, settings usage, Sonner toaster",
+  "script_chars": 671,
+  "started_at": "2026-05-16T13:13:32.596Z",
+  "finished_at": "2026-05-16T13:13:32.781Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 185,
+  "stdout_bytes": 4685,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\3903d51d-69d3-42b5-ac47-78d65d8c231d.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\3903d51d-69d3-42b5-ac47-78d65d8c231d.stderr"
+}

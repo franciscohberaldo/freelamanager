@@ -1,0 +1,18 @@
+{
+  "id": "ef3807d6-e8ab-45db-b2e8-11bafd20366d",
+  "runtime": "bash",
+  "purpose": "S03 verification: no as-any + file inventory",
+  "script_chars": 214,
+  "started_at": "2026-05-16T13:10:50.686Z",
+  "finished_at": "2026-05-16T13:10:50.755Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 69,
+  "stdout_bytes": 604,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\ef3807d6-e8ab-45db-b2e8-11bafd20366d.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\ef3807d6-e8ab-45db-b2e8-11bafd20366d.stderr"
+}

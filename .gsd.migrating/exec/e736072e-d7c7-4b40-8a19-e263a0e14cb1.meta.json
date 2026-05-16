@@ -1,0 +1,18 @@
+{
+  "id": "e736072e-d7c7-4b40-8a19-e263a0e14cb1",
+  "runtime": "bash",
+  "purpose": "Find timer and notification/badge related files",
+  "script_chars": 449,
+  "started_at": "2026-05-16T13:12:59.973Z",
+  "finished_at": "2026-05-16T13:13:00.097Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 124,
+  "stdout_bytes": 3580,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\e736072e-d7c7-4b40-8a19-e263a0e14cb1.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\e736072e-d7c7-4b40-8a19-e263a0e14cb1.stderr"
+}

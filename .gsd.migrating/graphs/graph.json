@@ -33,6 +33,86 @@
       "label": "T02: Eliminate all as-any casts and fix PaymentDialog currency bug",
       "type": "task",
       "confidence": "EXTRACTED"
+    },
+    {
+      "id": "slice:M001:S02",
+      "label": "S02: Consolidar Navegacao",
+      "type": "slice",
+      "confidence": "EXTRACTED",
+      "sourceFile": "milestones/M001/slices/S02/S02-PLAN.md"
+    },
+    {
+      "id": "task:M001:S02:T01",
+      "label": "T01: Remove journaling feature and clean all references",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M001:S02:T02",
+      "label": "T02: Consolidate Agenda page with Disponibilidade and Folgas tabs",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M001:S02:T03",
+      "label": "T03: Consolidate Clients page with Pipeline tab",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M001:S02:T04",
+      "label": "T04: Reduce sidebar to 9 items and update command palette",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M001:S02:T05",
+      "label": "T05: Folgas blocks disponibilidade — auto-update user_availability on time_off insert",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "slice:M001:S03",
+      "label": "S03: Dashboard do Dia",
+      "type": "slice",
+      "confidence": "EXTRACTED",
+      "sourceFile": "milestones/M001/slices/S03/S03-PLAN.md"
+    },
+    {
+      "id": "task:M001:S03:T01",
+      "label": "T01: Refactor page.tsx into server+client shell with Tabs",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M001:S03:T02",
+      "label": "T02: Build daily view with KPI cards, agenda, and overdue invoices",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M001:S03:T03",
+      "label": "T03: Build revenue-at-risk widget (R007)",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "task:M001:S03:T04",
+      "label": "T04: Visual polish, build verification, and browser smoke test",
+      "type": "task",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "slice:M001:S05",
+      "label": "M001/S05",
+      "type": "slice",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "slice:M001:S06",
+      "label": "M001/S06",
+      "type": "slice",
+      "confidence": "EXTRACTED"
     }
   ],
   "edges": [
@@ -53,7 +133,85 @@
       "to": "task:M001:S01:T02",
       "type": "contains",
       "confidence": "EXTRACTED"
+    },
+    {
+      "from": "milestone:M001",
+      "to": "slice:M001:S02",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M001:S02",
+      "to": "task:M001:S02:T01",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M001:S02",
+      "to": "task:M001:S02:T02",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M001:S02",
+      "to": "task:M001:S02:T03",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M001:S02",
+      "to": "task:M001:S02:T04",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M001:S02",
+      "to": "task:M001:S02:T05",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "milestone:M001",
+      "to": "slice:M001:S03",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M001:S03",
+      "to": "task:M001:S03:T01",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M001:S03",
+      "to": "task:M001:S03:T02",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M001:S03",
+      "to": "task:M001:S03:T03",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "slice:M001:S03",
+      "to": "task:M001:S03:T04",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "milestone:M001",
+      "to": "slice:M001:S05",
+      "type": "contains",
+      "confidence": "EXTRACTED"
+    },
+    {
+      "from": "milestone:M001",
+      "to": "slice:M001:S06",
+      "type": "contains",
+      "confidence": "EXTRACTED"
     }
   ],
-  "builtAt": "2026-05-16T12:36:34.240Z"
+  "builtAt": "2026-05-16T13:12:41.634Z"
 }

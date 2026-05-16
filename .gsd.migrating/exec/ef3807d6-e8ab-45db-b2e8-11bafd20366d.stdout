@@ -1,0 +1,13 @@
+=== as any check ===
+No 'as any' found
+=== Dashboard files ===
+total 68
+drwxr-xr-x 1 Chico 197121     0 May 16 10:05 .
+drwxr-xr-x 1 Chico 197121     0 Apr  6 09:29 ..
+-rw-r--r-- 1 Chico 197121 12560 May 16 10:05 daily-view.tsx
+-rw-r--r-- 1 Chico 197121  3289 Apr  2 22:25 dashboard-charts.tsx
+-rw-r--r-- 1 Chico 197121   996 May 16 10:03 dashboard-client.tsx
+-rw-r--r-- 1 Chico 197121  4188 Apr  5 22:25 forecast-chart.tsx
+-rw-r--r-- 1 Chico 197121 11581 May 16 10:01 monthly-view.tsx
+-rw-r--r-- 1 Chico 197121  5513 May 16 10:05 page.tsx
+-rw-r--r-- 1 Chico 197121  4872 May 16 10:05 revenue-at-risk.tsx

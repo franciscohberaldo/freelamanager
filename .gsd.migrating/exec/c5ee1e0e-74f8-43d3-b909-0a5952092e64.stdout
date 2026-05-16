@@ -1,0 +1,12 @@
+4:import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+48:          <TabsList className="h-9 bg-transparent p-0 gap-0 rounded-none">
+57:              <TabsTrigger
+59:                value={value}
+64:              </TabsTrigger>
+66:          </TabsList>
+69:        <TabsContent value="table" className="flex-1 m-0">
+72:        <TabsContent value="timeline" className="flex-1 m-0 overflow-auto p-6">
+75:        <TabsContent value="gantt" className="flex-1 m-0 overflow-auto p-6">
+78:        <TabsContent value="calendar" className="flex-1 m-0 overflow-auto p-6">
+81:        <TabsContent value="disponibilidade" className="flex-1 m-0 overflow-auto p-6">
+84:        <TabsContent value="folgas" className="flex-1 m-0 overflow-auto p-6">

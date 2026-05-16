@@ -1,0 +1,135 @@
+=== Settings page ===
+src/app/(app)/settings/api-keys-panel.tsx
+src/app/(app)/settings/company-form.tsx
+src/app/(app)/settings/export-button.tsx
+src/app/(app)/settings/page.tsx
+src/app/(app)/settings/settings-form.tsx
+src/app/(app)/settings/webhooks-panel.tsx
+
+=== Settings page content (first 50 lines) ===
+import { createClient } from "@/lib/supabase/server"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { SettingsForm } from "./settings-form"
+import { CompanyForm } from "./company-form"
+import { ExportButton } from "./export-button"
+import { ApiKeysPanel } from "./api-keys-panel"
+import { WebhooksPanel } from "./webhooks-panel"
+
+export default async function SettingsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const [{ data: settings }, { data: apiKeys }, { data: webhooks }] = await Promise.all([
+    supabase.from("user_settings").select("*").eq("user_id", user!.id).single(),
+    supabase.from("api_keys").select("id, name, key_prefix, is_active, last_used, created_at")
+      .eq("user_id", user!.id).order("created_at", { ascending: false }),
+    supabase.from("webhooks").select("id, name, url, events, is_active, last_fired, secret")
+      .eq("user_id", user!.id).order("created_at", { ascending: false }),
+  ])
+
+  return (
+    <div className="p-6 space-y-6 max-w-2xl">
+      <div>
+        <h1 className="text-2xl font-bold">Configurações</h1>
+        <p className="text-muted-foreground text-sm">Preferências da conta e do sistema</p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Perfil da empresa</CardTitle>
+          <CardDescription>
+            Dados exibidos nos invoices em PDF — logo, nome, CNPJ, cor e arredondamento de horas
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CompanyForm initialSettings={settings ?? null} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Conta</CardTitle>
+          <CardDescription>Informações da sua conta Supabase</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm"><span className="text-muted-foreground">E-mail:</span> {user?.email}</p>
+          <p className="text-sm mt-1"><span className="text-muted-foreground">ID:</span> <span className="font-mono text-xs">{user?.id}</span></p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Alterar senha</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SettingsForm />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">API Keys</CardTitle>
+          <CardDescription>
+            Gere chaves para acessar seus dados via <code className="text-xs">GET /api/v1/*</code>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ApiKeysPanel apiKeys={apiKeys ?? []} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Webhooks</CardTitle>
+          <CardDescription>Envie eventos para URLs externas (Zapier, Make, Slack, etc.)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <WebhooksPanel webhooks={webhooks ?? []} />
+        </CardContent>
+      </Card>
+
+=== Toast usage pattern ===
+src/app/(app)/agenda/table-view.tsx:6:import { toast } from "sonner"
+src/app/(app)/agenda/task-dialog.tsx:6:import { toast } from "sonner"
+src/app/(app)/automacoes/automacoes-client.tsx:6:import { toast } from "sonner"
+src/app/(app)/clients/client-dialog.tsx:6:import { toast } from "sonner"
+src/app/(app)/clients/[id]/client-detail-client.tsx:6:import { toast } from "sonner"
+src/app/(app)/despesas/despesas-client.tsx:6:import { toast } from "sonner"
+src/app/(app)/diario/tracking-client.tsx:22:import { toast } from "sonner"
+src/app/(app)/disponibilidade/availability-client.tsx:6:import { toast } from "sonner"
+src/app/(app)/folgas/folgas-client.tsx:6:import { toast } from "sonner"
+src/app/(app)/invoices/create-invoice-dialog.tsx:6:import { toast } from "sonner"
+
+=== Existing badge component ===
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "@/lib/utils"
+
+const badgeVariants = cva(
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+        secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
+        outline: "text-foreground",
+        success: "border-transparent bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+        warning: "border-transparent bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof badgeVariants> {}
+
+function Badge({ className, variant, ...props }: BadgeProps) {
+  return <div className={cn(badgeVariants({ variant }), className)} {...props} />
+}
+
+export { Badge, badgeVariants }

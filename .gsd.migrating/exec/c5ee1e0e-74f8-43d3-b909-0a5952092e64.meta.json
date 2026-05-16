@@ -1,0 +1,18 @@
+{
+  "id": "c5ee1e0e-74f8-43d3-b909-0a5952092e64",
+  "runtime": "bash",
+  "purpose": "S02 verification: Agenda has Disponibilidade and Folgas tabs",
+  "script_chars": 121,
+  "started_at": "2026-05-16T12:54:57.911Z",
+  "finished_at": "2026-05-16T12:54:57.978Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 67,
+  "stdout_bytes": 759,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\c5ee1e0e-74f8-43d3-b909-0a5952092e64.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\c5ee1e0e-74f8-43d3-b909-0a5952092e64.stderr"
+}
