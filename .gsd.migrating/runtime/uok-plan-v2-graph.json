@@ -1,5 +1,5 @@
 {
-  "compiledAt": "2026-05-16T13:17:16.179Z",
+  "compiledAt": "2026-05-16T13:19:46.752Z",
   "milestoneId": "M001",
   "pipeline": {
     "clarifyRoundLimit": 3,
@@ -255,12 +255,14 @@
       "id": "execute-task:M001:S04:T01",
       "kind": "unit",
       "dependsOn": [],
-      "writes": [],
+      "writes": [
+        "src/app/(app)/logs/log-timer-button.tsx"
+      ],
       "metadata": {
         "unitType": "execute-task",
         "unitId": "M001.S04.T01",
-        "title": "Add timer auto-stop with configurable max hours",
-        "status": "pending"
+        "title": "Added timer auto-stop at configurable max hours (default 8h) with warning toast",
+        "status": "complete"
       }
     },
     {
@@ -269,12 +271,15 @@
       "dependsOn": [
         "execute-task:M001:S04:T01"
       ],
-      "writes": [],
+      "writes": [
+        "src/app/(app)/settings/timer-settings.tsx",
+        "src/app/(app)/settings/page.tsx"
+      ],
       "metadata": {
         "unitType": "execute-task",
         "unitId": "M001.S04.T02",
-        "title": "Add Timer settings card to Settings page",
-        "status": "pending"
+        "title": "Added TimerSettings card to Settings page for configuring max timer hours via localStorage",
+        "status": "complete"
       }
     },
     {
@@ -300,7 +305,7 @@
       "metadata": {
         "unitType": "complete-slice",
         "unitId": "M001.S04",
-        "title": "Timer & Notificacoes",
+        "title": "S04",
         "status": "pending"
       }
     }

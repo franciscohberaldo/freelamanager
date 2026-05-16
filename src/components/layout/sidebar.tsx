@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -10,6 +11,7 @@ import {
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { CommandPalette } from "@/components/command-palette"
@@ -31,6 +33,31 @@ export function Sidebar() {
   const { theme, setTheme } = useTheme()
   const router = useRouter()
   const supabase = createClient()
+  const [overdueInvoices, setOverdueInvoices] = useState(0)
+  const [stalledDeals, setStalledDeals] = useState(0)
+
+  useEffect(() => {
+    async function fetchBadgeCounts() {
+      const { count: overdueCount } = await supabase
+        .from("invoices")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "overdue")
+
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+      const { count: stalledCount } = await supabase
+        .from("sales_pipeline")
+        .select("*", { count: "exact", head: true })
+        .not("stage", "in", '("won","lost")')
+        .lt("updated_at", sevenDaysAgo.toISOString())
+
+      setOverdueInvoices(overdueCount ?? 0)
+      setStalledDeals(stalledCount ?? 0)
+    }
+
+    fetchBadgeCounts()
+  }, [])
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -51,21 +78,32 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-              pathname === href || pathname.startsWith(href + "/")
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground"
-            )}
-          >
-            <Icon className="w-4 h-4 shrink-0" />
-            {label}
-          </Link>
-        ))}
+        {navItems.map(({ href, label, icon: Icon }) => {
+          const badgeCount =
+            href === "/invoices" ? overdueInvoices :
+            href === "/clients" ? stalledDeals : 0
+
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                pathname === href || pathname.startsWith(href + "/")
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              )}
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              <span className="flex-1">{label}</span>
+              {badgeCount > 0 && (
+                <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[10px] justify-center">
+                  {badgeCount}
+                </Badge>
+              )}
+            </Link>
+          )
+        })}
       </nav>
 
       {/* Search shortcut */}

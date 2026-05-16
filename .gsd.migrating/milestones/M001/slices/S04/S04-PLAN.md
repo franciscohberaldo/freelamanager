@@ -21,12 +21,12 @@ Upstream surfaces consumed: sidebar.tsx (9-item navItems from S02), log-timer-bu
 
 ## Tasks
 
-- [ ] **T01: Add timer auto-stop with configurable max hours** `est:45m`
+- [x] **T01: Add timer auto-stop with configurable max hours** `est:45m`
   Why: Freelancer forgets timer running overnight, corrupting hours data (R009). The timer ticks via setInterval in log-timer-button.tsx but has no upper bound.
   - Files: `src/app/(app)/logs/log-timer-button.tsx`
   - Verify: npx tsc --noEmit
 
-- [ ] **T02: Add Timer settings card to Settings page** `est:30m`
+- [x] **T02: Add Timer settings card to Settings page** `est:30m`
   Why: User needs a way to configure the max timer hours (R009 configurability). Settings page already has multiple cards; adding one more follows the established pattern.
   - Files: `src/app/(app)/settings/timer-settings.tsx`, `src/app/(app)/settings/page.tsx`
   - Verify: npx tsc --noEmit
