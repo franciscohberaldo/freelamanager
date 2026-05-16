@@ -37,6 +37,13 @@ export function CommandPalette() {
   const supabase = createClient()
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<NodeJS.Timeout>()
+  const userIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      userIdRef.current = data.user?.id ?? null
+    })
+  }, [])
 
   // Open on Cmd+K / Ctrl+K
   useEffect(() => {
@@ -71,13 +78,20 @@ export function CommandPalette() {
     debounceRef.current = setTimeout(async () => {
       setLoading(true)
       const q = query.toLowerCase()
+      const userId = userIdRef.current
+
+      const jobsQuery = supabase.from("jobs").select("id, name").ilike("name", `%${q}%`).limit(4)
+      const clientsQuery = supabase.from("clients").select("id, name, company, email").or(`name.ilike.%${q}%,company.ilike.%${q}%,email.ilike.%${q}%`).limit(4)
+      const invoicesQuery = supabase.from("invoices").select("id, invoice_number, status").or(`invoice_number.ilike.%${q}%,status.ilike.%${q}%`).limit(4)
+
+      if (userId) {
+        jobsQuery.eq("user_id", userId)
+        clientsQuery.eq("user_id", userId)
+        invoicesQuery.eq("user_id", userId)
+      }
 
       const [{ data: jobs }, { data: clients }, { data: invoices }] =
-        await Promise.all([
-          supabase.from("jobs").select("id, name").ilike("name", `%${q}%`).limit(4),
-          supabase.from("clients").select("id, name, company").ilike("name", `%${q}%`).limit(4),
-          supabase.from("invoices").select("id, invoice_number, status").ilike("invoice_number", `%${q}%`).limit(4),
-        ])
+        await Promise.all([jobsQuery, clientsQuery, invoicesQuery])
 
       const dynamic: Result[] = [
         ...(jobs ?? []).map(j => ({
@@ -85,8 +99,8 @@ export function CommandPalette() {
           icon: Briefcase, category: "Jobs",
         })),
         ...(clients ?? []).map(c => ({
-          id: `cli-${c.id}`, label: c.name, sub: (c as { company?: string }).company ?? undefined,
-          href: `/clients`, icon: Users, category: "Clientes",
+          id: `cli-${c.id}`, label: c.name, sub: c.company ?? undefined,
+          href: `/clients/${c.id}`, icon: Users, category: "Clientes",
         })),
         ...(invoices ?? []).map(inv => ({
           id: `inv-${inv.id}`, label: `Invoice #${inv.invoice_number}`,
