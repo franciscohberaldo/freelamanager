@@ -116,6 +116,13 @@ export default async function DashboardPage() {
         goals: (goals ?? []) as unknown as { id: string; type: string; target: number; period: string }[],
         forecastLogs: (forecastLogs ?? []) as unknown as { date: string; total_value: number }[],
       }}
+      daily={{
+        todayLogs: (todayLogs ?? []) as unknown as { id: string; hours_worked: number; hours_billed: number; total_value: number; notes: string | null; jobs: { id: string; name: string; clients: { name: string } | null } | null }[],
+        todayEvents: (todayEvents ?? []) as unknown as { id: string; title: string; type: string; event_date: string; is_done: boolean; jobs: { name: string } | null }[],
+        overdueInvoices: (overdueInvoices ?? []) as unknown as { id: string; invoice_number: string; total: number; currency: string; status: string; due_date: string; jobs: { name: string; clients: { name: string } | null } | null }[],
+        goals: (goals ?? []) as unknown as { id: string; type: string; target: number; period: string }[],
+        monthLogs: monthLogs ?? [],
+      }}
     />
   )
 }

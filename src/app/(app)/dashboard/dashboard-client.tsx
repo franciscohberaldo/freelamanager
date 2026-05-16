@@ -2,12 +2,14 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MonthlyView, type MonthlyViewProps } from "./monthly-view"
+import { DailyView, type DailyViewProps } from "./daily-view"
 
 export interface DashboardClientProps {
   monthly: MonthlyViewProps
+  daily: DailyViewProps
 }
 
-export function DashboardClient({ monthly }: DashboardClientProps) {
+export function DashboardClient({ monthly, daily }: DashboardClientProps) {
   return (
     <div className="p-6 space-y-6">
       <Tabs defaultValue="hoje">
@@ -20,9 +22,7 @@ export function DashboardClient({ monthly }: DashboardClientProps) {
         </div>
 
         <TabsContent value="hoje">
-          <div className="py-8 text-center text-muted-foreground">
-            <p className="text-sm">Visão diária — em construção</p>
-          </div>
+          <DailyView {...daily} />
         </TabsContent>
         <TabsContent value="mensal">
           <MonthlyView {...monthly} />
