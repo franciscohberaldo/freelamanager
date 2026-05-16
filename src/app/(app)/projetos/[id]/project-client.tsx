@@ -310,7 +310,7 @@ export function ProjectClient({ project, tasks: initialTasks }: Props) {
             <div>
               <h1 className="text-2xl font-bold">{project.name}</h1>
               <div className="flex items-center gap-3 mt-0.5 text-sm text-muted-foreground">
-                {project.clients && <span>{(project.clients as any).name}</span>}
+                {project.clients && <span>{project.clients.name}</span>}
                 {project.start_date && (
                   <span>
                     {format(parseISO(project.start_date), "dd MMM", { locale: ptBR })}

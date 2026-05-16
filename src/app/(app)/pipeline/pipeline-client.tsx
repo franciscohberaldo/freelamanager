@@ -134,7 +134,7 @@ function DealDialog({
             <div className="space-y-2">
               <Label>Valor estimado (R$)</Label>
               <Input type="number" step="0.01" min="0"
-                value={form.value} onChange={e => set("value", e.target.value as any)}
+                value={form.value} onChange={e => set("value", e.target.value)}
                 placeholder="0,00" />
             </div>
             <div className="space-y-2">

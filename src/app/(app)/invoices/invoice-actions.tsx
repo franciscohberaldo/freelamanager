@@ -16,6 +16,7 @@ import {
 import { MoreHorizontal, Download, Send, CheckCircle2, Loader2, DollarSign, Sparkles, Copy, CreditCard } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { format } from "date-fns"
+import { formatCurrency } from "@/lib/utils"
 import type { Invoice } from "@/lib/supabase/types"
 import type { InvoiceLang } from "@/lib/invoice-i18n"
 
@@ -26,9 +27,9 @@ interface Props {
 }
 
 function PaymentDialog({
-  invoiceId, invoiceTotal, paidSoFar, open, onClose,
+  invoiceId, invoiceTotal, paidSoFar, currency, open, onClose,
 }: {
-  invoiceId: string; invoiceTotal: number; paidSoFar: number; open: boolean; onClose: () => void
+  invoiceId: string; invoiceTotal: number; paidSoFar: number; currency: string; open: boolean; onClose: () => void
 }) {
   const supabase = createClient()
   const router   = useRouter()
@@ -83,12 +84,12 @@ function PaymentDialog({
             <div className="rounded-md border bg-muted/30 px-4 py-2.5 text-sm space-y-1">
               <p className="text-muted-foreground">
                 Já pago: <span className="font-semibold text-foreground">
-                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(paidSoFar)}
+                  {formatCurrency(paidSoFar, currency)}
                 </span>
               </p>
               <p className="text-muted-foreground">
                 Restante: <span className="font-semibold text-destructive">
-                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(remaining)}
+                  {formatCurrency(remaining, currency)}
                 </span>
               </p>
             </div>
@@ -367,6 +368,7 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
         invoiceId={invoice.id}
         invoiceTotal={invoice.total}
         paidSoFar={paidAmount}
+        currency={invoice.currency}
         open={payOpen}
         onClose={() => setPayOpen(false)}
       />

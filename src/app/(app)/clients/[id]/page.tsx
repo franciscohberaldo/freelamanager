@@ -42,7 +42,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
 
   return (
     <ClientDetailClient
-      client={client as any}
+      client={client}
       interactions={interactions ?? []}
       jobs={jobs ?? []}
       invoices={invoices ?? []}

@@ -214,7 +214,7 @@ export function AutomacoesClient({ initialSettings, jobs, logs }: Props) {
                     <SelectItem value="none">Selecionar</SelectItem>
                     {jobs.map(j => (
                       <SelectItem key={j.id} value={j.id}>
-                        {j.name}{j.clients ? ` · ${(j.clients as any).name}` : ""}
+                        {j.name}{j.clients ? ` · ${j.clients.name}` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -272,7 +272,7 @@ export function ProjectsClient({ projects, clients, templates }: Props) {
                   <div className="w-3 h-3 rounded-full shrink-0" style={{ background: p.color }} />
                   <div className="min-w-0">
                     <p className="font-semibold truncate group-hover:text-primary transition-colors">{p.name}</p>
-                    {p.clients && <p className="text-xs text-muted-foreground truncate">{(p.clients as any).name}</p>}
+                    {p.clients && <p className="text-xs text-muted-foreground truncate">{p.clients.name}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">

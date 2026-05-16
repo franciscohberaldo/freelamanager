@@ -490,7 +490,7 @@ export function DespesasClient({ expenses, yearExpenses, currentMonth }: Props) 
                     <Tooltip formatter={(v: number) => formatMoney(v)} />
                     <Legend layout="vertical" align="right" verticalAlign="middle"
                       formatter={(val, entry) =>
-                        `${val} — ${formatMoney((entry as any)?.payload?.value ?? 0)}`
+                        `${val} — ${formatMoney((entry.payload as { value?: number })?.value ?? 0)}`
                       }
                     />
                   </PieChart>

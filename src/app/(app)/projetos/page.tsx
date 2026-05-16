@@ -25,9 +25,9 @@ export default async function ProjetosPage() {
 
   return (
     <ProjectsClient
-      projects={(projects ?? []) as any}
+      projects={projects ?? []}
       clients={clients ?? []}
-      templates={(templates ?? []) as any}
+      templates={templates ?? []}
     />
   )
 }

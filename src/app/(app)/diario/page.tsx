@@ -34,8 +34,8 @@ export default async function DiarioPage({
 
   return (
     <TrackingClient
-      logs={(logs ?? []) as any}
-      jobs={(jobs ?? []) as any}
+      logs={(logs ?? []) as unknown as { id: string; date: string; hours_worked: number; hours_billed: number; total_value: number; job_id: string; jobs: { id: string; name: string; clients: { name: string } | null } | null }[]}
+      jobs={(jobs ?? []) as unknown as { id: string; name: string; hourly_rate: number; currency: string; clients: { name: string } | null }[]}
       currentMonth={monthParam}
     />
   )

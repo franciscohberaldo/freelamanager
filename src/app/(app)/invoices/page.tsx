@@ -84,7 +84,7 @@ export default async function InvoicesPage() {
               { key: "pago_em",  label: "Pago Em" },
             ]}
           />
-          <CreateInvoiceDialog jobs={(jobs ?? []) as any}>
+          <CreateInvoiceDialog jobs={(jobs ?? []) as unknown as { id: string; name: string; hourly_rate: number; daily_rate: number; currency: string; tax_rate: number; clients: { name: string; email: string | null } | null }[]}>
             <Button><Plus className="w-4 h-4" />Gerar Invoice</Button>
           </CreateInvoiceDialog>
         </div>

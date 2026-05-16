@@ -55,7 +55,7 @@ export default async function ClientsPage() {
           </Card>
         )}
         {clients?.map((client) => {
-          const score = (client as any).score as number | null
+          const score = client.score as number | null
           return (
             <Card key={client.id} className="hover:shadow-md transition-shadow">
               <CardContent className="py-4 px-5 flex items-center justify-between gap-4">

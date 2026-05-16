@@ -23,5 +23,5 @@ export default async function AgendaPage() {
     console.error("agenda_events query error:", eventsError.message)
   }
 
-  return <AgendaClient events={(events ?? []) as any} jobs={jobs ?? []} />
+  return <AgendaClient events={events ?? []} jobs={jobs ?? []} />
 }

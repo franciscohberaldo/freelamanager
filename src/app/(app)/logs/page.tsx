@@ -45,8 +45,8 @@ export default async function LogsPage({
 
   return (
     <LogsClient
-      logs={(logs ?? []) as any}
-      jobs={(jobs ?? []) as any}
+      logs={(logs ?? []) as unknown as (import("@/lib/supabase/types").DailyLog & { jobs: { name: string; hourly_rate: number; currency: string; clients: { name: string } | null } | null })[]}
+      jobs={(jobs ?? []) as unknown as { id: string; name: string; hourly_rate: number; daily_rate: number; currency: string; clients: { name: string } | null }[]}
       currentMonth={monthParam}
       hourRounding={settings?.hour_rounding ?? "none"}
     />

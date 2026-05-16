@@ -28,7 +28,7 @@ export default async function AutomacoesPage() {
   return (
     <AutomacoesClient
       initialSettings={settings ?? null}
-      jobs={(jobs ?? []) as any}
+      jobs={(jobs ?? []) as unknown as { id: string; name: string; clients: { name: string } | null }[]}
       logs={logs ?? []}
     />
   )

@@ -52,8 +52,8 @@ export function TaskDialog({ children, jobs, open, onOpenChange, task }: Props) 
     budget:         task?.budget?.toString() ?? "",
     start_date:     task?.start_date ?? "",
     event_date:     task?.event_date ?? format(new Date(), "yyyy-MM-dd"),
-    recurrence:     (task as any)?.recurrence ?? "none",
-    recurrence_end: (task as any)?.recurrence_end ?? "",
+    recurrence:     task?.recurrence ?? "none",
+    recurrence_end: task?.recurrence_end ?? "",
   })
 
   function upd(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }

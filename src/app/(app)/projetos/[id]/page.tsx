@@ -23,5 +23,5 @@ export default async function ProjectPage({ params }: { params: { id: string } }
 
   if (!project) notFound()
 
-  return <ProjectClient project={project as any} tasks={(tasks ?? []) as any} />
+  return <ProjectClient project={project} tasks={tasks ?? []} />
 }
