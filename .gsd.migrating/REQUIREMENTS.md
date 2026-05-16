@@ -4,34 +4,6 @@ This file is the explicit capability and coverage contract for the project.
 
 ## Active
 
-### R001 — Payment dialog deve respeitar a moeda da invoice (USD, EUR, BRL) em vez de hardcodar BRL
-- Class: core-capability
-- Status: active
-- Description: Payment dialog deve respeitar a moeda da invoice (USD, EUR, BRL) em vez de hardcodar BRL
-- Why it matters: Freelancer que cobra em USD vê pagamento registrado em BRL — dado incorreto compromete relatórios financeiros
-- Source: user
-- Primary owning slice: M001/S01
-- Validation: mapped
-- Notes: Bug no PaymentDialog — formata sempre em BRL ignorando invoice.currency
-
-### R002 — Types.ts completo cobrindo todas as tabelas do Supabase (30+)
-- Class: quality-attribute
-- Status: active
-- Description: Types.ts completo cobrindo todas as tabelas do Supabase (30+)
-- Why it matters: Apenas 8 tabelas tipadas hoje — causa 19 instâncias de `as any` e fragiliza toda a type safety do projeto
-- Source: inferred
-- Primary owning slice: M001/S01
-- Validation: mapped
-
-### R003 — Zero `as any` no codebase — todas as queries tipadas corretamente
-- Class: quality-attribute
-- Status: active
-- Description: Zero `as any` no codebase — todas as queries tipadas corretamente
-- Why it matters: as any esconde bugs em tempo de compilação que só aparecem em runtime
-- Source: user
-- Primary owning slice: M001/S01
-- Validation: mapped
-
 ### R004 — Remover feature de journaling/mood (daily_journal) — código e referências na sidebar
 - Class: constraint
 - Status: active
@@ -126,6 +98,34 @@ This file is the explicit capability and coverage contract for the project.
 
 ## Validated
 
+### R001 — Payment dialog deve respeitar a moeda da invoice (USD, EUR, BRL) em vez de hardcodar BRL
+- Class: core-capability
+- Status: validated
+- Description: Payment dialog deve respeitar a moeda da invoice (USD, EUR, BRL) em vez de hardcodar BRL
+- Why it matters: Freelancer que cobra em USD vê pagamento registrado em BRL — dado incorreto compromete relatórios financeiros
+- Source: user
+- Primary owning slice: M001/S01
+- Validation: PaymentDialog uses formatCurrency(amount, invoice.currency); build succeeds confirming type safety. grep confirms no hardcoded BRL in PaymentDialog.
+- Notes: Bug no PaymentDialog — formata sempre em BRL ignorando invoice.currency
+
+### R002 — Types.ts completo cobrindo todas as tabelas do Supabase (30+)
+- Class: quality-attribute
+- Status: validated
+- Description: Types.ts completo cobrindo todas as tabelas do Supabase (30+)
+- Why it matters: Apenas 8 tabelas tipadas hoje — causa 19 instâncias de `as any` e fragiliza toda a type safety do projeto
+- Source: inferred
+- Primary owning slice: M001/S01
+- Validation: 28 tables fully typed in src/lib/supabase/types.ts with Row/Insert/Update shapes. npx tsc --noEmit exits 0.
+
+### R003 — Zero `as any` no codebase — todas as queries tipadas corretamente
+- Class: quality-attribute
+- Status: validated
+- Description: Zero `as any` no codebase — todas as queries tipadas corretamente
+- Why it matters: as any esconde bugs em tempo de compilação que só aparecem em runtime
+- Source: user
+- Primary owning slice: M001/S01
+- Validation: grep -rn "as any" src/ returns zero matches. npx tsc --noEmit exits 0. npx next build succeeds.
+
 ## Deferred
 
 ## Out of Scope
@@ -134,9 +134,9 @@ This file is the explicit capability and coverage contract for the project.
 
 | ID | Class | Status | Primary owner | Supporting | Proof |
 |---|---|---|---|---|---|
-| R001 | core-capability | active | M001/S01 | none | mapped |
-| R002 | quality-attribute | active | M001/S01 | none | mapped |
-| R003 | quality-attribute | active | M001/S01 | none | mapped |
+| R001 | core-capability | validated | M001/S01 | none | PaymentDialog uses formatCurrency(amount, invoice.currency); build succeeds confirming type safety. grep confirms no hardcoded BRL in PaymentDialog. |
+| R002 | quality-attribute | validated | M001/S01 | none | 28 tables fully typed in src/lib/supabase/types.ts with Row/Insert/Update shapes. npx tsc --noEmit exits 0. |
+| R003 | quality-attribute | validated | M001/S01 | none | grep -rn "as any" src/ returns zero matches. npx tsc --noEmit exits 0. npx next build succeeds. |
 | R004 | constraint | active | M001/S02 | none | mapped |
 | R005 | primary-user-loop | active | M001/S02 | none | mapped |
 | R006 | primary-user-loop | active | M001/S03 | none | mapped |
@@ -150,7 +150,7 @@ This file is the explicit capability and coverage contract for the project.
 
 ## Coverage Summary
 
-- Active requirements: 13
-- Mapped to slices: 13
-- Validated: 0
+- Active requirements: 10
+- Mapped to slices: 10
+- Validated: 3 (R001, R002, R003)
 - Unmapped active requirements: 0

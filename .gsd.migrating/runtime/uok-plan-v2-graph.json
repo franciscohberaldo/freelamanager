@@ -1,5 +1,5 @@
 {
-  "compiledAt": "2026-05-16T12:22:32.971Z",
+  "compiledAt": "2026-05-16T12:44:20.853Z",
   "milestoneId": "M001",
   "pipeline": {
     "clarifyRoundLimit": 3,
@@ -13,12 +13,14 @@
       "id": "execute-task:M001:S01:T01",
       "kind": "unit",
       "dependsOn": [],
-      "writes": [],
+      "writes": [
+        "src/lib/supabase/types.ts"
+      ],
       "metadata": {
         "unitType": "execute-task",
         "unitId": "M001.S01.T01",
-        "title": "Complete types.ts with all 27 tables and composite types",
-        "status": "pending"
+        "title": "Added complete TypeScript types for all 28 Supabase tables (27 planned + invoice_sequences) with Row/Insert/Update shapes, updated AgendaEvent with recurrence fields and Client with score, and added composite types for project queries",
+        "status": "complete"
       }
     },
     {
@@ -27,12 +29,29 @@
       "dependsOn": [
         "execute-task:M001:S01:T01"
       ],
-      "writes": [],
+      "writes": [
+        "src/app/(app)/agenda/page.tsx",
+        "src/app/(app)/agenda/task-dialog.tsx",
+        "src/app/(app)/automacoes/page.tsx",
+        "src/app/(app)/automacoes/automacoes-client.tsx",
+        "src/app/(app)/clients/page.tsx",
+        "src/app/(app)/clients/[id]/page.tsx",
+        "src/app/(app)/despesas/despesas-client.tsx",
+        "src/app/(app)/diario/page.tsx",
+        "src/app/(app)/invoices/page.tsx",
+        "src/app/(app)/invoices/invoice-actions.tsx",
+        "src/app/(app)/logs/page.tsx",
+        "src/app/(app)/pipeline/pipeline-client.tsx",
+        "src/app/(app)/projetos/page.tsx",
+        "src/app/(app)/projetos/projects-client.tsx",
+        "src/app/(app)/projetos/[id]/page.tsx",
+        "src/app/(app)/projetos/[id]/project-client.tsx"
+      ],
       "metadata": {
         "unitType": "execute-task",
         "unitId": "M001.S01.T02",
-        "title": "Eliminate all as-any casts and fix PaymentDialog currency bug",
-        "status": "pending"
+        "title": "Eliminated all 18 `as any` casts across 15 files and fixed PaymentDialog currency bug to use invoice's actual currency instead of hardcoding BRL",
+        "status": "complete"
       }
     },
     {
@@ -44,7 +63,94 @@
       "metadata": {
         "unitType": "complete-slice",
         "unitId": "M001.S01",
-        "title": "Types & Bug Fixes",
+        "title": "S01",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "execute-task:M001:S02:T01",
+      "kind": "unit",
+      "dependsOn": [],
+      "writes": [
+        "src/app/(app)/diario/journal-client.tsx",
+        "src/components/layout/sidebar.tsx",
+        "src/components/command-palette.tsx",
+        "src/app/api/export/route.ts",
+        "src/lib/supabase/types.ts"
+      ],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S02.T01",
+        "title": "Removed journaling feature: deleted journal-client.tsx, purged DailyJournal types, diary_entries export, and all sidebar/command-palette references",
+        "status": "complete"
+      }
+    },
+    {
+      "id": "execute-task:M001:S02:T02",
+      "kind": "unit",
+      "dependsOn": [
+        "execute-task:M001:S02:T01"
+      ],
+      "writes": [],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S02.T02",
+        "title": "Consolidate Agenda page with Disponibilidade and Folgas tabs",
+        "status": "pending"
+      }
+    },
+    {
+      "id": "execute-task:M001:S02:T03",
+      "kind": "unit",
+      "dependsOn": [
+        "execute-task:M001:S02:T02"
+      ],
+      "writes": [],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S02.T03",
+        "title": "Consolidate Clients page with Pipeline tab",
+        "status": "pending"
+      }
+    },
+    {
+      "id": "execute-task:M001:S02:T04",
+      "kind": "unit",
+      "dependsOn": [
+        "execute-task:M001:S02:T03"
+      ],
+      "writes": [],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S02.T04",
+        "title": "Reduce sidebar to 9 items and update command palette",
+        "status": "pending"
+      }
+    },
+    {
+      "id": "execute-task:M001:S02:T05",
+      "kind": "unit",
+      "dependsOn": [
+        "execute-task:M001:S02:T04"
+      ],
+      "writes": [],
+      "metadata": {
+        "unitType": "execute-task",
+        "unitId": "M001.S02.T05",
+        "title": "Folgas blocks disponibilidade — auto-update user_availability on time_off insert",
+        "status": "pending"
+      }
+    },
+    {
+      "id": "complete-slice:M001:S02",
+      "kind": "verification",
+      "dependsOn": [
+        "execute-task:M001:S02:T05"
+      ],
+      "metadata": {
+        "unitType": "complete-slice",
+        "unitId": "M001.S02",
+        "title": "S02",
         "status": "pending"
       }
     }

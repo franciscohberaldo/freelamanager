@@ -14,10 +14,10 @@
 
 ## Slices
 
-- [ ] **S01: Types & Bug Fixes** `risk:high` `depends:[]`
+- [x] **S01: S01** `risk:high` `depends:[]`
   > After this: Registrar pagamento em invoice USD — mostra valor em USD, não BRL. Build compila sem `as any`.
 
-- [ ] **S02: Consolidar Navegacao** `risk:medium` `depends:[S01]`
+- [ ] **S02: S02** `risk:medium` `depends:[]`
   > After this: Sidebar tem 9 itens. Agenda mostra abas Tarefas/Disponibilidade/Folgas. Clientes mostra aba Pipeline. Folga criada aparece como indisponivel.
 
 - [ ] **S03: Dashboard do Dia** `risk:medium` `depends:[S01]`

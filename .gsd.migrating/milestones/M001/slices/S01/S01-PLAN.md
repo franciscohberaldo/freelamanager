@@ -21,12 +21,12 @@ Upstream surfaces consumed: 11 migration SQL files define the canonical schema. 
 
 ## Tasks
 
-- [ ] **T01: Complete types.ts with all 27 tables and composite types** `est:1h`
+- [x] **T01: Complete types.ts with all 27 tables and composite types** `est:1h`
   Why: Only 8 of 27 Supabase tables have TypeScript types in `src/lib/supabase/types.ts`. This causes 15 files to use `as any` casts because TypeScript can't infer query return shapes. Every downstream fix depends on having complete types first.
   - Files: `src/lib/supabase/types.ts`
   - Verify: npx tsc --noEmit
 
-- [ ] **T02: Eliminate all as-any casts and fix PaymentDialog currency bug** `est:1h30m`
+- [x] **T02: Eliminate all as-any casts and fix PaymentDialog currency bug** `est:1h30m`
   Why: 15 files use `as any` casts because types were incomplete (R002/R003). The PaymentDialog hardcodes BRL for currency formatting instead of using the invoice's actual currency (R001). With T01's complete types, every cast can be replaced with the correct type.
   - Files: `src/app/(app)/agenda/page.tsx`, `src/app/(app)/agenda/task-dialog.tsx`, `src/app/(app)/automacoes/page.tsx`, `src/app/(app)/automacoes/automacoes-client.tsx`, `src/app/(app)/clients/page.tsx`, `src/app/(app)/clients/[id]/page.tsx`, `src/app/(app)/despesas/despesas-client.tsx`, `src/app/(app)/diario/page.tsx`, `src/app/(app)/invoices/page.tsx`, `src/app/(app)/invoices/invoice-actions.tsx`, `src/app/(app)/logs/page.tsx`, `src/app/(app)/pipeline/pipeline-client.tsx`, `src/app/(app)/projetos/page.tsx`, `src/app/(app)/projetos/projects-client.tsx`, `src/app/(app)/projetos/[id]/page.tsx`, `src/app/(app)/projetos/[id]/project-client.tsx`
   - Verify: npx tsc --noEmit

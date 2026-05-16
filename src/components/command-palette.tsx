@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
-import { Search, Briefcase, Users, FileText, FolderKanban, LayoutDashboard, ClipboardList, CalendarDays, Settings, TrendingUp } from "lucide-react"
+import { Search, Briefcase, Users, FileText, LayoutDashboard, ClipboardList, CalendarDays, Settings, TrendingUp, Wallet } from "lucide-react"
 
 interface Result {
   id: string
@@ -16,15 +16,15 @@ interface Result {
 }
 
 const STATIC_LINKS: Result[] = [
-  { id: "dash",    label: "Dashboard",        href: "/dashboard",       icon: LayoutDashboard, category: "Páginas" },
-  { id: "logs",    label: "Registro Diário",   href: "/logs",            icon: ClipboardList,   category: "Páginas" },
-  { id: "jobs",    label: "Jobs",              href: "/jobs",            icon: Briefcase,       category: "Páginas" },
-  { id: "clients", label: "Clientes",          href: "/clients",         icon: Users,           category: "Páginas" },
-  { id: "inv",     label: "Invoices",          href: "/invoices",        icon: FileText,        category: "Páginas" },
-  { id: "proj",    label: "Projetos",          href: "/projetos",        icon: FolderKanban,    category: "Páginas" },
-  { id: "agenda",  label: "Acomp. de Jobs",    href: "/agenda",          icon: CalendarDays,    category: "Páginas" },
-  { id: "reports", label: "Relatórios",        href: "/reports",         icon: TrendingUp,      category: "Páginas" },
-  { id: "settings",label: "Configurações",     href: "/settings",        icon: Settings,        category: "Páginas" },
+  { id: "dash",    label: "Dashboard",        href: "/dashboard", icon: LayoutDashboard, category: "Páginas" },
+  { id: "logs",    label: "Registro Diário",  href: "/logs",      icon: ClipboardList,   category: "Páginas" },
+  { id: "jobs",    label: "Jobs",             href: "/jobs",      icon: Briefcase,       category: "Páginas" },
+  { id: "clients", label: "Clientes",         href: "/clients",   icon: Users,           category: "Páginas" },
+  { id: "inv",     label: "Invoices",         href: "/invoices",  icon: FileText,        category: "Páginas" },
+  { id: "desp",    label: "Despesas",         href: "/despesas",  icon: Wallet,          category: "Páginas" },
+  { id: "agenda",  label: "Agenda",           href: "/agenda",    icon: CalendarDays,    category: "Páginas" },
+  { id: "reports", label: "Relatórios",       href: "/reports",   icon: TrendingUp,      category: "Páginas" },
+  { id: "settings",label: "Configurações",    href: "/settings",  icon: Settings,        category: "Páginas" },
 ]
 
 export function CommandPalette() {
@@ -72,12 +72,11 @@ export function CommandPalette() {
       setLoading(true)
       const q = query.toLowerCase()
 
-      const [{ data: jobs }, { data: clients }, { data: invoices }, { data: projects }] =
+      const [{ data: jobs }, { data: clients }, { data: invoices }] =
         await Promise.all([
           supabase.from("jobs").select("id, name").ilike("name", `%${q}%`).limit(4),
           supabase.from("clients").select("id, name, company").ilike("name", `%${q}%`).limit(4),
           supabase.from("invoices").select("id, invoice_number, status").ilike("invoice_number", `%${q}%`).limit(4),
-          supabase.from("projects").select("id, name").ilike("name", `%${q}%`).limit(4),
         ])
 
       const dynamic: Result[] = [
@@ -92,10 +91,6 @@ export function CommandPalette() {
         ...(invoices ?? []).map(inv => ({
           id: `inv-${inv.id}`, label: `Invoice #${inv.invoice_number}`,
           sub: inv.status, href: `/invoices`, icon: FileText, category: "Invoices",
-        })),
-        ...(projects ?? []).map(p => ({
-          id: `proj-${p.id}`, label: p.name, href: `/projetos/${p.id}`,
-          icon: FolderKanban, category: "Projetos",
         })),
       ]
 

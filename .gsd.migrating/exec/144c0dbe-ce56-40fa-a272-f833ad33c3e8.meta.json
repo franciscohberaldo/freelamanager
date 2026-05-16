@@ -1,0 +1,18 @@
+{
+  "id": "144c0dbe-ce56-40fa-a272-f833ad33c3e8",
+  "runtime": "bash",
+  "purpose": "Slice S01 verification: as-any grep + tsc",
+  "script_chars": 266,
+  "started_at": "2026-05-16T12:34:54.570Z",
+  "finished_at": "2026-05-16T12:34:57.157Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 2587,
+  "stdout_bytes": 296,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\144c0dbe-ce56-40fa-a272-f833ad33c3e8.stdout",
+  "stderr_path": "D:\\apps\\FreelancerAdmin\\.gsd\\exec\\144c0dbe-ce56-40fa-a272-f833ad33c3e8.stderr"
+}

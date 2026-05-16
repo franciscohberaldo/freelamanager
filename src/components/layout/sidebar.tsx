@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import {
   BarChart3, Briefcase, CalendarDays, ClipboardList,
   FileText, LayoutDashboard, LogOut, Moon, Search, Settings,
-  Sun, TrendingUp, Users, CalendarCheck, FolderKanban, Wallet, Target, CalendarOff, Zap, KanbanSquare,
+  Sun, TrendingUp, Users, Wallet,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
@@ -15,21 +15,15 @@ import { useRouter } from "next/navigation"
 import { CommandPalette } from "@/components/command-palette"
 
 const navItems = [
-  { href: "/dashboard",  label: "Dashboard",    icon: LayoutDashboard },
-  { href: "/logs",       label: "Tracking Diário", icon: ClipboardList },
-  { href: "/jobs",       label: "Jobs",          icon: Briefcase },
-  { href: "/clients",    label: "Clientes",      icon: Users },
-  { href: "/pipeline",   label: "Pipeline",      icon: KanbanSquare },
-  { href: "/invoices",   label: "Invoices",      icon: FileText },
-  { href: "/despesas",        label: "Despesas",          icon: Wallet },
-  { href: "/metas",           label: "Metas",             icon: Target },
-  { href: "/projetos",        label: "Projetos",          icon: FolderKanban },
-  { href: "/agenda",          label: "Acomp. de Jobs",    icon: CalendarDays },
-  { href: "/disponibilidade", label: "Status de Agenda",  icon: CalendarCheck },
-  { href: "/folgas",          label: "Folgas / Férias",   icon: CalendarOff },
-  { href: "/reports",         label: "Relatórios",        icon: TrendingUp },
-  { href: "/automacoes",      label: "Automações",         icon: Zap },
-  { href: "/settings",   label: "Configurações", icon: Settings },
+  { href: "/dashboard", label: "Dashboard",      icon: LayoutDashboard },
+  { href: "/logs",      label: "Tracking Diário", icon: ClipboardList },
+  { href: "/jobs",      label: "Jobs",            icon: Briefcase },
+  { href: "/clients",   label: "Clientes",        icon: Users },
+  { href: "/invoices",  label: "Invoices",        icon: FileText },
+  { href: "/despesas",  label: "Despesas",        icon: Wallet },
+  { href: "/agenda",    label: "Agenda",          icon: CalendarDays },
+  { href: "/reports",   label: "Relatórios",      icon: TrendingUp },
+  { href: "/settings",  label: "Configurações",   icon: Settings },
 ]
 
 export function Sidebar() {

@@ -1,4 +1,4 @@
-# GSD context snapshot (2026-05-16T12:22:18.583Z)
+# GSD context snapshot (2026-05-16T12:34:36.599Z)
 
 ## Top project memories
 - [MEM001] (architecture) Sidebar consolidation strategy Chose: Agrupar telas por abas dentro de páginas existentes (Tabs do shadcn/ui). Rationale: Mantém URLs simples, não quebra bookmarks, usa componente já disponível no projeto. Alternativas: nested routes (mais complexo) ou dropdown menus (esconde funcionalidades)..

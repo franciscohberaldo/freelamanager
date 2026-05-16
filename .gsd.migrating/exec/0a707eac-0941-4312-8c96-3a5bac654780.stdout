@@ -1,0 +1,32 @@
+=== Check 3: next build ===
+├ ƒ /despesas                            20.7 kB         320 kB
+├ ƒ /diario                              8.86 kB         214 kB
+├ ƒ /disponibilidade                     7.33 kB         182 kB
+├ ƒ /folgas                              6.1 kB          193 kB
+├ ƒ /icon-192.png                        0 B                0 B
+├ ƒ /icon-512.png                        0 B                0 B
+├ ƒ /invoices                            15.7 kB         221 kB
+├ ƒ /jobs                                27.7 kB         233 kB
+├ ○ /login                               4.12 kB         178 kB
+├ ƒ /logs                                8.18 kB         213 kB
+├ ○ /manifest.webmanifest                0 B                0 B
+├ ƒ /metas                               4.75 kB         179 kB
+├ ○ /offline                             557 B            88 kB
+├ ƒ /pipeline                            5.91 kB         211 kB
+├ ƒ /portal/[token]                      152 B          87.6 kB
+├ ƒ /projetos                            6.08 kB         220 kB
+├ ƒ /projetos/[id]                       8.94 kB         226 kB
+├ ƒ /reports                             10.7 kB         221 kB
+└ ƒ /settings                            9.3 kB          214 kB
++ First Load JS shared by all            87.4 kB
+  ├ chunks/2117-809c93eddee8cf8f.js      31.8 kB
+  ├ chunks/fd9d1056-245a8df1c65c3720.js  53.6 kB
+  └ other shared chunks (total)          2.01 kB
+
+
+ƒ Middleware                             79.2 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+Exit: 0

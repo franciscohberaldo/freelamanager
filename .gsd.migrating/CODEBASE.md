@@ -1,7 +1,7 @@
 # Codebase Map
 
-Generated: 2026-05-16T12:22:18Z | Files: 139 | Described: 0/139
-<!-- gsd:codebase-meta {"generatedAt":"2026-05-16T12:22:18Z","fingerprint":"2b94a8d26f9cf1556fe46b832e7f1fe2ff0056a8","fileCount":139,"truncated":false} -->
+Generated: 2026-05-16T12:41:12Z | Files: 170 | Described: 0/170
+<!-- gsd:codebase-meta {"generatedAt":"2026-05-16T12:41:12Z","fingerprint":"c565612d266c09031d2ec7ad0c7ca7f2f101c697","fileCount":170,"truncated":false} -->
 
 ### (root)/
 - `.gitignore`
@@ -15,12 +15,58 @@ Generated: 2026-05-16T12:22:18Z | Files: 139 | Described: 0/139
 - `vercel.json`
 
 ### .gsd.migrating/
+- `.gsd.migrating/CODEBASE.md`
+- `.gsd.migrating/doctor-history.jsonl`
+- `.gsd.migrating/event-log.jsonl`
 - `.gsd.migrating/gsd.db`
 - `.gsd.migrating/gsd.db-shm`
 - `.gsd.migrating/gsd.db-wal`
+- `.gsd.migrating/KNOWLEDGE.md`
+- `.gsd.migrating/last-snapshot.md`
+- `.gsd.migrating/metrics.json`
+- `.gsd.migrating/notifications.jsonl`
+- `.gsd.migrating/PROJECT.md`
+- `.gsd.migrating/REQUIREMENTS.md`
+- `.gsd.migrating/state-manifest.json`
+- `.gsd.migrating/STATE.md`
+
+### .gsd.migrating/activity/
+- `.gsd.migrating/activity/001-plan-slice-M001-S01.jsonl`
+- `.gsd.migrating/activity/001-research-slice-M001-S01.jsonl`
+
+### .gsd.migrating/audit/
+- `.gsd.migrating/audit/events.jsonl`
+
+### .gsd.migrating/journal/
+- `.gsd.migrating/journal/2026-05-16.jsonl`
+
+### .gsd.migrating/milestones/M001/
+- `.gsd.migrating/milestones/M001/M001-CONTEXT.md`
+- `.gsd.migrating/milestones/M001/M001-ROADMAP.md`
+
+### .gsd.migrating/milestones/M001/anchors/
+- `.gsd.migrating/milestones/M001/anchors/plan-slice.json`
+- `.gsd.migrating/milestones/M001/anchors/research-slice.json`
+
+### .gsd.migrating/milestones/M001/slices/S01/
+- `.gsd.migrating/milestones/M001/slices/S01/S01-PLAN.md`
+- `.gsd.migrating/milestones/M001/slices/S01/S01-PRE-EXEC-VERIFY.json`
+- `.gsd.migrating/milestones/M001/slices/S01/S01-RESEARCH.md`
+
+### .gsd.migrating/milestones/M001/slices/S01/tasks/
+- `.gsd.migrating/milestones/M001/slices/S01/tasks/T01-PLAN.md`
+- `.gsd.migrating/milestones/M001/slices/S01/tasks/T02-PLAN.md`
 
 ### .gsd.migrating/runtime/
+- `.gsd.migrating/runtime/uok-parity.jsonl`
+- `.gsd.migrating/runtime/uok-plan-v2-graph.json`
+- `.gsd.migrating/runtime/uok-writer-sequence.json`
 - `.gsd.migrating/runtime/write-gate-state.json`
+
+### .gsd.migrating/runtime/units/
+- `.gsd.migrating/runtime/units/execute-task-M001-S01-T01.json`
+- `.gsd.migrating/runtime/units/plan-slice-M001-S01.json`
+- `.gsd.migrating/runtime/units/research-slice-M001-S01.json`
 
 ### public/
 - `public/sw.js`
@@ -142,6 +188,9 @@ Generated: 2026-05-16T12:22:18Z | Files: 139 | Described: 0/139
 
 ### src/app/api/cron/billing-reminders/
 - `src/app/api/cron/billing-reminders/route.ts`
+
+### src/app/api/cron/keep-alive/
+- `src/app/api/cron/keep-alive/route.ts`
 
 ### src/app/api/cron/recurring-invoices/
 - `src/app/api/cron/recurring-invoices/route.ts`
