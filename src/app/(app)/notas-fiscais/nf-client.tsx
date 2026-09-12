@@ -33,8 +33,10 @@ export function NfClient({ rows }: { rows: NfRow[] }) {
     .filter(r => series === "all" || r.nf_series === series)
     .filter(r => year === "all" || (r.nf_issued_at ?? r.created_at).startsWith(year))
 
-  const seqGaps = findGaps(rows.map(r => r.seq_number))
-  const seqDups = findDuplicates(rows.map(r => r.seq_number))
+  // Paulínia notes are imported with an "NFP" prefix and are not part of the invoice sequence
+  const seqValues = rows.filter(r => !r.seq_number?.startsWith("NFP")).map(r => r.seq_number)
+  const seqGaps = findGaps(seqValues)
+  const seqDups = findDuplicates(seqValues)
   const nfAlerts = (Object.keys(NF_SERIES_LABELS) as NfSeries[]).map(s => {
     const nums = rows.filter(r => r.nf_series === s).map(r => r.nf_number)
     return { series: s, gaps: findGaps(nums), dups: findDuplicates(nums) }
