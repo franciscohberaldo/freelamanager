@@ -30,6 +30,8 @@ interface Job {
   timezone?: string | null
   work_hours?: string | null
   is_confidential?: boolean
+  end_client?: string | null
+  intermediary?: string | null
   currency: string
   created_at: string
   clients: { name: string } | null
@@ -95,6 +97,8 @@ export function JobsClient({ jobs, jobsCount, clients }: Props) {
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   {(job.clients as { name: string } | null)?.name}
+                  {job.intermediary && ` · via ${job.intermediary}`}
+                  {job.end_client && ` · ${job.end_client}`}
                   {job.currency !== "BRL" && ` · ${job.currency}`}
                   {(() => { const lh = workHoursInLocal(job.work_hours, job.timezone); return lh ? ` · ${lh.remoteLabel} = ${lh.localLabel}` : "" })()}
                 </p>

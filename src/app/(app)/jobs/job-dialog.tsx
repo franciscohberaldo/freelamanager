@@ -28,6 +28,10 @@ const jobSchema = z.object({
   description:    z.string().optional(),
   billing_mode:   z.enum(["hourly", "daily"]),
   project_code:   z.string().optional(),
+  end_client:     z.string().optional(),
+  intermediary:   z.string().optional(),
+  nf_description: z.string().optional(),
+  po_number:      z.string().optional(),
   timezone:       z.string().optional(),
   work_hours:     z.string().optional(),
   is_confidential: z.boolean(),
@@ -66,6 +70,10 @@ export function JobDialog({ children, clients, job, mode }: Props) {
       description:    job?.description ?? "",
       billing_mode:   job?.billing_mode ?? "hourly",
       project_code:   job?.project_code ?? "",
+      end_client:     job?.end_client ?? "",
+      intermediary:   job?.intermediary ?? "",
+      nf_description: job?.nf_description ?? "",
+      po_number:      job?.po_number ?? "",
       timezone:       job?.timezone ?? "",
       work_hours:     job?.work_hours ?? "",
       is_confidential: job?.is_confidential ?? false,
@@ -92,6 +100,10 @@ export function JobDialog({ children, clients, job, mode }: Props) {
     const payload = {
       ...data,
       project_code: data.project_code?.trim() || null,
+      end_client:     data.end_client?.trim() || null,
+      intermediary:   data.intermediary?.trim() || null,
+      nf_description: data.nf_description?.trim() || null,
+      po_number:      data.po_number?.trim() || null,
       timezone: data.timezone || null,
       work_hours: data.work_hours?.trim() || null,
       contract_value: data.contract_value || null,
@@ -159,6 +171,24 @@ export function JobDialog({ children, clients, job, mode }: Props) {
             <div className="space-y-2">
               <Label>Código do projeto</Label>
               <Input {...register("project_code")} placeholder="ex: Deltek, PO, nº do projeto" />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Cliente final (marca)</Label>
+              <Input {...register("end_client")} placeholder="ex: Mastercard" />
+            </div>
+            <div className="space-y-2">
+              <Label>Intermediário (estúdio)</Label>
+              <Input {...register("intermediary")} placeholder="ex: Lobo" />
+            </div>
+            <div className="space-y-2">
+              <Label>Nº da PO (padrão)</Label>
+              <Input {...register("po_number")} placeholder="ex: 4702134214" />
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label>Descrição fiscal (texto da NF)</Label>
+              <Input {...register("nf_description")} placeholder="ex: Serviços prestados de animação" />
+              <p className="text-xs text-muted-foreground">Vai no pedido de NF ao contador. Sem inglês, sem nome de job.</p>
             </div>
 
             <div className="space-y-2">
