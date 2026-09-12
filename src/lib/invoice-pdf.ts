@@ -52,6 +52,8 @@ export interface InvoicePDFBankDetails {
 export interface InvoicePDFParams {
   invoice: {
     invoice_number: string
+    seq_number?: string | null
+    po_number?: string | null
     period_start: string
     period_end: string
     due_date: string | null
@@ -69,6 +71,9 @@ export interface InvoicePDFParams {
     subtotal: number
     quantity?: number | null
     unit?: BillingUnit | null
+    description?: string | null
+    job_number?: string | null
+    is_manual?: boolean | null
   }>
   job: {
     name: string
@@ -78,12 +83,28 @@ export interface InvoicePDFParams {
     billing_mode?: "hourly" | "daily"
     project_code?: string | null
   } | null
-  client: { name: string; company: string | null; email: string | null } | null
+  client: {
+    name: string
+    company: string | null
+    email: string | null
+    legal_name?: string | null
+    cnpj?: string | null
+    address?: string | null
+    billing_entity?: string | null
+    billing_address?: string | null
+  } | null
   settings: ({
     company_name: string | null
     cnpj_cpf: string | null
     logo_url: string | null
     invoice_color: string | null
+    legal_name?: string | null
+    fiscal_address?: string | null
+    intermediary_bank_name?: string | null
+    intermediary_bank_swift?: string | null
+    intermediary_bank_aba?: string | null
+    intermediary_bank_account?: string | null
+    intermediary_bank_address?: string | null
   } & InvoicePDFBankDetails) | null
   lang: InvoiceLang
 }
@@ -160,7 +181,7 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   doc.setFontSize(11)
   doc.setFont("helvetica", "normal")
   doc.setTextColor(80, 80, 80)
-  doc.text(`#${invoice.invoice_number}`, 20, 33 + headerOffsetY)
+  doc.text(`#${invoice.seq_number ?? invoice.invoice_number}`, 20, 33 + headerOffsetY)
 
   const metaX = pageW - 20
   let metaY = 20
@@ -195,9 +216,31 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   doc.text(`${t.to}:`, 20, sectionY)
   doc.setFont("helvetica", "normal")
   doc.setTextColor(80, 80, 80)
-  doc.text(client?.name ?? "—", 20, sectionY + 7)
-  if (client?.company) doc.text(client.company, 20, sectionY + 13)
-  if (client?.email)   doc.text(client.email,   20, client?.company ? sectionY + 19 : sectionY + 13)
+  const toMaxW = pageW / 2 - 30
+  let toY = sectionY + 7
+  const toLine = (text: string, bold = false) => {
+    doc.setFont("helvetica", bold ? "bold" : "normal")
+    doc.setTextColor(bold ? 30 : 80, bold ? 30 : 80, bold ? 30 : 80)
+    const lines = doc.splitTextToSize(text, toMaxW) as string[]
+    doc.text(lines, 20, toY)
+    toY += lines.length * 5
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(80, 80, 80)
+  }
+  if (client?.billing_entity) {
+    toLine(client.billing_entity, true)
+    const billAddr = client.billing_address ?? client.address
+    if (billAddr) toLine(billAddr)
+    toY += 2
+    toLine(client.legal_name ?? client.name)
+    if (client.email) toLine(client.email)
+  } else {
+    toLine(client?.legal_name ?? client?.name ?? "—")
+    if (client?.company && client.company !== (client.legal_name ?? "")) toLine(client.company)
+    if (client?.cnpj)    toLine(`${t.cnpj}: ${client.cnpj}`)
+    if (client?.address) toLine(client.address)
+    if (client?.email)   toLine(client.email)
+  }
 
   doc.setFont("helvetica", "bold")
   doc.setTextColor(30, 30, 30)
@@ -210,33 +253,44 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
     doc.text(`${t.project}: ${job.project_code}`, pageW / 2, serviceY)
     serviceY += 6
   }
+  if (invoice.po_number) {
+    doc.text(`${t.purchaseOrder}: ${invoice.po_number}`, pageW / 2, serviceY)
+    serviceY += 6
+  }
   const rateValue = isDaily ? (job?.daily_rate ?? 0) : (job?.hourly_rate ?? 0)
   doc.text(`${t.rate}: ${cur(rateValue)}/${isDaily ? t.day : t.hour}`, pageW / 2, serviceY)
 
-  const divY = Math.max(sectionY + 25, serviceY + 6)
+  const divY = Math.max(sectionY + 25, serviceY + 6, toY + 4)
   doc.setDrawColor(200, 200, 200)
   doc.line(20, divY, pageW - 20, divY)
 
   autoTable(doc, {
     startY: divY + 7,
-    head: [[t.tableDate, isDaily ? t.tableBilledDays : t.tableBilled, isDaily ? t.tableRateDay : t.tableRate, t.tableSubtotal]],
+    head: [[t.tableDate, t.tableDescription, isDaily ? t.tableBilledDays : t.tableBilled, isDaily ? t.tableRateDay : t.tableRate, t.tableSubtotal]],
     body: items.map((item) => {
+      if (item.is_manual) {
+        const desc = [item.description, item.job_number ? `Job: ${item.job_number}` : null].filter(Boolean).join(" — ")
+        return [dt(item.date), desc, String(item.quantity ?? 0), cur(item.rate), cur(item.subtotal)]
+      }
       const q = resolveItemQuantity(item, billingMode)
       return [
         dt(item.date),
+        item.description ?? (isDaily ? t.day : t.hour),
         formatQuantity(q.quantity, q.unit, lang),
         cur(item.rate),
         cur(item.subtotal),
       ]
     }),
-    styles: { fontSize: 10, cellPadding: 5 },
+    margin: { left: 20, right: 20 },
+    styles: { fontSize: 10, cellPadding: 4 },
     headStyles: { fillColor: [r, g, b], textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [245, 247, 255] },
     columnStyles: {
-      0: { cellWidth: 40 },
-      1: { cellWidth: 40, halign: "center" },
-      2: { cellWidth: 40, halign: "right" },
-      3: { cellWidth: 40, halign: "right" },
+      0: { cellWidth: 30 },
+      1: { cellWidth: "auto" },
+      2: { cellWidth: 26, halign: "center" },
+      3: { cellWidth: 28, halign: "right" },
+      4: { cellWidth: 30, halign: "right" },
     },
   })
 
@@ -263,8 +317,88 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
 
   let cursorY = finalY + (hasInTax ? 17 : 10) + 14
 
-  // Payment details block (wire for foreign currency, PIX for BRL)
-  const bankRows = paymentDetailRows(settings, invoice.currency, lang)
+  const printLabelRows = (title: string, rows: Array<[string, string | null | undefined]>) => {
+    const filled = rows.filter((row): row is [string, string] => !!row[1] && row[1].trim().length > 0)
+    if (filled.length === 0) return
+    const blockH = 8 + filled.length * 5.5
+    if (cursorY + blockH > pageH - 20) { doc.addPage(); cursorY = 20 }
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(9)
+    doc.setTextColor(30, 30, 30)
+    doc.text(title, 20, cursorY)
+    cursorY += 5.5
+    doc.setFont("helvetica", "normal")
+    for (const [label, value] of filled) {
+      doc.setTextColor(120, 120, 120)
+      doc.text(`${label}:`, 20, cursorY)
+      doc.setTextColor(30, 30, 30)
+      const lines = doc.splitTextToSize(value, pageW - 82) as string[]
+      doc.text(lines, 62, cursorY)
+      cursorY += 5.5 * lines.length
+    }
+    cursorY += 3
+  }
+
+  if (invoice.currency !== "BRL") {
+    // Wire instructions in SWIFT field order (56 → 57 → 59), then the recipient's fiscal identity
+    const s: Partial<NonNullable<InvoicePDFParams["settings"]>> = settings ?? {}
+    const sections: Array<[string, Array<[string, string | null | undefined]>]> = [
+      [t.intermediaryBank, [
+        [t.swift,         s.intermediary_bank_swift],
+        [t.routing,       s.intermediary_bank_aba],
+        [t.accountNumber, s.intermediary_bank_account],
+        [t.bankName,      s.intermediary_bank_name],
+        [t.bankAddress,   s.intermediary_bank_address],
+      ]],
+      [t.destinationBank, [
+        [t.swift,       s.bank_swift],
+        [t.bankName,    s.bank_name],
+        [t.bankAddress, s.bank_address],
+      ]],
+      [t.beneficiaryField, [
+        [t.beneficiary,   s.bank_beneficiary ?? s.legal_name],
+        [t.iban,          s.bank_iban],
+        [t.accountNumber, s.bank_account_number],
+        [t.routing,       s.bank_routing],
+        [t.accountType,   s.bank_account_type],
+      ]],
+    ]
+    const hasWire = sections.some(([, rows]) => rows.some((row) => !!row[1] && row[1].trim().length > 0))
+    if (hasWire) {
+      if (cursorY + 20 > pageH - 20) { doc.addPage(); cursorY = 20 }
+      doc.setDrawColor(200, 200, 200)
+      doc.line(20, cursorY, pageW - 20, cursorY)
+      cursorY += 8
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(10)
+      doc.setTextColor(30, 30, 30)
+      doc.text(t.paymentInstructions, 20, cursorY)
+      cursorY += 7
+      for (const [title, rows] of sections) printLabelRows(title, rows)
+    }
+    const recipientLines = [
+      s.legal_name ?? s.company_name,
+      s.cnpj_cpf ? `${t.cnpj}: ${s.cnpj_cpf}` : null,
+      s.fiscal_address,
+    ].filter((v): v is string => !!v && v.trim().length > 0)
+    if (recipientLines.length > 0) {
+      const wrapped = recipientLines.flatMap((l) => doc.splitTextToSize(l, pageW - 40) as string[])
+      const blockH = 8 + wrapped.length * 5
+      if (cursorY + blockH > pageH - 20) { doc.addPage(); cursorY = 20 }
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(9)
+      doc.setTextColor(30, 30, 30)
+      doc.text(t.recipientInfo, 20, cursorY)
+      cursorY += 5.5
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor(80, 80, 80)
+      doc.text(wrapped, 20, cursorY)
+      cursorY += wrapped.length * 5 + 4
+    }
+  }
+
+  // Payment details block (PIX for BRL)
+  const bankRows = invoice.currency === "BRL" ? paymentDetailRows(settings, invoice.currency, lang) : []
   if (bankRows.length > 0) {
     const blockH = 14 + bankRows.length * 6
     if (cursorY + blockH > pageH - 20) { doc.addPage(); cursorY = 20 }

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const [{ data: invoice }, { data: settings }] = await Promise.all([
     supabase
       .from("invoices")
-      .select("*, jobs(name, hourly_rate, daily_rate, billing_mode, project_code, currency, clients(name, company, email))")
+      .select("*, jobs(name, hourly_rate, daily_rate, billing_mode, project_code, currency, clients(name, company, email, legal_name, cnpj, address, billing_entity, billing_address))")
       .eq("id", id)
       .eq("user_id", user.id)
       .single(),
@@ -37,7 +37,10 @@ export async function GET(request: NextRequest) {
 
   const job    = invoice.jobs as {
     name: string; hourly_rate: number; daily_rate: number; billing_mode: "hourly" | "daily"; project_code: string | null; currency: string
-    clients: { name: string; company: string | null; email: string | null } | null
+    clients: {
+      name: string; company: string | null; email: string | null
+      legal_name: string | null; cnpj: string | null; address: string | null; billing_entity: string | null; billing_address: string | null
+    } | null
   } | null
   const client = job?.clients ?? null
 
@@ -56,7 +59,7 @@ export async function GET(request: NextRequest) {
   return new NextResponse(pdfBytes, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="invoice-${invoice.invoice_number}.pdf"`,
+      "Content-Disposition": `attachment; filename="invoice-${invoice.seq_number ?? invoice.invoice_number}.pdf"`,
     },
   })
 }
