@@ -37,7 +37,7 @@ export default async function DashboardPage() {
       .lte("date", monthEnd),
     supabase
       .from("jobs")
-      .select("id, name, hourly_rate, daily_rate, currency, clients(name)")
+      .select("id, name, hourly_rate, daily_rate, currency, timezone, work_hours, is_confidential, clients(name)")
       .eq("user_id", user!.id)
       .eq("status", "active"),
     supabase

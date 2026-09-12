@@ -1,6 +1,7 @@
 "use client"
 
 import { formatCurrency } from "@/lib/utils"
+import { workHoursInLocal } from "@/lib/timezone"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -26,6 +27,9 @@ interface Job {
   daily_rate: number
   billing_mode?: "hourly" | "daily"
   project_code?: string | null
+  timezone?: string | null
+  work_hours?: string | null
+  is_confidential?: boolean
   currency: string
   created_at: string
   clients: { name: string } | null
@@ -87,10 +91,12 @@ export function JobsClient({ jobs, jobsCount, clients }: Props) {
                     {JOB_STATUS_LABELS[job.status]}
                   </Badge>
                   {job.is_recurring && <Badge variant="outline">Recorrente</Badge>}
+                  {job.is_confidential && <Badge variant="destructive" title="Confidencial: não divulgar o trabalho">NDA</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   {(job.clients as { name: string } | null)?.name}
                   {job.currency !== "BRL" && ` · ${job.currency}`}
+                  {(() => { const lh = workHoursInLocal(job.work_hours, job.timezone); return lh ? ` · ${lh.remoteLabel} = ${lh.localLabel}` : "" })()}
                 </p>
               </div>
               <div className="text-right shrink-0 space-y-0.5">

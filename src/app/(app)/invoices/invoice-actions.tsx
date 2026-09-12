@@ -36,12 +36,22 @@ function PaymentDialog({
   const [loading, setLoading] = useState(false)
   const remaining = invoiceTotal - paidSoFar
 
+  const isForeign = currency !== "BRL"
+
   const [form, setForm] = useState({
     amount:  remaining > 0 ? remaining : 0,
     paid_at: format(new Date(), "yyyy-MM-dd"),
-    method:  "pix",
+    method:  isForeign ? "wire" : "pix",
     notes:   "",
+    exchange_rate:       "" as string,
+    amount_received_brl: "" as string,
+    fees:                "" as string,
   })
+
+  // Derive the BRL amount when the rate is typed (and vice-versa is left to the user)
+  const rateNum = parseFloat(form.exchange_rate) || 0
+  const feesNum = parseFloat(form.fees) || 0
+  const suggestedBrl = rateNum > 0 ? Number(((form.amount - feesNum) * rateNum).toFixed(2)) : 0
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -49,13 +59,17 @@ function PaymentDialog({
     setLoading(true)
 
     const { data: { user } } = await supabase.auth.getUser()
+    const receivedBrl = parseFloat(form.amount_received_brl) || (suggestedBrl || 0)
     const { error } = await supabase.from("invoice_payments").insert({
       invoice_id: invoiceId,
       user_id:    user!.id,
       amount:     form.amount,
       paid_at:    form.paid_at,
-      method:     form.method,
+      method:     form.method as "pix" | "ted" | "cartao" | "boleto" | "wire" | "outro",
       notes:      form.notes || null,
+      exchange_rate:       isForeign && rateNum > 0 ? rateNum : null,
+      amount_received_brl: isForeign && receivedBrl > 0 ? receivedBrl : null,
+      fees:                isForeign && feesNum > 0 ? feesNum : null,
     })
 
     if (error) { toast.error("Erro ao registrar pagamento"); setLoading(false); return }
@@ -120,12 +134,40 @@ function PaymentDialog({
               <SelectContent>
                 <SelectItem value="pix">PIX</SelectItem>
                 <SelectItem value="ted">TED</SelectItem>
+                <SelectItem value="wire">Wire / transferência internacional</SelectItem>
                 <SelectItem value="cartao">Cartão</SelectItem>
                 <SelectItem value="boleto">Boleto</SelectItem>
                 <SelectItem value="outro">Outro</SelectItem>
               </SelectContent>
             </Select>
           </div>
+          {isForeign && (
+            <div className="rounded-md border bg-muted/20 p-3 space-y-3">
+              <p className="text-xs font-medium">Câmbio e tarifas (recebimento em {currency})</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Tarifas ({currency})</Label>
+                  <Input type="number" step="0.01" min="0" placeholder="0.00"
+                    value={form.fees} onChange={e => setForm(f => ({ ...f, fees: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Câmbio (R$ por 1 {currency})</Label>
+                  <Input type="number" step="0.0001" min="0" placeholder="5.4321"
+                    value={form.exchange_rate} onChange={e => setForm(f => ({ ...f, exchange_rate: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Líquido em BRL</Label>
+                  <Input type="number" step="0.01" min="0" placeholder={suggestedBrl ? String(suggestedBrl) : "0.00"}
+                    value={form.amount_received_brl} onChange={e => setForm(f => ({ ...f, amount_received_brl: e.target.value }))} />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {suggestedBrl > 0
+                  ? `Sugerido: (${form.amount} − ${feesNum}) × ${rateNum} = R$ ${suggestedBrl.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}. Deixe em branco para usar o sugerido.`
+                  : "Informe o câmbio ou o valor líquido creditado na sua conta em reais."}
+              </p>
+            </div>
+          )}
           <div className="space-y-2">
             <Label>Observações</Label>
             <Input

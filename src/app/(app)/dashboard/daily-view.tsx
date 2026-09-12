@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Clock, CheckCircle2, AlertTriangle, Target, FileText } from "lucide-react"
 import Link from "next/link"
 import { RevenueAtRisk, type StaleJobInput, type RecentDailyLog } from "./revenue-at-risk"
+import { JobHoursToday } from "./job-hours-today"
 
 interface TodayLog {
   id: string
@@ -306,6 +307,9 @@ export function DailyView({
           </CardContent>
         </Card>
       )}
+
+      {/* Client working hours converted to local time */}
+      <JobHoursToday jobs={activeJobs as unknown as { id: string; name: string; timezone?: string | null; work_hours?: string | null; clients?: { name: string } | null }[]} />
 
       {/* Revenue at Risk */}
       <RevenueAtRisk

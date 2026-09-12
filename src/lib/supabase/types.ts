@@ -26,6 +26,7 @@ type JobRow = {
   status: 'proposal' | 'active' | 'paused' | 'completed'; contract_value: number | null;
   start_date: string | null; end_date: string | null; is_recurring: boolean;
   tax_rate: number; notes: string | null; billing_mode: 'hourly' | 'daily'; project_code: string | null;
+  timezone: string | null; work_hours: string | null; is_confidential: boolean;
   created_at: string; updated_at: string
 }
 type JobInsert = {
@@ -33,7 +34,8 @@ type JobInsert = {
   hourly_rate: number; daily_rate: number; currency: 'BRL' | 'USD' | 'EUR';
   status: 'proposal' | 'active' | 'paused' | 'completed'; contract_value?: number | null;
   start_date?: string | null; end_date?: string | null; is_recurring: boolean;
-  tax_rate: number; notes?: string | null; billing_mode?: 'hourly' | 'daily'; project_code?: string | null
+  tax_rate: number; notes?: string | null; billing_mode?: 'hourly' | 'daily'; project_code?: string | null;
+  timezone?: string | null; work_hours?: string | null; is_confidential?: boolean
 }
 
 type DailyLogRow = {
@@ -161,12 +163,14 @@ type ExpenseInsert = {
 
 type InvoicePaymentRow = {
   id: string; invoice_id: string; user_id: string; amount: number;
-  paid_at: string; method: 'pix' | 'ted' | 'cartao' | 'boleto' | 'outro' | null;
-  notes: string | null; created_at: string
+  paid_at: string; method: 'pix' | 'ted' | 'cartao' | 'boleto' | 'wire' | 'outro' | null;
+  notes: string | null; exchange_rate: number | null; amount_received_brl: number | null; fees: number | null;
+  created_at: string
 }
 type InvoicePaymentInsert = {
   invoice_id: string; user_id: string; amount: number; paid_at: string;
-  method?: 'pix' | 'ted' | 'cartao' | 'boleto' | 'outro' | null; notes?: string | null
+  method?: 'pix' | 'ted' | 'cartao' | 'boleto' | 'wire' | 'outro' | null; notes?: string | null;
+  exchange_rate?: number | null; amount_received_brl?: number | null; fees?: number | null
 }
 
 type UserGoalRow = {

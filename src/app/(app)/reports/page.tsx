@@ -25,6 +25,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
     { data: expenses },
     { data: allInvoices },
     { data: clients },
+    { data: payments },
   ] = await Promise.all([
     supabase
       .from("daily_logs")
@@ -57,6 +58,13 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
       .from("clients")
       .select("id, name, company")
       .eq("user_id", user!.id),
+    // Payments received in the year (FX details for foreign-currency invoices)
+    supabase
+      .from("invoice_payments")
+      .select("amount, paid_at, amount_received_brl, fees, exchange_rate")
+      .eq("user_id", user!.id)
+      .gte("paid_at", yearStart)
+      .lte("paid_at", yearEnd),
   ])
 
   // ── Summary KPIs ──────────────────────────────────────────────────
@@ -65,6 +73,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
   const totalHorasFaturadas   = logs?.reduce((s, l) => s + l.hours_billed, 0) ?? 0
   const totalInvoicesPagos    = invoices?.filter(i => i.status === "paid").reduce((s, i) => s + i.total, 0) ?? 0
   const totalDespesas         = expenses?.reduce((s, e) => s + e.amount, 0) ?? 0
+  const fxPayments            = (payments ?? []).filter(p => p.amount_received_brl != null)
+  const totalRecebidoBrlFx    = fxPayments.reduce((s, p) => s + (p.amount_received_brl ?? 0), 0)
+  const avgExchangeRate       = fxPayments.length
+    ? fxPayments.reduce((s, p) => s + (p.exchange_rate ?? 0), 0) / fxPayments.filter(p => p.exchange_rate).length || 0
+    : 0
   const lucroLiquido          = totalFaturado - totalDespesas
   const eficiencia            = totalHorasTrabalhadas > 0
     ? ((totalHorasFaturadas / totalHorasTrabalhadas) * 100).toFixed(1)
@@ -217,7 +230,16 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
       </div>
 
       {/* Secondary KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-xs text-muted-foreground">Recebido em BRL (câmbio)</p>
+            <p className="text-xl font-bold mt-1 text-green-600">{fxPayments.length ? formatCurrency(totalRecebidoBrlFx) : "—"}</p>
+            <p className="text-xs text-muted-foreground">
+              {fxPayments.length ? `${fxPayments.length} recebimento${fxPayments.length > 1 ? "s" : ""} internacional${fxPayments.length > 1 ? "is" : ""}${avgExchangeRate ? ` · câmbio médio ${avgExchangeRate.toFixed(2)}` : ""}` : "Nenhum recebimento internacional"}
+            </p>
+          </CardContent>
+        </Card>
         <Card>
           <CardContent className="py-4">
             <p className="text-xs text-muted-foreground">Horas faturadas</p>

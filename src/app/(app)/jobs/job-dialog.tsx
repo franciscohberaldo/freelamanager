@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
 import type { Job } from "@/lib/supabase/types"
+import { COMMON_TIMEZONES, workHoursInLocal } from "@/lib/timezone"
 
 const jobSchema = z.object({
   client_id:      z.string().min(1, "Selecione um cliente"),
@@ -27,6 +28,9 @@ const jobSchema = z.object({
   description:    z.string().optional(),
   billing_mode:   z.enum(["hourly", "daily"]),
   project_code:   z.string().optional(),
+  timezone:       z.string().optional(),
+  work_hours:     z.string().optional(),
+  is_confidential: z.boolean(),
   hourly_rate:    z.coerce.number().min(0),
   daily_rate:     z.coerce.number().min(0),
   currency:       z.enum(["BRL", "USD", "EUR"]),
@@ -62,6 +66,9 @@ export function JobDialog({ children, clients, job, mode }: Props) {
       description:    job?.description ?? "",
       billing_mode:   job?.billing_mode ?? "hourly",
       project_code:   job?.project_code ?? "",
+      timezone:       job?.timezone ?? "",
+      work_hours:     job?.work_hours ?? "",
+      is_confidential: job?.is_confidential ?? false,
       hourly_rate:    job?.hourly_rate ?? 0,
       daily_rate:     job?.daily_rate ?? 0,
       currency:       (job?.currency as "BRL" | "USD" | "EUR") ?? "BRL",
@@ -76,12 +83,17 @@ export function JobDialog({ children, clients, job, mode }: Props) {
   })
 
   const billingMode = watch("billing_mode")
+  const tzValue     = watch("timezone")
+  const workHours   = watch("work_hours")
+  const localHours  = workHoursInLocal(workHours, tzValue)
 
   async function onSubmit(data: JobForm) {
     setLoading(true)
     const payload = {
       ...data,
       project_code: data.project_code?.trim() || null,
+      timezone: data.timezone || null,
+      work_hours: data.work_hours?.trim() || null,
       contract_value: data.contract_value || null,
       start_date: data.start_date || null,
       end_date: data.end_date || null,
@@ -207,6 +219,30 @@ export function JobDialog({ children, clients, job, mode }: Props) {
               <Input {...register("tax_rate")} type="number" step="0.01" placeholder="0" />
             </div>
 
+            <div className="space-y-2">
+              <Label>Fuso horário do cliente</Label>
+              <Select defaultValue={job?.timezone ?? "none"} onValueChange={(v) => setValue("timezone", v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Não informado" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Não informado</SelectItem>
+                  {COMMON_TIMEZONES.map((tz) => (
+                    <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Horário de trabalho (no fuso do cliente)</Label>
+              <Input {...register("work_hours")} placeholder="ex: 09:00-18:00" />
+              {localHours && (
+                <p className="text-xs text-muted-foreground">
+                  Hoje em Brasília: <span className="font-medium text-foreground">{localHours.localLabel}</span>
+                  {localHours.nextDay ? " (vira o dia)" : ""} · diferença {localHours.diffHours > 0 ? "+" : ""}{localHours.diffHours}h
+                </p>
+              )}
+            </div>
+
             <div className="flex items-center gap-3 col-span-2 py-2">
               <Switch
                 id="recurring"
@@ -214,6 +250,18 @@ export function JobDialog({ children, clients, job, mode }: Props) {
                 onCheckedChange={(v) => setValue("is_recurring", v)}
               />
               <Label htmlFor="recurring">Job recorrente (renovação automática)</Label>
+            </div>
+
+            <div className="flex items-center gap-3 col-span-2 py-1">
+              <Switch
+                id="confidential"
+                defaultChecked={job?.is_confidential}
+                onCheckedChange={(v) => setValue("is_confidential", v)}
+              />
+              <div>
+                <Label htmlFor="confidential">Confidencial (NDA)</Label>
+                <p className="text-xs text-muted-foreground">O trabalho não pode ser divulgado em portfólio, redes ou site.</p>
+              </div>
             </div>
 
             <div className="space-y-2 col-span-2">
