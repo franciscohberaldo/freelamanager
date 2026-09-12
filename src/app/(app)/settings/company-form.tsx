@@ -24,6 +24,17 @@ interface UserSettings {
   bank_iban: string | null
   bank_address: string | null
   pix_key: string | null
+  legal_name: string | null
+  municipal_registration: string | null
+  fiscal_address: string | null
+  accountant_name: string | null
+  accountant_email: string | null
+  next_invoice_seq: number
+  intermediary_bank_name: string | null
+  intermediary_bank_swift: string | null
+  intermediary_bank_aba: string | null
+  intermediary_bank_account: string | null
+  intermediary_bank_address: string | null
 }
 
 const BANK_FIELDS: Array<{ key: keyof UserSettings; label: string; placeholder: string; group: "wire" | "pix" }> = [
@@ -36,6 +47,21 @@ const BANK_FIELDS: Array<{ key: keyof UserSettings; label: string; placeholder: 
   { key: "bank_iban",           label: "IBAN",                         placeholder: "Opcional",                   group: "wire" },
   { key: "bank_address",        label: "Endereço do banco",            placeholder: "Opcional",                   group: "wire" },
   { key: "pix_key",             label: "Chave PIX",                    placeholder: "CPF, e-mail, telefone ou aleatória", group: "pix" },
+]
+
+const FISCAL_FIELDS: Array<{ key: keyof UserSettings; label: string; placeholder: string }> = [
+  { key: "legal_name",             label: "Razão social",           placeholder: "Estúdio Judite Ltda" },
+  { key: "municipal_registration", label: "Inscrição municipal (CCM)", placeholder: "64377270" },
+  { key: "fiscal_address",         label: "Endereço fiscal",        placeholder: "Rua, número, complemento, bairro, cidade, UF, CEP" },
+  { key: "accountant_name",        label: "Contador (nome)",        placeholder: "Nome do contador" },
+  { key: "accountant_email",       label: "Contador (e-mail)",      placeholder: "contador@escritorio.com.br" },
+]
+const INTERMEDIARY_FIELDS: Array<{ key: keyof UserSettings; label: string; placeholder: string }> = [
+  { key: "intermediary_bank_name",    label: "Banco intermediário",      placeholder: "JP Morgan Chase N.A." },
+  { key: "intermediary_bank_swift",   label: "SWIFT do intermediário",   placeholder: "CHASUS33" },
+  { key: "intermediary_bank_aba",     label: "ABA / routing",            placeholder: "021000021" },
+  { key: "intermediary_bank_account", label: "Conta no intermediário",   placeholder: "360556937" },
+  { key: "intermediary_bank_address", label: "Endereço do intermediário", placeholder: "270 Park Avenue, New York, NY 10017, US" },
 ]
 
 const PRESET_COLORS = [
@@ -65,6 +91,17 @@ export function CompanyForm({ initialSettings }: { initialSettings: UserSettings
     bank_iban:           initialSettings?.bank_iban           ?? "",
     bank_address:        initialSettings?.bank_address        ?? "",
     pix_key:             initialSettings?.pix_key             ?? "",
+    legal_name:                initialSettings?.legal_name                ?? "",
+    municipal_registration:    initialSettings?.municipal_registration    ?? "",
+    fiscal_address:             initialSettings?.fiscal_address            ?? "",
+    accountant_name:            initialSettings?.accountant_name           ?? "",
+    accountant_email:           initialSettings?.accountant_email          ?? "",
+    next_invoice_seq:           initialSettings?.next_invoice_seq          ?? 102,
+    intermediary_bank_name:     initialSettings?.intermediary_bank_name    ?? "",
+    intermediary_bank_swift:    initialSettings?.intermediary_bank_swift   ?? "",
+    intermediary_bank_aba:      initialSettings?.intermediary_bank_aba     ?? "",
+    intermediary_bank_account:  initialSettings?.intermediary_bank_account ?? "",
+    intermediary_bank_address:  initialSettings?.intermediary_bank_address ?? "",
   })
 
   function set<K extends keyof UserSettings>(k: K, v: UserSettings[K]) {
@@ -83,6 +120,8 @@ export function CompanyForm({ initialSettings }: { initialSettings: UserSettings
       invoice_color: form.invoice_color,
       hour_rounding: form.hour_rounding,
       ...Object.fromEntries(BANK_FIELDS.map(f => [f.key, (form[f.key] as string | null)?.trim() || null])),
+      ...Object.fromEntries([...FISCAL_FIELDS, ...INTERMEDIARY_FIELDS].map(f => [f.key, (form[f.key] as string | null)?.trim() || null])),
+      next_invoice_seq: Math.max(1, Number(form.next_invoice_seq) || 102),
     }, { onConflict: "user_id" })
 
     if (error) toast.error("Erro ao salvar configurações")
@@ -186,6 +225,35 @@ export function CompanyForm({ initialSettings }: { initialSettings: UserSettings
         <p className="text-xs text-muted-foreground">
           Aplicado automaticamente às horas trabalhadas ao salvar um registro.
         </p>
+      </div>
+
+      <div className="space-y-3 pt-2 border-t">
+        <div>
+          <p className="text-sm font-medium">Dados fiscais e contador</p>
+          <p className="text-xs text-muted-foreground">Usados no PDF da invoice e no pedido de NF ao contador.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {FISCAL_FIELDS.map(f => (
+            <div key={f.key} className={`space-y-1 ${f.key === "fiscal_address" ? "sm:col-span-2" : ""}`}>
+              <Label className="text-xs">{f.label}</Label>
+              <Input value={(form[f.key] as string | null) ?? ""} onChange={e => set(f.key, e.target.value)} placeholder={f.placeholder} autoComplete="off" />
+            </div>
+          ))}
+          <div className="space-y-1">
+            <Label className="text-xs">Próxima invoice (sequência própria)</Label>
+            <Input type="number" min={1} value={form.next_invoice_seq} onChange={e => set("next_invoice_seq", parseInt(e.target.value) || 1)} />
+            <p className="text-xs text-muted-foreground">Será usada na próxima invoice criada, com 4 dígitos (ex. 0102).</p>
+          </div>
+        </div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Banco intermediário (wire em moeda estrangeira)</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {INTERMEDIARY_FIELDS.map(f => (
+            <div key={f.key} className="space-y-1">
+              <Label className="text-xs">{f.label}</Label>
+              <Input value={(form[f.key] as string | null) ?? ""} onChange={e => set(f.key, e.target.value)} placeholder={f.placeholder} autoComplete="off" />
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="space-y-3 pt-2 border-t">
