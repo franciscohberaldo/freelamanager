@@ -15,6 +15,7 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import { format, startOfMonth, endOfMonth } from "date-fns"
 import { HOURS_PER_DAY } from "@/lib/invoice-i18n"
 import type { DailyLog } from "@/lib/supabase/types"
+import { initialNfStatus } from "@/lib/nf-status"
 
 interface JobOption {
   id: string
@@ -23,6 +24,7 @@ interface JobOption {
   daily_rate: number
   billing_mode?: "hourly" | "daily"
   project_code?: string | null
+  po_number?: string | null
   currency: string
   tax_rate: number
   clients: { name: string; email: string | null } | null
@@ -48,6 +50,13 @@ export function CreateInvoiceDialog({
   const [dueDate, setDueDate] = useState("")
   const [notes, setNotes] = useState("")
   const [logs, setLogs] = useState<DailyLog[]>([])
+  const [poNumber, setPoNumber] = useState(jobs[0]?.po_number ?? "")
+  type ManualLine = { description: string; job_number: string; quantity: number; rate: number }
+  const [manualLines, setManualLines] = useState<ManualLine[]>([])
+  const addLine = () => setManualLines(ls => [...ls, { description: "", job_number: "", quantity: 1, rate: 0 }])
+  const updLine = (i: number, patch: Partial<ManualLine>) => setManualLines(ls => ls.map((l, j) => j === i ? { ...l, ...patch } : l))
+  const rmLine = (i: number) => setManualLines(ls => ls.filter((_, j) => j !== i))
+  const manualSubtotal = manualLines.reduce((s, l) => s + l.quantity * l.rate, 0)
 
   const selectedJob = jobs.find((j) => j.id === jobId)
   const isDaily     = selectedJob?.billing_mode === "daily"
@@ -66,14 +75,14 @@ export function CreateInvoiceDialog({
       .order("date")
 
     if (error) { toast.error("Erro ao buscar registros"); setLoading(false); return }
-    if (!data || data.length === 0) { toast.warning("Nenhum registro encontrado neste período"); setLoading(false); return }
-    setLogs(data)
+    if ((!data || data.length === 0) && manualLines.length === 0) { toast.warning("Nenhum registro no período e nenhuma linha livre"); setLoading(false); return }
+    setLogs(data ?? [])
     setStep("preview")
     setLoading(false)
   }
 
   const totalHours = logs.reduce((s, l) => s + l.hours_billed, 0)
-  const subtotal = logs.reduce((s, l) => s + l.total_value, 0)
+  const subtotal = logs.reduce((s, l) => s + l.total_value, 0) + manualSubtotal
   const taxRate = selectedJob?.tax_rate ?? 0
   const taxAmount = subtotal * (taxRate / 100)
   const total = subtotal + taxAmount
@@ -88,6 +97,9 @@ export function CreateInvoiceDialog({
       .rpc("get_next_invoice_number", { p_user_id: user!.id, p_year: year })
 
     if (rpcError) { toast.error("Erro ao gerar número do invoice"); setLoading(false); return }
+
+    const { data: seqNumber, error: seqError } = await supabase.rpc("get_next_invoice_seq", { p_user_id: user!.id })
+    if (seqError || !seqNumber) { toast.error("Erro ao gerar sequência da invoice"); setLoading(false); return }
 
     const { data: invoice, error: invError } = await supabase
       .from("invoices")
@@ -106,6 +118,10 @@ export function CreateInvoiceDialog({
         status: "draft",
         due_date: dueDate || null,
         notes: notes || null,
+        seq_number: seqNumber,
+        po_number: poNumber.trim() || null,
+        nf_status: initialNfStatus(selectedJob!.currency),
+        nf_amount_brl: selectedJob!.currency === "BRL" ? total : null,
       })
       .select()
       .single()
@@ -124,13 +140,23 @@ export function CreateInvoiceDialog({
       subtotal: l.total_value,
     }))
 
-    const { error: itemsError } = await supabase.from("invoice_items").insert(items)
+    const manualItems = manualLines
+      .filter(l => l.description.trim() && l.quantity > 0)
+      .map(l => ({
+        invoice_id: invoice.id, log_id: null, date: periodEnd,
+        description: l.description.trim(), job_number: l.job_number.trim() || null,
+        hours_billed: 0, quantity: l.quantity, unit: "hour" as const,
+        rate: l.rate, subtotal: Number((l.quantity * l.rate).toFixed(2)), is_manual: true,
+      }))
+
+    const { error: itemsError } = await supabase.from("invoice_items").insert([...items, ...manualItems])
     if (itemsError) { toast.error("Erro ao salvar itens do invoice"); setLoading(false); return }
 
-    toast.success(`Invoice #${invNumber} criado!`)
+    toast.success(`Invoice ${seqNumber} criado!`)
     setOpen(false)
     setStep("config")
     setLogs([])
+    setManualLines([])
     router.refresh()
     setLoading(false)
   }
@@ -149,7 +175,7 @@ export function CreateInvoiceDialog({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Job *</Label>
-              <Select value={jobId} onValueChange={setJobId}>
+              <Select value={jobId} onValueChange={(v) => { setJobId(v); const j = jobs.find(x => x.id === v); setPoNumber(j?.po_number ?? "") }}>
                 <SelectTrigger><SelectValue placeholder="Selecione o job" /></SelectTrigger>
                 <SelectContent>
                   {jobs.map((j) => (
@@ -179,6 +205,26 @@ export function CreateInvoiceDialog({
             <div className="space-y-2">
               <Label>Notas (opcional)</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Observações para o invoice..." rows={2} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Nº da PO (opcional)</Label>
+              <Input value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder="ex: 4702134214" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Linhas livres (opcional)</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addLine}>+ Linha</Button>
+              </div>
+              {manualLines.map((l, i) => (
+                <div key={i} className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-5"><Input value={l.description} onChange={e => updLine(i, { description: e.target.value })} placeholder="Descrição" /></div>
+                  <div className="col-span-3"><Input value={l.job_number} onChange={e => updLine(i, { job_number: e.target.value })} placeholder="Job number" /></div>
+                  <div className="col-span-1"><Input type="number" min={0} step="0.5" value={l.quantity} onChange={e => updLine(i, { quantity: parseFloat(e.target.value) || 0 })} /></div>
+                  <div className="col-span-2"><Input type="number" min={0} step="0.01" value={l.rate} onChange={e => updLine(i, { rate: parseFloat(e.target.value) || 0 })} placeholder="Valor" /></div>
+                  <div className="col-span-1"><Button type="button" variant="ghost" size="sm" onClick={() => rmLine(i)}>×</Button></div>
+                </div>
+              ))}
             </div>
 
             <DialogFooter>
@@ -222,6 +268,18 @@ export function CreateInvoiceDialog({
                   </div>
                 ))}
               </div>
+
+              {manualLines.length > 0 && (
+                <div className="border-t pt-3 space-y-2">
+                  <p className="text-sm font-medium">Linhas livres ({manualLines.length})</p>
+                  {manualLines.map((l, i) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{l.description}{l.job_number ? ` · ${l.job_number}` : ""} · {l.quantity} × {formatCurrency(l.rate, selectedJob?.currency)}</span>
+                      <span>{formatCurrency(l.quantity * l.rate, selectedJob?.currency)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="border-t pt-3 space-y-1">
                 <div className="flex justify-between text-sm">

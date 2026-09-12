@@ -10,6 +10,7 @@ import { CsvExportButton } from "@/components/csv-export-button"
 import { LoadMoreButton } from "@/components/load-more-button"
 import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { FileText, Plus } from "lucide-react"
+import { NF_STATUS_LABELS, type NfStatus } from "@/lib/nf-status"
 
 const statusMap: Record<string, { label: string; variant: "default" | "outline" | "success" | "warning" | "destructive" }> = {
   draft:   { label: "Rascunho", variant: "outline" },
@@ -21,6 +22,8 @@ const statusMap: Record<string, { label: string; variant: "default" | "outline" 
 interface Invoice {
   id: string
   invoice_number: string
+  seq_number: string | null
+  nf_status: string
   status: string
   period_start: string
   period_end: string
@@ -127,8 +130,9 @@ export function InvoicesClient({ invoices, invoicesCount, paidMap, jobs }: Props
               <CardContent className="py-4 px-5 flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-semibold">#{inv.invoice_number}</span>
+                    <span className="font-mono font-semibold">{inv.seq_number ?? `#${inv.invoice_number}`}</span>
                     <Badge variant={s.variant as "default"}>{s.label}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{NF_STATUS_LABELS[inv.nf_status as NfStatus] ?? inv.nf_status}</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-0.5">
                     {job?.name} · {job?.clients?.name}
