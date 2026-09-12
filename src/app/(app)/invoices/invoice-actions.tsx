@@ -13,12 +13,14 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Download, Send, CheckCircle2, Loader2, DollarSign, Sparkles, Copy, CreditCard } from "lucide-react"
+import { MoreHorizontal, Download, Send, CheckCircle2, Loader2, DollarSign, Sparkles, Copy, CreditCard, Receipt } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { format } from "date-fns"
 import { formatCurrency } from "@/lib/utils"
 import type { Invoice } from "@/lib/supabase/types"
 import type { InvoiceLang } from "@/lib/invoice-i18n"
+import { NF_STATUS_LABELS, canTransition, type NfStatus } from "@/lib/nf-status"
+import { NfRequestDialog } from "./nf-request-dialog"
 
 interface Props {
   invoice: Invoice
@@ -284,6 +286,8 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
   const [loading, setLoading]         = useState(false)
   const [payOpen, setPayOpen]         = useState(false)
   const [aiOpen, setAiOpen]           = useState(false)
+  const [nfOpen, setNfOpen]           = useState(false)
+  const nfStatus = (invoice.nf_status ?? "not_required") as NfStatus
   const [linkLoading, setLinkLoading] = useState(false)
   const router   = useRouter()
   const supabase = createClient()
@@ -390,6 +394,14 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
             Gerar descrição com IA
           </DropdownMenuItem>
 
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-xs text-muted-foreground font-normal flex items-center gap-1.5">
+            <Receipt className="w-3.5 h-3.5" /> Nota fiscal · {NF_STATUS_LABELS[nfStatus] ?? nfStatus}
+          </DropdownMenuLabel>
+          {canTransition(nfStatus, "requested") && (
+            <DropdownMenuItem onClick={() => setNfOpen(true)} className="pl-6">Pedir NF ao contador</DropdownMenuItem>
+          )}
+
           {invoice.status !== "paid" && (
             <>
               <DropdownMenuSeparator />
@@ -419,6 +431,12 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
         invoiceId={invoice.id}
         open={aiOpen}
         onClose={() => setAiOpen(false)}
+      />
+
+      <NfRequestDialog
+        invoiceId={invoice.id}
+        open={nfOpen}
+        onClose={() => setNfOpen(false)}
       />
     </>
   )
