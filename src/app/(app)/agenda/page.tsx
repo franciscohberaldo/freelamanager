@@ -24,6 +24,7 @@ export default async function AgendaPage({
     { data: availability },
     { data: timeOff },
     { data: yearTimeOff },
+    { data: holds },
   ] = await Promise.all([
     supabase
       .from("agenda_events")
@@ -53,6 +54,12 @@ export default async function AgendaPage({
       .eq("user_id", user!.id)
       .gte("date", windowStart)
       .lte("date", windowEnd),
+    supabase
+      .from("availability_holds")
+      .select("id, type, start_date, end_date, note, clients(name), jobs(name)")
+      .eq("user_id", user!.id)
+      .lte("start_date", `${year + 1}-12-31`)
+      .gte("end_date", `${year - 1}-01-01`),
   ])
 
   if (eventsError) {
@@ -66,6 +73,7 @@ export default async function AgendaPage({
       availability={availability}
       timeOff={timeOff ?? []}
       yearTimeOff={yearTimeOff ?? []}
+      holds={(holds ?? []) as unknown as import("./calendar-view").CalendarHold[]}
       currentMonth={monthParam}
     />
   )

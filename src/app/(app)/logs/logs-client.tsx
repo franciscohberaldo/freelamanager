@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LogDialog } from "./log-dialog"
 import { LogTimerButton } from "./log-timer-button"
+import { TimesheetDialog } from "./timesheet-dialog"
 import { LoadMoreButton } from "@/components/load-more-button"
 import { usePaginatedList } from "@/hooks/use-paginated-list"
-import { Plus, Play, Search, SlidersHorizontal, ChevronLeft, ChevronRight, Download } from "lucide-react"
+import { Plus, Play, Search, SlidersHorizontal, ChevronLeft, ChevronRight, Download, FileSpreadsheet } from "lucide-react"
 import type { DailyLog } from "@/lib/supabase/types"
 
 interface JobOption {
@@ -160,6 +161,12 @@ export function LogsClient({ logs, logsCount, jobs, currentMonth, hourRounding }
               className="pl-8 h-8 w-48 text-sm"
             />
           </div>
+          <TimesheetDialog jobs={jobs}>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Timesheet
+            </Button>
+          </TimesheetDialog>
           <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={exportCsv}>
             <Download className="w-3.5 h-3.5" />
             CSV

@@ -25,10 +25,16 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const isAuthPage = request.nextUrl.pathname.startsWith('/login')
+  const { pathname } = request.nextUrl
+  const isAuthPage = pathname.startsWith('/login')
+  // Routes with their own auth: cron secret, portal token, API key
   const isPublicPath = isAuthPage
-    || request.nextUrl.pathname.startsWith('/api/auth')
-    || request.nextUrl.pathname.startsWith('/portal')
+    || pathname.startsWith('/api/auth')
+    || pathname.startsWith('/api/cron')
+    || pathname.startsWith('/api/portal')
+    || pathname.startsWith('/api/v1')
+    || pathname.startsWith('/api/webhooks/stripe')
+    || pathname.startsWith('/portal')
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone()

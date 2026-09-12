@@ -198,13 +198,26 @@ type AutomationSettingsRow = {
   user_id: string; billing_reminder_enabled: boolean; billing_reminder_days: number;
   weekly_summary_enabled: boolean; weekly_summary_day: number;
   recurring_invoice_enabled: boolean; recurring_invoice_job_id: string | null;
-  recurring_invoice_day: number; updated_at: string
+  recurring_invoice_day: number; recurring_invoice_frequency: 'monthly' | 'weekly';
+  recurring_invoice_weekday: number; recurring_invoice_week_start: number; recurring_invoice_due_days: number;
+  updated_at: string
 }
 type AutomationSettingsInsert = {
   user_id: string; billing_reminder_enabled?: boolean; billing_reminder_days?: number;
   weekly_summary_enabled?: boolean; weekly_summary_day?: number;
   recurring_invoice_enabled?: boolean; recurring_invoice_job_id?: string | null;
-  recurring_invoice_day?: number
+  recurring_invoice_day?: number; recurring_invoice_frequency?: 'monthly' | 'weekly';
+  recurring_invoice_weekday?: number; recurring_invoice_week_start?: number; recurring_invoice_due_days?: number
+}
+
+type AvailabilityHoldRow = {
+  id: string; user_id: string; client_id: string | null; job_id: string | null;
+  type: '1st_hold' | '2nd_hold' | 'booked'; start_date: string; end_date: string;
+  note: string | null; created_at: string
+}
+type AvailabilityHoldInsert = {
+  user_id: string; client_id?: string | null; job_id?: string | null;
+  type?: '1st_hold' | '2nd_hold' | 'booked'; start_date: string; end_date: string; note?: string | null
 }
 
 type AutomationLogRow = {
@@ -309,6 +322,7 @@ export type Database = {
       project_templates:    { Row: ProjectTemplateRow;    Insert: ProjectTemplateInsert;    Update: Partial<ProjectTemplateInsert>;    Relationships: [] }
       time_off:             { Row: TimeOffRow;            Insert: TimeOffInsert;            Update: Partial<TimeOffInsert>;            Relationships: [] }
       automation_settings:  { Row: AutomationSettingsRow; Insert: AutomationSettingsInsert; Update: Partial<AutomationSettingsInsert>; Relationships: [] }
+      availability_holds:   { Row: AvailabilityHoldRow; Insert: AvailabilityHoldInsert; Update: Partial<AvailabilityHoldInsert>; Relationships: [] }
       automation_log:       { Row: AutomationLogRow;      Insert: AutomationLogInsert;      Update: Partial<AutomationLogInsert>;      Relationships: [] }
       sales_pipeline:       { Row: SalesPipelineRow;      Insert: SalesPipelineInsert;      Update: Partial<SalesPipelineInsert>;      Relationships: [] }
       client_interactions:  { Row: ClientInteractionRow;  Insert: ClientInteractionInsert;  Update: Partial<ClientInteractionInsert>;  Relationships: [] }
@@ -349,6 +363,7 @@ export type InvoicePayment = Database['public']['Tables']['invoice_payments']['R
 export type UserGoal = Database['public']['Tables']['user_goals']['Row']
 export type ProjectTemplate = Database['public']['Tables']['project_templates']['Row']
 export type TimeOff = Database['public']['Tables']['time_off']['Row']
+export type AvailabilityHold = Database['public']['Tables']['availability_holds']['Row']
 export type AutomationSettings = Database['public']['Tables']['automation_settings']['Row']
 export type AutomationLog = Database['public']['Tables']['automation_log']['Row']
 export type SalesPipeline = Database['public']['Tables']['sales_pipeline']['Row']

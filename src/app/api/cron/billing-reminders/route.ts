@@ -1,5 +1,5 @@
 /**
- * POST /api/cron/billing-reminders
+ * GET|POST /api/cron/billing-reminders
  *
  * Called daily by Vercel Cron (see vercel.json).
  * Finds invoices past their due_date by N days (per user settings)
@@ -7,7 +7,8 @@
  *
  * Protected by CRON_SECRET env var.
  */
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { isCronAuthorized } from "@/lib/cron-auth"
 import { NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 import { format, parseISO, differenceInDays } from "date-fns"
@@ -17,14 +18,12 @@ function fmt(v: number, c = "BRL") {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: c }).format(v)
 }
 
-export async function POST(req: NextRequest) {
-  // Verify cron secret
-  const secret = req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("secret")
-  if (secret !== process.env.CRON_SECRET) {
+async function run(req: NextRequest) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const today    = new Date()
   const todayStr = format(today, "yyyy-MM-dd")
 
@@ -54,7 +53,7 @@ export async function POST(req: NextRequest) {
       .lte("due_date", cutoffStr)
 
     for (const inv of invoices ?? []) {
-      const job         = inv.jobs as { name: string; clients: { name: string; email: string | null } | null } | null
+      const job         = inv.jobs as unknown as { name: string; clients: { name: string; email: string | null } | null } | null
       const clientEmail = job?.clients?.email
       if (!clientEmail) continue
 
@@ -104,3 +103,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ sent, timestamp: todayStr })
 }
+
+export const GET  = run
+export const POST = run

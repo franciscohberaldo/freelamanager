@@ -7,7 +7,7 @@ import { Plus, Table2, GitBranch, BarChart2, CalendarDays, Clock, CalendarOff } 
 import { TaskDialog } from "./task-dialog"
 import { TableView } from "./table-view"
 import { GanttView } from "./gantt-view"
-import { CalendarView } from "./calendar-view"
+import { CalendarView, type CalendarHold } from "./calendar-view"
 import { TimelineView } from "./timeline-view"
 import { AvailabilityClient } from "../disponibilidade/availability-client"
 import { FolgasClient } from "../folgas/folgas-client"
@@ -24,10 +24,11 @@ interface Props {
   availability: AvailabilityProps["availability"]
   timeOff: FolgasProps["timeOff"]
   yearTimeOff: FolgasProps["yearTimeOff"]
+  holds: CalendarHold[]
   currentMonth: string
 }
 
-export function AgendaClient({ events, jobs, availability, timeOff, yearTimeOff, currentMonth }: Props) {
+export function AgendaClient({ events, jobs, availability, timeOff, yearTimeOff, holds, currentMonth }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   return (
@@ -76,7 +77,7 @@ export function AgendaClient({ events, jobs, availability, timeOff, yearTimeOff,
           <GanttView events={events} jobs={jobs} />
         </TabsContent>
         <TabsContent value="calendar" className="flex-1 m-0 overflow-auto p-6">
-          <CalendarView events={events} />
+          <CalendarView events={events} holds={holds} />
         </TabsContent>
         <TabsContent value="disponibilidade" className="flex-1 m-0 overflow-auto p-6">
           <AvailabilityClient availability={availability} />

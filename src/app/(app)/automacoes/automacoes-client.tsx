@@ -22,6 +22,10 @@ interface Settings {
   recurring_invoice_enabled: boolean
   recurring_invoice_job_id: string | null
   recurring_invoice_day: number
+  recurring_invoice_frequency: "monthly" | "weekly"
+  recurring_invoice_weekday: number
+  recurring_invoice_week_start: number
+  recurring_invoice_due_days: number
 }
 
 interface Job { id: string; name: string; clients: { name: string } | null }
@@ -58,6 +62,10 @@ export function AutomacoesClient({ initialSettings, jobs, logs }: Props) {
     recurring_invoice_enabled:  initialSettings?.recurring_invoice_enabled  ?? false,
     recurring_invoice_job_id:   initialSettings?.recurring_invoice_job_id   ?? null,
     recurring_invoice_day:      initialSettings?.recurring_invoice_day      ?? 1,
+    recurring_invoice_frequency:  initialSettings?.recurring_invoice_frequency  ?? "monthly",
+    recurring_invoice_weekday:    initialSettings?.recurring_invoice_weekday    ?? 5,
+    recurring_invoice_week_start: initialSettings?.recurring_invoice_week_start ?? 0,
+    recurring_invoice_due_days:   initialSettings?.recurring_invoice_due_days   ?? 30,
   })
 
   function upd<K extends keyof Settings>(k: K, v: Settings[K]) {
@@ -79,8 +87,11 @@ export function AutomacoesClient({ initialSettings, jobs, logs }: Props) {
   }
 
   async function testCron(endpoint: string) {
-    const secret = process.env.NEXT_PUBLIC_CRON_SECRET
-    const res = await fetch(`/api/cron/${endpoint}?secret=${secret ?? ""}`, { method: "POST" })
+    const res = await fetch("/api/automations/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint }),
+    })
     const data = await res.json()
     if (res.ok) toast.success(`Executado: ${JSON.stringify(data)}`)
     else toast.error(`Erro: ${JSON.stringify(data)}`)
@@ -191,7 +202,7 @@ export function AutomacoesClient({ initialSettings, jobs, logs }: Props) {
               </div>
               <div>
                 <CardTitle className="text-base">Invoice recorrente</CardTitle>
-                <CardDescription>Gera invoice automaticamente todo mês para um job</CardDescription>
+                <CardDescription>Gera invoice automaticamente (mensal ou semanal) para um job</CardDescription>
               </div>
             </div>
             <Switch
@@ -221,16 +232,75 @@ export function AutomacoesClient({ initialSettings, jobs, logs }: Props) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Dia do mês para gerar</Label>
+                <Label>Frequência</Label>
+                <Select
+                  value={s.recurring_invoice_frequency}
+                  onValueChange={v => upd("recurring_invoice_frequency", v as "monthly" | "weekly")}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Mensal (mês anterior)</SelectItem>
+                    <SelectItem value="weekly">Semanal (semana corrente)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {s.recurring_invoice_frequency === "monthly" ? (
+                <div className="space-y-2">
+                  <Label>Dia do mês para gerar</Label>
+                  <Input
+                    type="number" min={1} max={28}
+                    value={s.recurring_invoice_day}
+                    onChange={e => upd("recurring_invoice_day", parseInt(e.target.value) || 1)}
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>Dia da semana para gerar</Label>
+                    <Select
+                      value={String(s.recurring_invoice_weekday)}
+                      onValueChange={v => upd("recurring_invoice_weekday", parseInt(v))}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {DAYS_OF_WEEK.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Semana começa em</Label>
+                    <Select
+                      value={String(s.recurring_invoice_week_start)}
+                      onValueChange={v => upd("recurring_invoice_week_start", parseInt(v))}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {DAYS_OF_WEEK.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+
+              <div className="space-y-2">
+                <Label>Vencimento (dias após gerar)</Label>
                 <Input
-                  type="number" min={1} max={28}
-                  value={s.recurring_invoice_day}
-                  onChange={e => upd("recurring_invoice_day", parseInt(e.target.value) || 1)}
+                  type="number" min={0} max={120}
+                  value={s.recurring_invoice_due_days}
+                  onChange={e => upd("recurring_invoice_due_days", parseInt(e.target.value) || 0)}
                 />
+                <p className="text-xs text-muted-foreground">Ex.: 30 para Net 30</p>
               </div>
             </div>
             <div className="rounded-md bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
-              <p>• No dia configurado, o sistema gera um invoice draft com os logs do mês anterior</p>
+              {s.recurring_invoice_frequency === "weekly" ? (
+                <p>• Toda {DAYS_OF_WEEK[s.recurring_invoice_weekday]}, gera um invoice draft com os registros da semana que começa em {DAYS_OF_WEEK[s.recurring_invoice_week_start]}</p>
+              ) : (
+                <p>• No dia configurado, o sistema gera um invoice draft com os logs do mês anterior</p>
+              )}
+              <p>• Jobs por diária são faturados em dias; a data de vencimento segue os dias configurados</p>
+              <p>• Um lembrete &quot;Enviar invoice&quot; é criado na agenda no dia da geração</p>
               <p>• O invoice fica em rascunho para você revisar antes de enviar</p>
               <p>• Não gera invoice duplicado se já existir para o mesmo período</p>
             </div>

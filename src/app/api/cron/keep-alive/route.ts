@@ -1,14 +1,14 @@
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { isCronAuthorized } from "@/lib/cron-auth"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("secret")
-  if (secret !== process.env.CRON_SECRET) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const supabase = await createClient()
-  const { error } = await supabase.from("user_settings").select("id").limit(1)
+  const supabase = createAdminClient()
+  const { error } = await supabase.from("user_settings").select("user_id").limit(1)
 
   if (error) {
     return NextResponse.json({ status: "error", error: error.message }, { status: 500 })

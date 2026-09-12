@@ -1,10 +1,11 @@
 /**
- * POST /api/cron/weekly-summary
+ * GET|POST /api/cron/weekly-summary
  *
  * Called weekly (Monday 08:00 UTC) by Vercel Cron.
  * Sends a weekly summary email to each user that opted in.
  */
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { isCronAuthorized } from "@/lib/cron-auth"
 import { NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 import { format, startOfWeek, endOfWeek, subWeeks } from "date-fns"
@@ -20,13 +21,12 @@ function fmtH(h: number) {
   return min > 0 ? `${hrs}h ${min}min` : `${hrs}h`
 }
 
-export async function POST(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("secret")
-  if (secret !== process.env.CRON_SECRET) {
+async function run(req: NextRequest) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   // Last week range
   const lastWeekEnd   = endOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 })
@@ -148,3 +148,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ sent })
 }
+
+export const GET  = run
+export const POST = run

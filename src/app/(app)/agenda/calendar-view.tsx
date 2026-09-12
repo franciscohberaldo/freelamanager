@@ -7,8 +7,19 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { AgendaEvent } from "@/lib/supabase/types"
 
+export interface CalendarHold {
+  id: string
+  type: "1st_hold" | "2nd_hold" | "booked"
+  start_date: string
+  end_date: string
+  note: string | null
+  clients: { name: string } | null
+  jobs: { name: string } | null
+}
+
 interface Props {
   events: (AgendaEvent & { jobs: { name: string } | null })[]
+  holds?: CalendarHold[]
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -18,8 +29,20 @@ const STATUS_COLORS: Record<string, string> = {
   todo:          "#94a3b8",
 }
 
-export function CalendarView({ events }: Props) {
+const HOLD_STYLE: Record<CalendarHold["type"], { color: string; label: string }> = {
+  "1st_hold": { color: "#f59e0b", label: "1st hold" },
+  "2nd_hold": { color: "#94a3b8", label: "2nd hold" },
+  "booked":   { color: "#3b82f6", label: "Booked" },
+}
+
+export function CalendarView({ events, holds = [] }: Props) {
   const [month, setMonth] = useState(new Date())
+
+  // Holds active on a given day (booked wins over 1st hold over 2nd hold)
+  const holdsForDay = (key: string) =>
+    holds
+      .filter(h => h.start_date <= key && h.end_date >= key)
+      .sort((a, b) => ["booked", "1st_hold", "2nd_hold"].indexOf(a.type) - ["booked", "1st_hold", "2nd_hold"].indexOf(b.type))
 
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(month), { weekStartsOn: 0 })
@@ -75,6 +98,8 @@ export function CalendarView({ events }: Props) {
             const evs  = eventsByDate[key] ?? []
             const inMonth = isSameMonth(day, month)
             const today   = isToday(day)
+            const dayHolds = holdsForDay(key)
+            const topHold  = dayHolds[0]
             return (
               <div
                 key={i}
@@ -83,12 +108,24 @@ export function CalendarView({ events }: Props) {
                   !inMonth ? "bg-muted/10" : "",
                   today ? "bg-blue-50 dark:bg-blue-950/20" : "",
                 ].join(" ")}
+                style={topHold ? { boxShadow: `inset 0 3px 0 ${HOLD_STYLE[topHold.type].color}` } : undefined}
+                title={dayHolds.map(h => `${HOLD_STYLE[h.type].label}: ${h.clients?.name ?? "—"}${h.jobs?.name ? ` · ${h.jobs.name}` : ""}`).join("\n") || undefined}
               >
-                <div className={[
-                  "text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full mb-1",
-                  today ? "bg-blue-600 text-white" : inMonth ? "text-foreground" : "text-muted-foreground/40",
-                ].join(" ")}>
-                  {format(day, "d")}
+                <div className="flex items-center justify-between mb-1">
+                  <div className={[
+                    "text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full",
+                    today ? "bg-blue-600 text-white" : inMonth ? "text-foreground" : "text-muted-foreground/40",
+                  ].join(" ")}>
+                    {format(day, "d")}
+                  </div>
+                  {topHold && (
+                    <span
+                      className="text-[10px] leading-none px-1 py-0.5 rounded truncate max-w-[70%]"
+                      style={{ background: HOLD_STYLE[topHold.type].color + "22", color: HOLD_STYLE[topHold.type].color }}
+                    >
+                      {topHold.clients?.name ?? HOLD_STYLE[topHold.type].label}
+                    </span>
+                  )}
                 </div>
                 <div className="space-y-0.5">
                   {evs.slice(0, 3).map(e => (
