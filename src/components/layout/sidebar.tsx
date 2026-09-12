@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   BarChart3, Briefcase, CalendarDays, ClipboardList,
-  FileText, LayoutDashboard, LogOut, Moon, Search, Settings,
+  FileText, LayoutDashboard, LogOut, Moon, Receipt, Search, Settings,
   Sun, TrendingUp, Users, Wallet,
 } from "lucide-react"
 import { useTheme } from "next-themes"
@@ -22,6 +22,7 @@ const navItems = [
   { href: "/jobs",      label: "Jobs",            icon: Briefcase },
   { href: "/clients",   label: "Clientes",        icon: Users },
   { href: "/invoices",  label: "Invoices",        icon: FileText },
+  { href: "/notas-fiscais", label: "Notas fiscais", icon: Receipt },
   { href: "/despesas",  label: "Despesas",        icon: Wallet },
   { href: "/agenda",    label: "Agenda",          icon: CalendarDays },
   { href: "/reports",   label: "Relatórios",      icon: TrendingUp },

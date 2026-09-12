@@ -7,6 +7,7 @@ import { Clock, CheckCircle2, AlertTriangle, Target, FileText } from "lucide-rea
 import Link from "next/link"
 import { RevenueAtRisk, type StaleJobInput, type RecentDailyLog } from "./revenue-at-risk"
 import { JobHoursToday } from "./job-hours-today"
+import { NF_STATUS_LABELS } from "@/lib/nf-status"
 
 interface TodayLog {
   id: string
@@ -49,6 +50,20 @@ interface MonthLog {
   total_value: number
 }
 
+export interface NfPendingRow {
+  id: string
+  seq_number: string | null
+  invoice_number: string
+  nf_status: "pending" | "requested"
+  nf_amount_brl: number | null
+  total: number
+  currency: string
+  nf_requested_at: string | null
+  sent_at: string | null
+  created_at: string
+  jobs: { name: string } | null
+}
+
 export interface DailyViewProps {
   todayLogs: TodayLog[]
   todayEvents: TodayEvent[]
@@ -57,6 +72,7 @@ export interface DailyViewProps {
   monthLogs: MonthLog[]
   activeJobs: StaleJobInput[]
   recentDailyLogs: RecentDailyLog[]
+  nfPending: NfPendingRow[]
 }
 
 const eventTypeIcons: Record<string, string> = {
@@ -75,6 +91,7 @@ export function DailyView({
   monthLogs,
   activeJobs,
   recentDailyLogs,
+  nfPending,
 }: DailyViewProps) {
   const totalHoursToday = todayLogs.reduce((sum, l) => sum + l.hours_worked, 0)
   const totalValueToday = todayLogs.reduce((sum, l) => sum + l.total_value, 0)
@@ -156,6 +173,26 @@ export function DailyView({
           </CardContent>
         </Card>
       </div>
+
+      {nfPending.length > 0 && (
+        <Card className="border-amber-300">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">NFs pendentes</CardTitle>
+            <Link href="/notas-fiscais" className="text-xs text-primary hover:underline">Ver todas</Link>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {nfPending.length}
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                {formatCurrency(nfPending.reduce((sum, n) => sum + (n.nf_amount_brl ?? (n.currency === "BRL" ? n.total : 0)), 0))}
+              </span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Mais antiga: {nfPending[0].seq_number ?? `#${nfPending[0].invoice_number}`} · {nfPending[0].jobs?.name ?? "—"} · {NF_STATUS_LABELS[nfPending[0].nf_status]}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Goal Progress */}
       {(revenueGoal || hoursGoal) && (

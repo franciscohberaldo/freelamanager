@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { startOfMonth, endOfMonth, format, subMonths, subDays } from "date-fns"
 import { DashboardClient } from "./dashboard-client"
+import type { NfPendingRow } from "./daily-view"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -27,6 +28,7 @@ export default async function DashboardPage() {
     { data: todayEvents },
     { data: overdueInvoices },
     { data: recentDailyLogs },
+    { data: nfPending },
   ] = await Promise.all([
     // Monthly queries (existing)
     supabase
@@ -101,6 +103,12 @@ export default async function DashboardPage() {
       .eq("user_id", user!.id)
       .gte("date", fourteenDaysAgo)
       .order("date", { ascending: false }),
+    supabase
+      .from("invoices")
+      .select("id, seq_number, invoice_number, nf_status, nf_amount_brl, total, currency, nf_requested_at, sent_at, created_at, jobs(name)")
+      .eq("user_id", user!.id)
+      .in("nf_status", ["pending", "requested"])
+      .order("created_at"),
   ])
 
   return (
@@ -124,6 +132,7 @@ export default async function DashboardPage() {
         monthLogs: monthLogs ?? [],
         activeJobs: (activeJobs ?? []) as unknown as { id: string; name: string; hourly_rate: number; daily_rate: number; currency: string; clients: { name: string } | null }[],
         recentDailyLogs: (recentDailyLogs ?? []) as unknown as { date: string; jobs: { id: string; name: string } | null }[],
+        nfPending: (nfPending ?? []) as unknown as NfPendingRow[],
       }}
     />
   )
