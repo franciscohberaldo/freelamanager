@@ -21,6 +21,7 @@ import type { Invoice } from "@/lib/supabase/types"
 import type { InvoiceLang } from "@/lib/invoice-i18n"
 import { NF_STATUS_LABELS, canTransition, type NfStatus } from "@/lib/nf-status"
 import { NfRequestDialog } from "./nf-request-dialog"
+import { NfRegisterDialog } from "./nf-register-dialog"
 
 interface Props {
   invoice: Invoice
@@ -75,6 +76,16 @@ function PaymentDialog({
     })
 
     if (error) { toast.error("Erro ao registrar pagamento"); setLoading(false); return }
+
+    // Money arrived in BRL for a foreign invoice: the NF becomes due and its BRL amount accumulates
+    if (isForeign) {
+      const { data: inv } = await supabase.from("invoices").select("nf_status, nf_amount_brl").eq("id", invoiceId).single()
+      if (inv?.nf_status === "not_required") {
+        await supabase.from("invoices").update({ nf_status: "pending", nf_amount_brl: (inv.nf_amount_brl ?? 0) + (receivedBrl > 0 ? receivedBrl : 0) }).eq("id", invoiceId)
+      } else if (inv && receivedBrl > 0) {
+        await supabase.from("invoices").update({ nf_amount_brl: (inv.nf_amount_brl ?? 0) + receivedBrl }).eq("id", invoiceId)
+      }
+    }
 
     // If fully paid, mark invoice as paid
     const newTotal = paidSoFar + form.amount
@@ -287,10 +298,17 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
   const [payOpen, setPayOpen]         = useState(false)
   const [aiOpen, setAiOpen]           = useState(false)
   const [nfOpen, setNfOpen]           = useState(false)
+  const [nfRegisterOpen, setNfRegisterOpen] = useState(false)
   const nfStatus = (invoice.nf_status ?? "not_required") as NfStatus
   const [linkLoading, setLinkLoading] = useState(false)
   const router   = useRouter()
   const supabase = createClient()
+
+  async function setNf(patch: Record<string, unknown>, okMsg: string) {
+    const { error } = await supabase.from("invoices").update(patch).eq("id", invoice.id)
+    if (error) toast.error("Erro ao atualizar NF")
+    else { toast.success(okMsg); router.refresh() }
+  }
 
   async function markPaid() {
     setLoading(true)
@@ -401,6 +419,24 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
           {canTransition(nfStatus, "requested") && (
             <DropdownMenuItem onClick={() => setNfOpen(true)} className="pl-6">Pedir NF ao contador</DropdownMenuItem>
           )}
+          {canTransition(nfStatus, "issued") && (
+            <DropdownMenuItem onClick={() => setNfRegisterOpen(true)} className="pl-6">Registrar NF emitida</DropdownMenuItem>
+          )}
+          {canTransition(nfStatus, "sent") && (
+            <DropdownMenuItem onClick={() => setNf({ nf_status: "sent", nf_sent_at: new Date().toISOString() }, "NF marcada como enviada")} className="pl-6">
+              Marcar NF enviada ao cliente
+            </DropdownMenuItem>
+          )}
+          {nfStatus === "requested" && (
+            <DropdownMenuItem onClick={() => setNf({ nf_status: "pending", nf_requested_at: null }, "Pedido cancelado")} className="pl-6 text-muted-foreground">
+              Cancelar pedido
+            </DropdownMenuItem>
+          )}
+          {nfStatus === "not_required" && (
+            <DropdownMenuItem onClick={() => setNf({ nf_status: "pending", nf_amount_brl: invoice.nf_amount_brl ?? null }, "NF marcada como pendente")} className="pl-6">
+              Marcar NF como pendente
+            </DropdownMenuItem>
+          )}
 
           {invoice.status !== "paid" && (
             <>
@@ -437,6 +473,14 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
         invoiceId={invoice.id}
         open={nfOpen}
         onClose={() => setNfOpen(false)}
+      />
+
+      <NfRegisterDialog
+        invoiceId={invoice.id}
+        currency={invoice.currency}
+        defaultAmountBrl={invoice.nf_amount_brl ?? (invoice.currency === "BRL" ? invoice.total : null)}
+        open={nfRegisterOpen}
+        onClose={() => setNfRegisterOpen(false)}
       />
     </>
   )
