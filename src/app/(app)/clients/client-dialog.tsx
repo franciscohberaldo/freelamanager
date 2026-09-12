@@ -21,6 +21,12 @@ interface Props {
     email: string | null
     phone: string | null
     notes: string | null
+    legal_name?: string | null
+    cnpj?: string | null
+    address?: string | null
+    billing_entity?: string | null
+    billing_address?: string | null
+    nf_rules?: string | null
   }
 }
 
@@ -36,6 +42,12 @@ export function ClientDialog({ children, mode, client }: Props) {
     email:   client?.email ?? "",
     phone:   client?.phone ?? "",
     notes:   client?.notes ?? "",
+    legal_name:      client?.legal_name ?? "",
+    cnpj:            client?.cnpj ?? "",
+    address:         client?.address ?? "",
+    billing_entity:  client?.billing_entity ?? "",
+    billing_address: client?.billing_address ?? "",
+    nf_rules:        client?.nf_rules ?? "",
   })
 
   function update(field: string, value: string) {
@@ -53,6 +65,12 @@ export function ClientDialog({ children, mode, client }: Props) {
       email:   form.email || null,
       phone:   form.phone || null,
       notes:   form.notes || null,
+      legal_name:      form.legal_name || null,
+      cnpj:            form.cnpj || null,
+      address:         form.address || null,
+      billing_entity:  form.billing_entity || null,
+      billing_address: form.billing_address || null,
+      nf_rules:        form.nf_rules || null,
     }
 
     if (mode === "create") {
@@ -74,7 +92,7 @@ export function ClientDialog({ children, mode, client }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{mode === "create" ? "Novo Cliente" : "Editar Cliente"}</DialogTitle>
         </DialogHeader>
@@ -94,6 +112,35 @@ export function ClientDialog({ children, mode, client }: Props) {
           <div className="space-y-2">
             <Label>Telefone</Label>
             <Input value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="+55 11 99999-9999" />
+          </div>
+          <div className="pt-2 border-t space-y-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dados fiscais (tomador da NF)</p>
+            <div className="space-y-2">
+              <Label>Razão social</Label>
+              <Input value={form.legal_name} onChange={(e) => update("legal_name", e.target.value)} placeholder="Videographica Serviços e Participações Ltda" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>CNPJ</Label>
+                <Input value={form.cnpj} onChange={(e) => update("cnpj", e.target.value)} placeholder="00.000.000/0001-00" />
+              </div>
+              <div className="space-y-2">
+                <Label>Entidade de cobrança (bill to)</Label>
+                <Input value={form.billing_entity} onChange={(e) => update("billing_entity", e.target.value)} placeholder="ex: Steelhead" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Endereço fiscal</Label>
+              <Input value={form.address} onChange={(e) => update("address", e.target.value)} placeholder="Rua, nº, andar, bairro, CEP, cidade, UF" />
+            </div>
+            <div className="space-y-2">
+              <Label>Endereço de cobrança (se diferente)</Label>
+              <Input value={form.billing_address} onChange={(e) => update("billing_address", e.target.value)} placeholder="12901 W. Jefferson Blvd, Los Angeles CA 90066, USA" />
+            </div>
+            <div className="space-y-2">
+              <Label>Regras do cliente para a NF</Label>
+              <Textarea value={form.nf_rules} onChange={(e) => update("nf_rules", e.target.value)} rows={3} placeholder="ex: sem palavras em inglês, sem nome do job, dados bancários no corpo da NF" />
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Notas</Label>

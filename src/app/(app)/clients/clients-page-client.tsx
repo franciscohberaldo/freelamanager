@@ -21,6 +21,12 @@ interface Client {
   phone: string | null
   notes: string | null
   score: number | null
+  cnpj?: string | null
+  legal_name?: string | null
+  address?: string | null
+  billing_entity?: string | null
+  billing_address?: string | null
+  nf_rules?: string | null
   client_contacts: ClientContact[]
 }
 
@@ -118,6 +124,7 @@ export function ClientsPageClient({ clients, clientsCount, deals, pipelineClient
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {client.company && `${client.company} · `}
+                        {client.cnpj && `CNPJ ${client.cnpj} · `}
                         {client.email}
                       </p>
                       {client.client_contacts?.length > 0 && (
