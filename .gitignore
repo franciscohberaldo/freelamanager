@@ -64,3 +64,6 @@ vendor/
 coverage/
 .cache/
 tmp/
+
+# supabase cli
+supabase/.temp/

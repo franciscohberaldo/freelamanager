@@ -30,7 +30,10 @@ export async function GET(request: NextRequest) {
     return new NextResponse(null, { status: 404 })
   }
 
-  const job = invoice.jobs as unknown as { id: string; name: string; hourly_rate: number; currency: string; client_id: string; clients: { id: string; name: string; company: string | null; email: string | null } }
+  const job = invoice.jobs as unknown as {
+    id: string; name: string; hourly_rate: number; daily_rate: number; billing_mode: "hourly" | "daily"; project_code: string | null
+    currency: string; client_id: string; clients: { id: string; name: string; company: string | null; email: string | null }
+  }
 
   if (job.client_id !== auth.client_id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -38,13 +41,13 @@ export async function GET(request: NextRequest) {
 
   const { data: items } = await supabase
     .from("invoice_items")
-    .select("date, hours_billed, rate, subtotal")
+    .select("date, hours_billed, rate, subtotal, quantity, unit")
     .eq("invoice_id", invoiceId)
     .order("date")
 
   const { data: settings } = await supabase
     .from("user_settings")
-    .select("company_name, cnpj_cpf, logo_url, invoice_color")
+    .select("*")
     .eq("user_id", auth.user_id)
     .single()
 
@@ -62,12 +65,14 @@ export async function GET(request: NextRequest) {
       notes: invoice.notes,
     },
     items: items ?? [],
-    job: { name: job.name, hourly_rate: job.hourly_rate, currency: job.currency },
+    job: {
+      name: job.name, hourly_rate: job.hourly_rate, daily_rate: job.daily_rate,
+      billing_mode: job.billing_mode, project_code: job.project_code, currency: job.currency,
+    },
     client: { name: job.clients.name, company: job.clients.company, email: job.clients.email },
-    settings: settings
-      ? { company_name: settings.company_name, cnpj_cpf: settings.cnpj_cpf, logo_url: settings.logo_url, invoice_color: settings.invoice_color }
-      : null,
-    lang: "pt",
+    settings: settings ?? null,
+    // Foreign-currency invoices are presented in English on the client portal
+    lang: invoice.currency === "BRL" ? "pt" : "en",
   })
 
   return new NextResponse(pdfBuffer, {

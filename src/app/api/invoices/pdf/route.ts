@@ -16,13 +16,13 @@ export async function GET(request: NextRequest) {
   const [{ data: invoice }, { data: settings }] = await Promise.all([
     supabase
       .from("invoices")
-      .select("*, jobs(name, hourly_rate, currency, clients(name, company, email))")
+      .select("*, jobs(name, hourly_rate, daily_rate, billing_mode, project_code, currency, clients(name, company, email))")
       .eq("id", id)
       .eq("user_id", user.id)
       .single(),
     supabase
       .from("user_settings")
-      .select("company_name, cnpj_cpf, logo_url, invoice_color")
+      .select("*")
       .eq("user_id", user.id)
       .single(),
   ])
@@ -35,13 +35,19 @@ export async function GET(request: NextRequest) {
     .eq("invoice_id", id)
     .order("date")
 
-  const job    = invoice.jobs as { name: string; hourly_rate: number; currency: string; clients: { name: string; company: string | null; email: string | null } | null } | null
+  const job    = invoice.jobs as {
+    name: string; hourly_rate: number; daily_rate: number; billing_mode: "hourly" | "daily"; project_code: string | null; currency: string
+    clients: { name: string; company: string | null; email: string | null } | null
+  } | null
   const client = job?.clients ?? null
 
   const pdfBytes = await generateInvoicePDF({
     invoice,
     items: items ?? [],
-    job: job ? { name: job.name, hourly_rate: job.hourly_rate, currency: job.currency } : null,
+    job: job ? {
+      name: job.name, hourly_rate: job.hourly_rate, daily_rate: job.daily_rate,
+      billing_mode: job.billing_mode, project_code: job.project_code, currency: job.currency,
+    } : null,
     client,
     settings,
     lang,

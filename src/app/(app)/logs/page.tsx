@@ -24,7 +24,7 @@ export default async function LogsPage({
 
   const { data: jobs } = await supabase
     .from("jobs")
-    .select("id, name, hourly_rate, daily_rate, currency, clients(name)")
+    .select("id, name, hourly_rate, daily_rate, billing_mode, currency, clients(name)")
     .eq("user_id", user!.id)
     .in("status", ["active", "paused"])
     .order("name")
@@ -47,7 +47,7 @@ export default async function LogsPage({
     <LogsClient
       logs={(logs ?? []) as unknown as (import("@/lib/supabase/types").DailyLog & { jobs: { name: string; hourly_rate: number; currency: string; clients: { name: string } | null } | null })[]}
       logsCount={logsCount ?? 0}
-      jobs={(jobs ?? []) as unknown as { id: string; name: string; hourly_rate: number; daily_rate: number; currency: string; clients: { name: string } | null }[]}
+      jobs={(jobs ?? []) as unknown as { id: string; name: string; hourly_rate: number; daily_rate: number; billing_mode: "hourly" | "daily"; currency: string; clients: { name: string } | null }[]}
       currentMonth={monthParam}
       hourRounding={settings?.hour_rounding ?? "none"}
     />

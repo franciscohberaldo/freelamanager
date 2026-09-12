@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, AlertCircle } from "lucide-react"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { format, startOfMonth, endOfMonth } from "date-fns"
+import { HOURS_PER_DAY } from "@/lib/invoice-i18n"
 import type { DailyLog } from "@/lib/supabase/types"
 
 interface JobOption {
@@ -20,6 +21,8 @@ interface JobOption {
   name: string
   hourly_rate: number
   daily_rate: number
+  billing_mode?: "hourly" | "daily"
+  project_code?: string | null
   currency: string
   tax_rate: number
   clients: { name: string; email: string | null } | null
@@ -47,6 +50,9 @@ export function CreateInvoiceDialog({
   const [logs, setLogs] = useState<DailyLog[]>([])
 
   const selectedJob = jobs.find((j) => j.id === jobId)
+  const isDaily     = selectedJob?.billing_mode === "daily"
+  const toDays      = (hours: number) => Number((hours / HOURS_PER_DAY).toFixed(2))
+  const qtyLabel    = (hours: number) => isDaily ? `${toDays(hours)} ${toDays(hours) === 1 ? "dia" : "dias"}` : `${hours}h`
 
   async function fetchLogs() {
     if (!jobId) { toast.error("Selecione um job"); return }
@@ -112,7 +118,9 @@ export function CreateInvoiceDialog({
       log_id: l.id,
       date: l.date,
       hours_billed: l.hours_billed,
-      rate: selectedJob!.hourly_rate,
+      quantity: isDaily ? toDays(l.hours_billed) : l.hours_billed,
+      unit: isDaily ? "day" : "hour",
+      rate: isDaily ? selectedJob!.daily_rate : selectedJob!.hourly_rate,
       subtotal: l.total_value,
     }))
 
@@ -194,16 +202,22 @@ export function CreateInvoiceDialog({
                 <span className="text-muted-foreground">Cliente</span>
                 <span>{selectedJob?.clients?.name ?? "—"}</span>
               </div>
+              {selectedJob?.project_code && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Projeto</span>
+                  <span>{selectedJob.project_code}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Taxa/hora</span>
-                <span>{formatCurrency(selectedJob?.hourly_rate ?? 0, selectedJob?.currency)}</span>
+                <span className="text-muted-foreground">{isDaily ? "Taxa/dia" : "Taxa/hora"}</span>
+                <span>{formatCurrency(isDaily ? (selectedJob?.daily_rate ?? 0) : (selectedJob?.hourly_rate ?? 0), selectedJob?.currency)}</span>
               </div>
 
               <div className="border-t pt-3 space-y-2">
                 <p className="text-sm font-medium">Registros ({logs.length})</p>
                 {logs.map((l) => (
                   <div key={l.id} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{formatDate(l.date)} · {l.hours_billed}h</span>
+                    <span className="text-muted-foreground">{formatDate(l.date)} · {qtyLabel(l.hours_billed)}</span>
                     <span>{formatCurrency(l.total_value, selectedJob?.currency)}</span>
                   </div>
                 ))}
@@ -211,8 +225,8 @@ export function CreateInvoiceDialog({
 
               <div className="border-t pt-3 space-y-1">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Total horas faturadas</span>
-                  <span>{totalHours}h</span>
+                  <span className="text-muted-foreground">{isDaily ? "Total dias faturados" : "Total horas faturadas"}</span>
+                  <span>{qtyLabel(totalHours)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>

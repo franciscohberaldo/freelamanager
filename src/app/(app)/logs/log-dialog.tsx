@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import { calculateTotal, formatHours } from "@/lib/utils"
+import { calculateTotal } from "@/lib/utils"
 import { roundHours } from "@/lib/csv"
+import { HOURS_PER_DAY } from "@/lib/invoice-i18n"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,6 +22,7 @@ interface JobOption {
   name: string
   hourly_rate: number
   daily_rate: number
+  billing_mode?: "hourly" | "daily"
   currency: string
   clients: { name: string } | null
 }
@@ -32,6 +34,8 @@ interface Props {
   mode: "create" | "edit" | "duplicate"
   hourRounding?: string
 }
+
+const isDailyJob = (job?: JobOption) => job?.billing_mode === "daily"
 
 export function LogDialog({ children, jobs, log, mode, hourRounding = "none" }: Props) {
   const [open, setOpen] = useState(false)
@@ -47,9 +51,9 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none" }: 
     date:         isDuplicate ? format(new Date(), "yyyy-MM-dd") : (log?.date ?? format(new Date(), "yyyy-MM-dd")),
     meetings:     log?.meetings ?? "",
     requests:     log?.requests ?? "",
-    daily_rate:   log?.daily_rate ?? 0,
-    hours_worked: log?.hours_worked ?? 0,
-    hours_billed: log?.hours_billed ?? 0,
+    daily_rate:   log?.daily_rate ?? (jobs[0]?.daily_rate ?? 0),
+    hours_worked: log?.hours_worked ?? (isDailyJob(jobs[0]) ? HOURS_PER_DAY : 0),
+    hours_billed: log?.hours_billed ?? (isDailyJob(jobs[0]) ? HOURS_PER_DAY : 0),
   })
 
   // Live timer
@@ -78,14 +82,25 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none" }: 
       // Auto-fill daily_rate from job if changing job
       if (field === "job_id") {
         const job = jobs.find((j) => j.id === value)
-        if (job) next.daily_rate = job.daily_rate
+        if (job) {
+          next.daily_rate = job.daily_rate
+          // Daily-rate jobs default to one full day
+          if (isDailyJob(job) && !next.hours_billed) {
+            next.hours_billed = HOURS_PER_DAY
+            if (!next.hours_worked) next.hours_worked = HOURS_PER_DAY
+          }
+        }
       }
       return next
     })
   }
 
   const selectedJob = jobs.find((j) => j.id === form.job_id)
-  const totalValue = calculateTotal(form.hours_billed, selectedJob?.hourly_rate ?? 0)
+  const isDaily     = isDailyJob(selectedJob)
+  const daysBilled  = form.hours_billed / HOURS_PER_DAY
+  const totalValue  = isDaily
+    ? Number((daysBilled * form.daily_rate).toFixed(2))
+    : calculateTotal(form.hours_billed, selectedJob?.hourly_rate ?? 0)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -206,18 +221,32 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none" }: 
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Horas faturadas (NF)</Label>
-              <Input
-                type="number"
-                step="0.25"
-                value={form.hours_billed}
-                onChange={(e) => update("hours_billed", parseFloat(e.target.value) || 0)}
-              />
-            </div>
+            {isDaily ? (
+              <div className="space-y-2">
+                <Label>Dias faturados</Label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  value={daysBilled}
+                  onChange={(e) => update("hours_billed", (parseFloat(e.target.value) || 0) * HOURS_PER_DAY)}
+                />
+                <p className="text-xs text-muted-foreground">1 dia = {HOURS_PER_DAY}h</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Horas faturadas (NF)</Label>
+                <Input
+                  type="number"
+                  step="0.25"
+                  value={form.hours_billed}
+                  onChange={(e) => update("hours_billed", parseFloat(e.target.value) || 0)}
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
-              <Label>Valor/dia (ref)</Label>
+              <Label>{isDaily ? "Valor/dia" : "Valor/dia (ref)"}</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -232,7 +261,9 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none" }: 
                 {selectedJob ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: selectedJob.currency }).format(totalValue) : "—"}
               </div>
               <p className="text-xs text-muted-foreground">
-                {form.hours_billed}h × {selectedJob?.hourly_rate ?? 0}/h
+                {isDaily
+                  ? `${daysBilled} ${daysBilled === 1 ? "dia" : "dias"} × ${form.daily_rate}/dia`
+                  : `${form.hours_billed}h × ${selectedJob?.hourly_rate ?? 0}/h`}
               </p>
             </div>
           </div>

@@ -24,6 +24,8 @@ interface Job {
   is_recurring: boolean
   hourly_rate: number
   daily_rate: number
+  billing_mode?: "hourly" | "daily"
+  project_code?: string | null
   currency: string
   created_at: string
   clients: { name: string } | null
@@ -92,9 +94,20 @@ export function JobsClient({ jobs, jobsCount, clients }: Props) {
                 </p>
               </div>
               <div className="text-right shrink-0 space-y-0.5">
-                <p className="text-sm font-medium">{formatCurrency(job.hourly_rate, job.currency)}/h</p>
-                {job.daily_rate > 0 && (
-                  <p className="text-xs text-muted-foreground">{formatCurrency(job.daily_rate, job.currency)}/dia</p>
+                {job.billing_mode === "daily" ? (
+                  <>
+                    <p className="text-sm font-medium">{formatCurrency(job.daily_rate, job.currency)}/dia</p>
+                    {job.project_code && (
+                      <p className="text-xs text-muted-foreground font-mono">{job.project_code}</p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium">{formatCurrency(job.hourly_rate, job.currency)}/h</p>
+                    {job.daily_rate > 0 && (
+                      <p className="text-xs text-muted-foreground">{formatCurrency(job.daily_rate, job.currency)}/dia</p>
+                    )}
+                  </>
                 )}
               </div>
               <JobDialog clients={clients} job={job as never} mode="edit">

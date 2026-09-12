@@ -30,7 +30,7 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-base">Perfil da empresa</CardTitle>
           <CardDescription>
-            Dados exibidos nos invoices em PDF — logo, nome, CNPJ, cor e arredondamento de horas
+            Dados exibidos nos invoices em PDF — logo, nome, CNPJ, cor, arredondamento de horas e dados bancários
           </CardDescription>
         </CardHeader>
         <CardContent>

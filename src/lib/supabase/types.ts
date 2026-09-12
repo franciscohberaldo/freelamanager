@@ -25,14 +25,15 @@ type JobRow = {
   hourly_rate: number; daily_rate: number; currency: 'BRL' | 'USD' | 'EUR';
   status: 'proposal' | 'active' | 'paused' | 'completed'; contract_value: number | null;
   start_date: string | null; end_date: string | null; is_recurring: boolean;
-  tax_rate: number; notes: string | null; created_at: string; updated_at: string
+  tax_rate: number; notes: string | null; billing_mode: 'hourly' | 'daily'; project_code: string | null;
+  created_at: string; updated_at: string
 }
 type JobInsert = {
   user_id: string; client_id: string; name: string; description?: string | null;
   hourly_rate: number; daily_rate: number; currency: 'BRL' | 'USD' | 'EUR';
   status: 'proposal' | 'active' | 'paused' | 'completed'; contract_value?: number | null;
   start_date?: string | null; end_date?: string | null; is_recurring: boolean;
-  tax_rate: number; notes?: string | null
+  tax_rate: number; notes?: string | null; billing_mode?: 'hourly' | 'daily'; project_code?: string | null
 }
 
 type DailyLogRow = {
@@ -63,8 +64,8 @@ type InvoiceInsert = {
   client_confirmed_at?: string | null
 }
 
-type InvoiceItemRow = { id: string; invoice_id: string; log_id: string | null; date: string; description: string | null; hours_billed: number; rate: number; subtotal: number }
-type InvoiceItemInsert = { invoice_id: string; log_id?: string | null; date: string; description?: string | null; hours_billed: number; rate: number; subtotal: number }
+type InvoiceItemRow = { id: string; invoice_id: string; log_id: string | null; date: string; description: string | null; hours_billed: number; rate: number; subtotal: number; quantity: number | null; unit: 'hour' | 'day' | null }
+type InvoiceItemInsert = { invoice_id: string; log_id?: string | null; date: string; description?: string | null; hours_billed: number; rate: number; subtotal: number; quantity?: number | null; unit?: 'hour' | 'day' | null }
 
 type AgendaEventRow = {
   id: string; user_id: string; job_id: string | null; title: string;
@@ -134,11 +135,17 @@ type ProjectTaskItemInsert = {
 type UserSettingsRow = {
   user_id: string; company_name: string | null; cnpj_cpf: string | null;
   logo_url: string | null; invoice_color: string; hour_rounding: string;
+  bank_beneficiary: string | null; bank_name: string | null; bank_account_type: string | null;
+  bank_account_number: string | null; bank_routing: string | null; bank_swift: string | null;
+  bank_iban: string | null; bank_address: string | null; pix_key: string | null;
   created_at: string; updated_at: string
 }
 type UserSettingsInsert = {
   user_id: string; company_name?: string | null; cnpj_cpf?: string | null;
-  logo_url?: string | null; invoice_color?: string; hour_rounding?: string
+  logo_url?: string | null; invoice_color?: string; hour_rounding?: string;
+  bank_beneficiary?: string | null; bank_name?: string | null; bank_account_type?: string | null;
+  bank_account_number?: string | null; bank_routing?: string | null; bank_swift?: string | null;
+  bank_iban?: string | null; bank_address?: string | null; pix_key?: string | null
 }
 
 type ExpenseRow = {

@@ -15,7 +15,28 @@ interface UserSettings {
   logo_url: string | null
   invoice_color: string
   hour_rounding: string
+  bank_beneficiary: string | null
+  bank_name: string | null
+  bank_account_type: string | null
+  bank_account_number: string | null
+  bank_routing: string | null
+  bank_swift: string | null
+  bank_iban: string | null
+  bank_address: string | null
+  pix_key: string | null
 }
+
+const BANK_FIELDS: Array<{ key: keyof UserSettings; label: string; placeholder: string; group: "wire" | "pix" }> = [
+  { key: "bank_beneficiary",    label: "Beneficiário (nome na conta)", placeholder: "Francisco H. Beraldo",      group: "wire" },
+  { key: "bank_name",           label: "Banco",                        placeholder: "Banco Inter / Wise / Nomad", group: "wire" },
+  { key: "bank_account_type",   label: "Tipo de conta",                placeholder: "Checking",                   group: "wire" },
+  { key: "bank_account_number", label: "Número da conta",              placeholder: "Account #",                  group: "wire" },
+  { key: "bank_routing",        label: "Routing / ABA",                placeholder: "Routing #",                  group: "wire" },
+  { key: "bank_swift",          label: "SWIFT / BIC",                  placeholder: "Opcional",                   group: "wire" },
+  { key: "bank_iban",           label: "IBAN",                         placeholder: "Opcional",                   group: "wire" },
+  { key: "bank_address",        label: "Endereço do banco",            placeholder: "Opcional",                   group: "wire" },
+  { key: "pix_key",             label: "Chave PIX",                    placeholder: "CPF, e-mail, telefone ou aleatória", group: "pix" },
+]
 
 const PRESET_COLORS = [
   { label: "Azul",    value: "#1e40af" },
@@ -35,6 +56,15 @@ export function CompanyForm({ initialSettings }: { initialSettings: UserSettings
     logo_url:      initialSettings?.logo_url      ?? "",
     invoice_color: initialSettings?.invoice_color ?? "#1e40af",
     hour_rounding: initialSettings?.hour_rounding ?? "none",
+    bank_beneficiary:    initialSettings?.bank_beneficiary    ?? "",
+    bank_name:           initialSettings?.bank_name           ?? "",
+    bank_account_type:   initialSettings?.bank_account_type   ?? "",
+    bank_account_number: initialSettings?.bank_account_number ?? "",
+    bank_routing:        initialSettings?.bank_routing        ?? "",
+    bank_swift:          initialSettings?.bank_swift          ?? "",
+    bank_iban:           initialSettings?.bank_iban           ?? "",
+    bank_address:        initialSettings?.bank_address        ?? "",
+    pix_key:             initialSettings?.pix_key             ?? "",
   })
 
   function set<K extends keyof UserSettings>(k: K, v: UserSettings[K]) {
@@ -52,6 +82,7 @@ export function CompanyForm({ initialSettings }: { initialSettings: UserSettings
       logo_url:      form.logo_url      || null,
       invoice_color: form.invoice_color,
       hour_rounding: form.hour_rounding,
+      ...Object.fromEntries(BANK_FIELDS.map(f => [f.key, (form[f.key] as string | null)?.trim() || null])),
     }, { onConflict: "user_id" })
 
     if (error) toast.error("Erro ao salvar configurações")
@@ -155,6 +186,43 @@ export function CompanyForm({ initialSettings }: { initialSettings: UserSettings
         <p className="text-xs text-muted-foreground">
           Aplicado automaticamente às horas trabalhadas ao salvar um registro.
         </p>
+      </div>
+
+      <div className="space-y-3 pt-2 border-t">
+        <div>
+          <p className="text-sm font-medium">Dados bancários para o invoice</p>
+          <p className="text-xs text-muted-foreground">
+            Impressos no bloco &quot;Payment details&quot; do PDF. Invoices em USD/EUR mostram os dados de wire; em BRL, a chave PIX. Campos vazios não aparecem.
+          </p>
+        </div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Internacional (wire)</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {BANK_FIELDS.filter(f => f.group === "wire").map(f => (
+            <div key={f.key} className="space-y-1">
+              <Label className="text-xs">{f.label}</Label>
+              <Input
+                value={(form[f.key] as string | null) ?? ""}
+                onChange={e => set(f.key, e.target.value)}
+                placeholder={f.placeholder}
+                autoComplete="off"
+              />
+            </div>
+          ))}
+        </div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Brasil (PIX)</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {BANK_FIELDS.filter(f => f.group === "pix").map(f => (
+            <div key={f.key} className="space-y-1">
+              <Label className="text-xs">{f.label}</Label>
+              <Input
+                value={(form[f.key] as string | null) ?? ""}
+                onChange={e => set(f.key, e.target.value)}
+                placeholder={f.placeholder}
+                autoComplete="off"
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       <Button type="submit" disabled={loading}>

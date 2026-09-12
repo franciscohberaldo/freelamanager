@@ -25,6 +25,8 @@ const jobSchema = z.object({
   client_id:      z.string().min(1, "Selecione um cliente"),
   name:           z.string().min(1, "Nome obrigatório"),
   description:    z.string().optional(),
+  billing_mode:   z.enum(["hourly", "daily"]),
+  project_code:   z.string().optional(),
   hourly_rate:    z.coerce.number().min(0),
   daily_rate:     z.coerce.number().min(0),
   currency:       z.enum(["BRL", "USD", "EUR"]),
@@ -58,6 +60,8 @@ export function JobDialog({ children, clients, job, mode }: Props) {
       client_id:      job?.client_id ?? "",
       name:           job?.name ?? "",
       description:    job?.description ?? "",
+      billing_mode:   job?.billing_mode ?? "hourly",
+      project_code:   job?.project_code ?? "",
       hourly_rate:    job?.hourly_rate ?? 0,
       daily_rate:     job?.daily_rate ?? 0,
       currency:       (job?.currency as "BRL" | "USD" | "EUR") ?? "BRL",
@@ -71,10 +75,13 @@ export function JobDialog({ children, clients, job, mode }: Props) {
     },
   })
 
+  const billingMode = watch("billing_mode")
+
   async function onSubmit(data: JobForm) {
     setLoading(true)
     const payload = {
       ...data,
+      project_code: data.project_code?.trim() || null,
       contract_value: data.contract_value || null,
       start_date: data.start_date || null,
       end_date: data.end_date || null,
@@ -127,13 +134,32 @@ export function JobDialog({ children, clients, job, mode }: Props) {
             </div>
 
             <div className="space-y-2">
-              <Label>Valor/hora</Label>
+              <Label>Cobrança</Label>
+              <Select defaultValue={job?.billing_mode ?? "hourly"} onValueChange={(v) => setValue("billing_mode", v as "hourly" | "daily")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hourly">Por hora</SelectItem>
+                  <SelectItem value="daily">Por diária</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Código do projeto</Label>
+              <Input {...register("project_code")} placeholder="ex: Deltek, PO, nº do projeto" />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{billingMode === "daily" ? "Valor/hora (ref)" : "Valor/hora"}</Label>
               <Input {...register("hourly_rate")} type="number" step="0.01" placeholder="0.00" />
             </div>
 
             <div className="space-y-2">
-              <Label>Valor/dia</Label>
+              <Label>{billingMode === "daily" ? "Valor/dia *" : "Valor/dia"}</Label>
               <Input {...register("daily_rate")} type="number" step="0.01" placeholder="0.00" />
+              {billingMode === "daily" && (
+                <p className="text-xs text-muted-foreground">Registros e invoices deste job são calculados em dias (1 dia = 8h).</p>
+              )}
             </div>
 
             <div className="space-y-2">

@@ -25,7 +25,7 @@ export default async function InvoicesPage() {
 
   const { data: jobs } = await supabase
     .from("jobs")
-    .select("id, name, hourly_rate, daily_rate, currency, tax_rate, clients(name, email)")
+    .select("id, name, hourly_rate, daily_rate, billing_mode, project_code, currency, tax_rate, clients(name, email)")
     .eq("user_id", user!.id)
     .in("status", ["active", "paused", "completed"])
     .order("name")
@@ -35,7 +35,7 @@ export default async function InvoicesPage() {
       invoices={(invoices ?? []) as never[]}
       invoicesCount={invoicesCount ?? 0}
       paidMap={paidMap}
-      jobs={(jobs ?? []) as unknown as { id: string; name: string; hourly_rate: number; daily_rate: number; currency: string; tax_rate: number; clients: { name: string; email: string | null } | null }[]}
+      jobs={(jobs ?? []) as unknown as { id: string; name: string; hourly_rate: number; daily_rate: number; billing_mode: "hourly" | "daily"; project_code: string | null; currency: string; tax_rate: number; clients: { name: string; email: string | null } | null }[]}
     />
   )
 }
