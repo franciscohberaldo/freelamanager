@@ -10,11 +10,15 @@ export type Json =
 
 type ClientRow = {
   id: string; user_id: string; name: string; company: string | null; email: string | null;
-  phone: string | null; notes: string | null; score: number | null; created_at: string; updated_at: string
+  phone: string | null; notes: string | null; score: number | null; created_at: string; updated_at: string;
+  legal_name: string | null; cnpj: string | null; address: string | null;
+  billing_entity: string | null; billing_address: string | null; nf_rules: string | null
 }
 type ClientInsert = {
   user_id: string; name: string; company?: string | null; email?: string | null;
-  phone?: string | null; notes?: string | null; score?: number | null
+  phone?: string | null; notes?: string | null; score?: number | null;
+  legal_name?: string | null; cnpj?: string | null; address?: string | null;
+  billing_entity?: string | null; billing_address?: string | null; nf_rules?: string | null
 }
 
 type ClientContactRow = { id: string; client_id: string; name: string; role: string | null; email: string | null; phone: string | null; created_at: string }
@@ -27,6 +31,7 @@ type JobRow = {
   start_date: string | null; end_date: string | null; is_recurring: boolean;
   tax_rate: number; notes: string | null; billing_mode: 'hourly' | 'daily'; project_code: string | null;
   timezone: string | null; work_hours: string | null; is_confidential: boolean;
+  end_client: string | null; intermediary: string | null; nf_description: string | null; po_number: string | null;
   created_at: string; updated_at: string
 }
 type JobInsert = {
@@ -35,7 +40,8 @@ type JobInsert = {
   status: 'proposal' | 'active' | 'paused' | 'completed'; contract_value?: number | null;
   start_date?: string | null; end_date?: string | null; is_recurring: boolean;
   tax_rate: number; notes?: string | null; billing_mode?: 'hourly' | 'daily'; project_code?: string | null;
-  timezone?: string | null; work_hours?: string | null; is_confidential?: boolean
+  timezone?: string | null; work_hours?: string | null; is_confidential?: boolean;
+  end_client?: string | null; intermediary?: string | null; nf_description?: string | null; po_number?: string | null
 }
 
 type DailyLogRow = {
@@ -55,7 +61,11 @@ type InvoiceRow = {
   subtotal: number; tax_rate: number; tax_amount: number; total: number;
   currency: 'BRL' | 'USD' | 'EUR'; status: 'draft' | 'sent' | 'paid' | 'overdue';
   sent_at: string | null; paid_at: string | null; due_date: string | null;
-  notes: string | null; client_confirmed_at: string | null; created_at: string; updated_at: string
+  notes: string | null; client_confirmed_at: string | null; created_at: string; updated_at: string;
+  seq_number: string | null; po_number: string | null;
+  nf_status: 'not_required' | 'pending' | 'requested' | 'issued' | 'sent';
+  nf_series: 'paulinia' | 'sao_paulo' | null; nf_number: string | null; nf_issued_at: string | null;
+  nf_amount_brl: number | null; nf_requested_at: string | null; nf_sent_at: string | null
 }
 type InvoiceInsert = {
   user_id: string; job_id: string; invoice_number: string; period_start: string;
@@ -63,11 +73,15 @@ type InvoiceInsert = {
   tax_amount: number; total: number; currency: 'BRL' | 'USD' | 'EUR';
   status: 'draft' | 'sent' | 'paid' | 'overdue'; sent_at?: string | null;
   paid_at?: string | null; due_date?: string | null; notes?: string | null;
-  client_confirmed_at?: string | null
+  client_confirmed_at?: string | null;
+  seq_number?: string | null; po_number?: string | null;
+  nf_status?: 'not_required' | 'pending' | 'requested' | 'issued' | 'sent';
+  nf_series?: 'paulinia' | 'sao_paulo' | null; nf_number?: string | null; nf_issued_at?: string | null;
+  nf_amount_brl?: number | null; nf_requested_at?: string | null; nf_sent_at?: string | null
 }
 
-type InvoiceItemRow = { id: string; invoice_id: string; log_id: string | null; date: string; description: string | null; hours_billed: number; rate: number; subtotal: number; quantity: number | null; unit: 'hour' | 'day' | null }
-type InvoiceItemInsert = { invoice_id: string; log_id?: string | null; date: string; description?: string | null; hours_billed: number; rate: number; subtotal: number; quantity?: number | null; unit?: 'hour' | 'day' | null }
+type InvoiceItemRow = { id: string; invoice_id: string; log_id: string | null; date: string; description: string | null; hours_billed: number; rate: number; subtotal: number; quantity: number | null; unit: 'hour' | 'day' | null; job_number: string | null; is_manual: boolean }
+type InvoiceItemInsert = { invoice_id: string; log_id?: string | null; date: string; description?: string | null; hours_billed: number; rate: number; subtotal: number; quantity?: number | null; unit?: 'hour' | 'day' | null; job_number?: string | null; is_manual?: boolean }
 
 type AgendaEventRow = {
   id: string; user_id: string; job_id: string | null; title: string;
@@ -140,6 +154,10 @@ type UserSettingsRow = {
   bank_beneficiary: string | null; bank_name: string | null; bank_account_type: string | null;
   bank_account_number: string | null; bank_routing: string | null; bank_swift: string | null;
   bank_iban: string | null; bank_address: string | null; pix_key: string | null;
+  legal_name: string | null; municipal_registration: string | null; fiscal_address: string | null;
+  accountant_name: string | null; accountant_email: string | null; next_invoice_seq: number;
+  intermediary_bank_name: string | null; intermediary_bank_swift: string | null; intermediary_bank_aba: string | null;
+  intermediary_bank_account: string | null; intermediary_bank_address: string | null;
   created_at: string; updated_at: string
 }
 type UserSettingsInsert = {
@@ -147,7 +165,11 @@ type UserSettingsInsert = {
   logo_url?: string | null; invoice_color?: string; hour_rounding?: string;
   bank_beneficiary?: string | null; bank_name?: string | null; bank_account_type?: string | null;
   bank_account_number?: string | null; bank_routing?: string | null; bank_swift?: string | null;
-  bank_iban?: string | null; bank_address?: string | null; pix_key?: string | null
+  bank_iban?: string | null; bank_address?: string | null; pix_key?: string | null;
+  legal_name?: string | null; municipal_registration?: string | null; fiscal_address?: string | null;
+  accountant_name?: string | null; accountant_email?: string | null; next_invoice_seq?: number;
+  intermediary_bank_name?: string | null; intermediary_bank_swift?: string | null; intermediary_bank_aba?: string | null;
+  intermediary_bank_account?: string | null; intermediary_bank_address?: string | null
 }
 
 type ExpenseRow = {
@@ -302,6 +324,15 @@ type WebhookDeliveryInsert = {
   status_code?: number | null; response?: string | null
 }
 
+type NfRequestRow = {
+  id: string; user_id: string; invoice_id: string; sent_to: string; reply_to: string | null;
+  subject: string; body: string; resend_id: string | null; status: 'sent' | 'failed'; error: string | null; created_at: string
+}
+type NfRequestInsert = {
+  user_id: string; invoice_id: string; sent_to: string; reply_to?: string | null; subject: string; body: string;
+  resend_id?: string | null; status?: 'sent' | 'failed'; error?: string | null
+}
+
 // ─── Database Type Map ────────────────────────────────────────────────────────
 
 export type Database = {
@@ -335,11 +366,16 @@ export type Database = {
       webhooks:             { Row: WebhookRow;            Insert: WebhookInsert;            Update: Partial<WebhookInsert>;            Relationships: [] }
       payment_links:        { Row: PaymentLinkRow;        Insert: PaymentLinkInsert;        Update: Partial<PaymentLinkInsert>;        Relationships: [] }
       webhook_deliveries:   { Row: WebhookDeliveryRow;    Insert: WebhookDeliveryInsert;    Update: Partial<WebhookDeliveryInsert>;    Relationships: [] }
+      nf_requests:          { Row: NfRequestRow;          Insert: NfRequestInsert;          Update: Partial<NfRequestInsert>;          Relationships: [] }
     }
     Views: Record<string, never>
     Functions: {
       get_next_invoice_number: {
         Args: { p_user_id: string; p_year: number }
+        Returns: string
+      }
+      get_next_invoice_seq: {
+        Args: { p_user_id: string }
         Returns: string
       }
     }
@@ -377,6 +413,7 @@ export type ApiKey = Database['public']['Tables']['api_keys']['Row']
 export type Webhook = Database['public']['Tables']['webhooks']['Row']
 export type PaymentLink = Database['public']['Tables']['payment_links']['Row']
 export type WebhookDelivery = Database['public']['Tables']['webhook_deliveries']['Row']
+export type NfRequest = Database['public']['Tables']['nf_requests']['Row']
 
 // ─── Composite Types (matching actual query shapes) ───────────────────────────
 
