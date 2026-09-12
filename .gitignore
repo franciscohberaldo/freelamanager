@@ -67,3 +67,6 @@ tmp/
 
 # supabase cli
 supabase/.temp/
+
+# client material (CNPJ, addresses) - never commit
+MaterialCliente/
