@@ -5,7 +5,9 @@ import { workHoursInLocal } from "@/lib/timezone"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { JobDialog } from "./job-dialog"
+import { JobHistory, type HistoryJob } from "./job-history"
 import { LoadMoreButton } from "@/components/load-more-button"
 import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { JOB_STATUS_LABELS } from "@/lib/utils"
@@ -47,9 +49,10 @@ interface Props {
   jobs: Job[]
   jobsCount: number
   clients: Client[]
+  history: HistoryJob[]
 }
 
-export function JobsClient({ jobs, jobsCount, clients }: Props) {
+export function JobsClient({ jobs, jobsCount, clients, history }: Props) {
   const { items: jobList, loadMore, hasMore, loading } = usePaginatedList({
     table: "jobs",
     select: "*, clients(name)",
@@ -74,7 +77,14 @@ export function JobsClient({ jobs, jobsCount, clients }: Props) {
         </JobDialog>
       </div>
 
-      <div className="grid gap-4">
+      <Tabs defaultValue="jobs">
+        <TabsList>
+          <TabsTrigger value="jobs">Jobs</TabsTrigger>
+          <TabsTrigger value="historico">Histórico</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="jobs">
+      <div className="grid gap-4 mt-2">
         {(jobList as unknown as Job[]).length === 0 && (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
@@ -128,6 +138,12 @@ export function JobsClient({ jobs, jobsCount, clients }: Props) {
         ))}
         <LoadMoreButton hasMore={hasMore} loading={loading} onClick={loadMore} />
       </div>
+        </TabsContent>
+
+        <TabsContent value="historico">
+          <JobHistory jobs={history} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
