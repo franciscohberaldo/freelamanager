@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -15,7 +16,7 @@ import {
   DOCUMENT_KINDS, DOCUMENT_LABELS, DOCUMENT_SHORT_LABELS, type DocumentKind,
 } from "@/lib/job-documents"
 import {
-  ArrowDown, ArrowUp, ArrowUpRight, ChevronsUpDown, GripVertical, Image as ImageIcon,
+  ArrowDown, ArrowUp, ChevronsUpDown, GripVertical, Image as ImageIcon,
   Paperclip, RotateCcw,
 } from "lucide-react"
 import { AttachedCheck, NotAttached } from "@/components/attached-check"
@@ -107,13 +108,9 @@ const BASE_COLUMNS: Column[] = [
   },
   {
     key: "job", label: "Job", sortKey: "job",
-    // the arrow carries the "open the job" affordance the row used to spell out at its far end
     cell: ({ job }) => (
       <Clamped title={job.name}>
-        <Link href={`/jobs/${job.id}`} className="hover:underline" title="Abrir o job">
-          {job.name}
-          <ArrowUpRight className="ml-0.5 inline w-3.5 h-3.5 shrink-0 align-text-top text-muted-foreground" />
-        </Link>
+        <Link href={`/jobs/${job.id}`} className="hover:underline">{job.name}</Link>
       </Clamped>
     ),
   },
@@ -188,6 +185,7 @@ const alignClass = (align: Column["align"]) =>
   align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left"
 
 export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
+  const router = useRouter()
   const [query, setQuery] = useState("")
   const [client, setClient] = useState("all")
   const [billing, setBilling] = useState<"all" | BillingStatus>("all")
@@ -267,6 +265,12 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
     .filter(r => year === "all" || r.summary.start?.startsWith(year))
     .filter(r => !q || [r.job.name, tomador(r.job), r.job.end_client ?? ""].some(v => v.toLowerCase().includes(q)))
     .sort((a, b) => compareRows(a.sortable, b.sortable, sort.key, sort.dir))
+
+  /** The whole row opens the job — except when the click was a drag to select text in a cell. */
+  const openJob = (id: string) => {
+    if (window.getSelection()?.toString()) return
+    router.push(`/jobs/${id}`)
+  }
 
   const toggleSort = (key: SortKey) =>
     setSort(s => s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" })
@@ -353,7 +357,11 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
           </thead>
           <tbody>
             {visible.map(row => (
-              <tr key={row.job.id} className="border-t">
+              <tr
+                key={row.job.id}
+                onClick={() => openJob(row.job.id)}
+                className="border-t cursor-pointer hover:bg-muted/30"
+              >
                 {columns.map(c => (
                   <td
                     key={c.key}
