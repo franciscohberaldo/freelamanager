@@ -180,6 +180,16 @@ const COLUMNS = [...BASE_COLUMNS, ...DOCUMENT_COLUMNS]
 
 const DEFAULT_ORDER = COLUMNS.map(c => c.key)
 
+/**
+ * The table scrolls sideways past two dozen columns, so the action that opens the job is
+ * pinned to the right edge instead of waiting at the end of the scroll. Its lines are drawn
+ * as inset shadows because a sticky cell paints over the table's collapsed borders — the
+ * header keeps only the left divider, each row also redraws the rule above it.
+ */
+const STICKY_ACTION = "sticky right-0 bg-background"
+const STICKY_ACTION_HEAD = `${STICKY_ACTION} z-20 shadow-[inset_1px_0_0_hsl(var(--border))]`
+const STICKY_ACTION_CELL = `${STICKY_ACTION} z-10 shadow-[inset_1px_0_0_hsl(var(--border)),inset_0_1px_0_hsl(var(--border))]`
+
 const alignClass = (align: Column["align"]) =>
   align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left"
 
@@ -345,7 +355,7 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
                   </span>
                 </th>
               ))}
-              <th className="p-2" />
+              <th className={`p-2 before:absolute before:inset-0 before:bg-muted/40 ${STICKY_ACTION_HEAD}`} />
             </tr>
           </thead>
           <tbody>
@@ -359,7 +369,7 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
                     {c.cell(row)}
                   </td>
                 ))}
-                <td className="p-2 text-right">
+                <td className={`p-2 text-right ${STICKY_ACTION_CELL}`}>
                   <Button variant="ghost" size="sm" asChild>
                     <Link href={`/jobs/${row.job.id}`}>Abrir</Link>
                   </Button>
