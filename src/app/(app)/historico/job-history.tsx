@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -9,15 +10,17 @@ import {
   summarizeJob, compareRows, BILLING_STATUS_LABELS,
   type BillingStatus, type HistoryInvoice, type SortKey, type JobSummary,
 } from "@/lib/job-history"
-import { ArrowDown, ArrowUp, ChevronsUpDown, Image as ImageIcon } from "lucide-react"
+import { reorder, mergeColumnOrder } from "@/lib/column-order"
+import { ArrowDown, ArrowUp, ChevronsUpDown, GripVertical, Image as ImageIcon, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { JobDialog } from "../jobs/job-dialog"
 import type { Job } from "@/lib/supabase/types"
 
 export type HistoryJob = Job & {
   clients: { name: string; legal_name: string | null } | null
   invoices: HistoryInvoice[]
 }
+
+const ORDER_STORAGE_KEY = "historico:column-order"
 
 const jobStatusVariant: Record<string, "default" | "success" | "warning" | "outline"> = {
   proposal: "outline", active: "success", paused: "warning", completed: "default",
@@ -36,27 +39,134 @@ function nfIssuedLabel(s: JobSummary) {
   return `${formatDate(s.nfFrom, "MM/yyyy")}–${formatDate(s.nfTo, "MM/yyyy")}`
 }
 
-const COLUMNS: { key: SortKey | null; label: string; align?: "right"; title?: string }[] = [
-  { key: "tomador", label: "Tomador" },
-  { key: "marca", label: "Marca" },
-  { key: "job", label: "Job" },
-  { key: "total", label: "Total", align: "right", title: "Ordena pelo número, sem converter moeda" },
-  { key: "start", label: "Início" },
-  { key: "end", label: "Fim" },
-  { key: "nf", label: "Emissão NF" },
-  { key: null, label: "Status do job" },
-  { key: null, label: "Faturamento" },
-  { key: null, label: "Invoices" },
-  { key: null, label: "NFs" },
-  { key: null, label: "" },
+type Row = { job: HistoryJob; summary: JobSummary }
+
+/**
+ * `key` identifies the column across reorderings and saved orders; `sortKey` says whether
+ * and by what it sorts. Keeping the two apart is what lets a column move without losing
+ * its place in an order saved earlier.
+ */
+type Column = {
+  key: string
+  label: string
+  sortKey?: SortKey
+  align?: "right"
+  nowrap?: boolean
+  title?: string
+  cell: (row: Row) => React.ReactNode
+}
+
+const dash = <span className="text-muted-foreground">—</span>
+
+const COLUMNS: Column[] = [
+  {
+    key: "tomador", label: "Tomador", sortKey: "tomador",
+    cell: ({ job }) => (
+      <>
+        {tomador(job)}
+        {job.intermediary && <span className="text-muted-foreground"> · via {job.intermediary}</span>}
+      </>
+    ),
+  },
+  { key: "marca", label: "Marca", sortKey: "marca", cell: ({ job }) => job.end_client || dash },
+  {
+    key: "job", label: "Job", sortKey: "job",
+    cell: ({ job }) => (
+      <Link href={`/jobs/${job.id}`} className="flex items-center gap-2 hover:underline">
+        <span className="w-10 h-7 rounded border bg-muted/40 overflow-hidden shrink-0 flex items-center justify-center">
+          {job.thumbnail_url
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={job.thumbnail_url} alt="" className="w-full h-full object-cover" />
+            : <ImageIcon className="w-3 h-3 text-muted-foreground/40" />}
+        </span>
+        <span>{job.name}</span>
+      </Link>
+    ),
+  },
+  {
+    key: "total", label: "Total", sortKey: "total", align: "right", nowrap: true,
+    title: "Ordena pelo número, sem converter moeda",
+    cell: ({ summary }) => summary.totals.length === 0
+      ? "—"
+      : summary.totals.map(t => <div key={t.currency}>{formatCurrency(t.amount, t.currency)}</div>),
+  },
+  {
+    key: "start", label: "Início", sortKey: "start", nowrap: true,
+    cell: ({ summary }) => summary.start ? formatDate(summary.start) : "—",
+  },
+  {
+    key: "end", label: "Fim", sortKey: "end", nowrap: true,
+    cell: ({ summary }) => summary.end ? formatDate(summary.end) : "—",
+  },
+  {
+    key: "nf_issued", label: "Emissão NF", sortKey: "nf", nowrap: true,
+    cell: ({ summary }) => nfIssuedLabel(summary),
+  },
+  {
+    key: "status", label: "Status do job",
+    cell: ({ job }) => (
+      <Badge variant={jobStatusVariant[job.status] ?? "outline"}>
+        {JOB_STATUS_LABELS[job.status] ?? job.status}
+      </Badge>
+    ),
+  },
+  {
+    key: "billing", label: "Faturamento", nowrap: true,
+    cell: ({ summary }) => (
+      <>
+        <Badge variant={billingVariant[summary.billing]}>{BILLING_STATUS_LABELS[summary.billing]}</Badge>
+        {summary.nfPending && <span className="ml-1 text-xs text-amber-600">NF pendente</span>}
+      </>
+    ),
+  },
+  { key: "invoices", label: "Invoices", cell: ({ summary }) => <span className="font-mono">{summary.invoiceLabel}</span> },
+  { key: "nfs", label: "NFs", cell: ({ summary }) => <span className="font-mono">{summary.nfLabel}</span> },
 ]
 
-export function JobHistory({ jobs, clients }: { jobs: HistoryJob[]; clients: { id: string; name: string }[] }) {
+const DEFAULT_ORDER = COLUMNS.map(c => c.key)
+
+export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
   const [query, setQuery] = useState("")
   const [client, setClient] = useState("all")
   const [billing, setBilling] = useState<"all" | BillingStatus>("all")
   const [year, setYear] = useState("all")
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "start", dir: "desc" })
+  const [order, setOrder] = useState<string[]>(DEFAULT_ORDER)
+  const [dragging, setDragging] = useState<string | null>(null)
+
+  // Read after mount: the server has no localStorage, so rendering a saved order on the
+  // first pass would not match the markup it sent.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(ORDER_STORAGE_KEY)
+      if (raw) setOrder(mergeColumnOrder(JSON.parse(raw), DEFAULT_ORDER))
+    } catch {
+      // a corrupt or unavailable store just means the default order
+    }
+  }, [])
+
+  function saveOrder(next: string[]) {
+    setOrder(next)
+    try { localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(next)) } catch {}
+  }
+
+  function onDrop(targetKey: string) {
+    if (dragging && dragging !== targetKey) {
+      saveOrder(reorder(order, order.indexOf(dragging), order.indexOf(targetKey)))
+    }
+    setDragging(null)
+  }
+
+  function resetOrder() {
+    setOrder(DEFAULT_ORDER)
+    try { localStorage.removeItem(ORDER_STORAGE_KEY) } catch {}
+  }
+
+  const columns = useMemo(
+    () => order.map(k => COLUMNS.find(c => c.key === k)).filter((c): c is Column => !!c),
+    [order],
+  )
+  const reordered = order.join() !== DEFAULT_ORDER.join()
 
   const rows = useMemo(
     () => jobs.map(j => {
@@ -132,80 +242,81 @@ export function JobHistory({ jobs, clients }: { jobs: HistoryJob[]; clients: { i
         </Select>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        {visible.length} de {rows.length} jobs · clique no cabeçalho para ordenar
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          {visible.length} de {rows.length} jobs · clique no cabeçalho para ordenar, arraste para reposicionar
+        </p>
+        {reordered && (
+          <Button variant="ghost" size="sm" onClick={resetOrder}>
+            <RotateCcw className="w-3 h-3" />
+            Restaurar ordem
+          </Button>
+        )}
+      </div>
 
       <div className="rounded-md border overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-xs text-muted-foreground">
             <tr>
-              {COLUMNS.map(c => (
-                <th key={c.label} className={`p-2 ${c.align === "right" ? "text-right" : "text-left"}`} title={c.title}>
-                  {c.key ? (
-                    <button
-                      type="button"
-                      onClick={() => toggleSort(c.key!)}
-                      className={`inline-flex items-center gap-1 hover:text-foreground ${sort.key === c.key ? "text-foreground font-medium" : ""}`}
-                    >
-                      {c.label}
-                      {sort.key !== c.key ? <ChevronsUpDown className="w-3 h-3 opacity-40" />
-                        : sort.dir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                    </button>
-                  ) : c.label}
+              {columns.map(c => (
+                <th
+                  key={c.key}
+                  draggable
+                  onDragStart={() => setDragging(c.key)}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={() => onDrop(c.key)}
+                  onDragEnd={() => setDragging(null)}
+                  title={c.title}
+                  className={[
+                    "group p-2 select-none cursor-grab active:cursor-grabbing",
+                    c.align === "right" ? "text-right" : "text-left",
+                    dragging === c.key ? "opacity-40" : "",
+                    dragging && dragging !== c.key ? "bg-accent/40" : "",
+                  ].join(" ")}
+                >
+                  <span className={`inline-flex items-center gap-1 ${c.align === "right" ? "flex-row-reverse" : ""}`}>
+                    <GripVertical className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-40" />
+                    {c.sortKey ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(c.sortKey!)}
+                        className={`inline-flex items-center gap-1 hover:text-foreground ${sort.key === c.sortKey ? "text-foreground font-medium" : ""}`}
+                      >
+                        {c.label}
+                        {sort.key !== c.sortKey ? <ChevronsUpDown className="w-3 h-3 opacity-40" />
+                          : sort.dir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                      </button>
+                    ) : c.label}
+                  </span>
                 </th>
               ))}
+              <th className="p-2" />
             </tr>
           </thead>
           <tbody>
-            {visible.map(({ job, summary }) => (
-              <tr key={job.id} className="border-t">
-                <td className="p-2">
-                  {tomador(job)}
-                  {job.intermediary && <span className="text-muted-foreground"> · via {job.intermediary}</span>}
-                </td>
-                <td className="p-2">{job.end_client || <span className="text-muted-foreground">—</span>}</td>
-                <td className="p-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-7 rounded border bg-muted/40 overflow-hidden shrink-0 flex items-center justify-center">
-                      {job.thumbnail_url
-                        // eslint-disable-next-line @next/next/no-img-element
-                        ? <img src={job.thumbnail_url} alt="" className="w-full h-full object-cover" />
-                        : <ImageIcon className="w-3 h-3 text-muted-foreground/40" />}
-                    </div>
-                    <span>{job.name}</span>
-                  </div>
-                </td>
-                <td className="p-2 text-right whitespace-nowrap">
-                  {summary.totals.length === 0
-                    ? "—"
-                    : summary.totals.map(t => (
-                        <div key={t.currency}>{formatCurrency(t.amount, t.currency)}</div>
-                      ))}
-                </td>
-                <td className="p-2 whitespace-nowrap">{summary.start ? formatDate(summary.start) : "—"}</td>
-                <td className="p-2 whitespace-nowrap">{summary.end ? formatDate(summary.end) : "—"}</td>
-                <td className="p-2 whitespace-nowrap">{nfIssuedLabel(summary)}</td>
-                <td className="p-2">
-                  <Badge variant={jobStatusVariant[job.status] ?? "outline"}>
-                    {JOB_STATUS_LABELS[job.status] ?? job.status}
-                  </Badge>
-                </td>
-                <td className="p-2 whitespace-nowrap">
-                  <Badge variant={billingVariant[summary.billing]}>{BILLING_STATUS_LABELS[summary.billing]}</Badge>
-                  {summary.nfPending && <span className="ml-1 text-xs text-amber-600">NF pendente</span>}
-                </td>
-                <td className="p-2 font-mono">{summary.invoiceLabel}</td>
-                <td className="p-2 font-mono">{summary.nfLabel}</td>
+            {visible.map(row => (
+              <tr key={row.job.id} className="border-t">
+                {columns.map(c => (
+                  <td
+                    key={c.key}
+                    className={`p-2 ${c.align === "right" ? "text-right" : ""} ${c.nowrap ? "whitespace-nowrap" : ""}`}
+                  >
+                    {c.cell(row)}
+                  </td>
+                ))}
                 <td className="p-2 text-right">
-                  <JobDialog clients={clients} job={job} mode="edit">
-                    <Button variant="ghost" size="sm">Editar</Button>
-                  </JobDialog>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/jobs/${row.job.id}`}>Abrir</Link>
+                  </Button>
                 </td>
               </tr>
             ))}
             {visible.length === 0 && (
-              <tr><td colSpan={COLUMNS.length} className="p-6 text-center text-muted-foreground">Nenhum job nesse filtro.</td></tr>
+              <tr>
+                <td colSpan={columns.length + 1} className="p-6 text-center text-muted-foreground">
+                  Nenhum job nesse filtro.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

@@ -333,6 +333,17 @@ type NfRequestInsert = {
   resend_id?: string | null; status?: 'sent' | 'failed'; error?: string | null
 }
 
+type JobDocumentRow = {
+  id: string; user_id: string; job_id: string;
+  kind: 'contract' | 'invoice' | 'nf' | 'das_received' | 'das_paid' | 'payment_proof';
+  path: string; file_name: string; mime_type: string | null; size_bytes: number | null; uploaded_at: string
+}
+type JobDocumentInsert = {
+  user_id: string; job_id: string;
+  kind: 'contract' | 'invoice' | 'nf' | 'das_received' | 'das_paid' | 'payment_proof';
+  path: string; file_name: string; mime_type?: string | null; size_bytes?: number | null
+}
+
 // ─── Database Type Map ────────────────────────────────────────────────────────
 
 export type Database = {
@@ -367,6 +378,7 @@ export type Database = {
       payment_links:        { Row: PaymentLinkRow;        Insert: PaymentLinkInsert;        Update: Partial<PaymentLinkInsert>;        Relationships: [] }
       webhook_deliveries:   { Row: WebhookDeliveryRow;    Insert: WebhookDeliveryInsert;    Update: Partial<WebhookDeliveryInsert>;    Relationships: [] }
       nf_requests:          { Row: NfRequestRow;          Insert: NfRequestInsert;          Update: Partial<NfRequestInsert>;          Relationships: [] }
+      job_documents:        { Row: JobDocumentRow;        Insert: JobDocumentInsert;        Update: Partial<JobDocumentInsert>;        Relationships: [] }
     }
     Views: Record<string, never>
     Functions: {
@@ -414,6 +426,7 @@ export type Webhook = Database['public']['Tables']['webhooks']['Row']
 export type PaymentLink = Database['public']['Tables']['payment_links']['Row']
 export type WebhookDelivery = Database['public']['Tables']['webhook_deliveries']['Row']
 export type NfRequest = Database['public']['Tables']['nf_requests']['Row']
+export type JobDocument = Database['public']['Tables']['job_documents']['Row']
 
 // ─── Composite Types (matching actual query shapes) ───────────────────────────
 

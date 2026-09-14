@@ -97,7 +97,7 @@ export function JobsClient({ jobs, jobsCount, clients }: Props) {
             <CardContent className="py-4 px-5 flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold">{job.name}</span>
+                  <Link href={`/jobs/${job.id}`} className="font-semibold hover:underline">{job.name}</Link>
                   <Badge variant={statusVariant[job.status] ?? "outline"}>
                     {JOB_STATUS_LABELS[job.status]}
                   </Badge>
@@ -129,9 +129,9 @@ export function JobsClient({ jobs, jobsCount, clients }: Props) {
                   </>
                 )}
               </div>
-              <JobDialog clients={clients} job={job as never} mode="edit">
-                <Button variant="ghost" size="sm">Editar</Button>
-              </JobDialog>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={`/jobs/${job.id}`}>Abrir</Link>
+              </Button>
             </CardContent>
           </Card>
         ))}
