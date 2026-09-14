@@ -28,7 +28,7 @@ export interface JobSummary {
   nfTo: string | null
 }
 
-export type SortKey = "tomador" | "marca" | "job" | "contract" | "total" | "start" | "end" | "nf"
+export type SortKey = "tomador" | "marca" | "job" | "contract" | "rate" | "total" | "start" | "end" | "nf"
 
 export interface SortableRow {
   tomador: string
@@ -37,6 +37,8 @@ export interface SortableRow {
   job: string
   /** What the job was contracted for, apart from what has been invoiced. */
   contract: number
+  /** The rate the job charges by — per hour, per day, or the closed project price. */
+  rate: number
   amount: number
   start: string | null
   end: string | null
@@ -51,6 +53,7 @@ export function compareRows(a: SortableRow, b: SortableRow, key: SortKey, dir: "
   const flip = dir === "asc" ? 1 : -1
   if (key === "total") return (a.amount - b.amount) * flip
   if (key === "contract") return (a.contract - b.contract) * flip
+  if (key === "rate") return (a.rate - b.rate) * flip
   if (key === "tomador" || key === "job" || key === "marca") {
     // an unrecorded brand sorts last either way, like a missing date
     if (!a[key] && !b[key]) return 0

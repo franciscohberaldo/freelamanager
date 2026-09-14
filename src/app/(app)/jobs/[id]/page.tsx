@@ -62,7 +62,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
   return (
     <div className="p-6 space-y-6">
       <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
-        <Link href="/jobs"><ArrowLeft className="w-4 h-4" />Jobs</Link>
+        <Link href="/historico"><ArrowLeft className="w-4 h-4" />Histórico</Link>
       </Button>
 
       <div className="flex items-start gap-4">

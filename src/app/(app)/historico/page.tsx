@@ -1,9 +1,18 @@
 import { createClient } from "@/lib/supabase/server"
 import { JobHistory, type HistoryJob } from "./job-history"
+import { JobDialog } from "../jobs/job-dialog"
+import { Button } from "@/components/ui/button"
+import { Plus } from "lucide-react"
 
 export default async function HistoricoPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  const { data: clients } = await supabase
+    .from("clients")
+    .select("id, name")
+    .eq("user_id", user!.id)
+    .order("name")
 
   const { data: history } = await supabase
     .from("jobs")
@@ -15,11 +24,19 @@ export default async function HistoricoPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Histórico de jobs</h1>
-        <p className="text-muted-foreground text-sm">
-          {jobs.length} jobs com datas, faturamento e notas fiscais
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Histórico de jobs</h1>
+          <p className="text-muted-foreground text-sm">
+            {jobs.length} jobs com datas, faturamento e notas fiscais
+          </p>
+        </div>
+        <JobDialog clients={clients ?? []} mode="create">
+          <Button>
+            <Plus className="w-4 h-4" />
+            Novo Job
+          </Button>
+        </JobDialog>
       </div>
 
       <JobHistory jobs={jobs} />

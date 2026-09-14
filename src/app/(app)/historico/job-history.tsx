@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatCurrency, formatDate, JOB_STATUS_LABELS } from "@/lib/utils"
+import { rateOf, rateLabel } from "@/lib/billing-mode"
+import { workHoursInLocal } from "@/lib/timezone"
 import {
   summarizeJob, compareRows, BILLING_STATUS_LABELS,
   type BillingStatus, type HistoryInvoice, type SortKey, type JobSummary,
@@ -122,6 +124,22 @@ const BASE_COLUMNS: Column[] = [
       : formatCurrency(job.contract_value, job.currency),
   },
   {
+    key: "code", label: "Código",
+    cell: ({ job }) => job.project_code
+      ? <span className="font-mono text-xs">{job.project_code}</span>
+      : dash,
+  },
+  {
+    key: "rate", label: "Valor", sortKey: "rate", align: "right", nowrap: true,
+    title: "Quanto o job cobra: por hora, por dia, ou o preço fechado do projeto",
+    cell: ({ job }) => (
+      <>
+        {formatCurrency(rateOf(job), job.currency)}
+        <span className="text-muted-foreground">{rateLabel(job.billing_mode)}</span>
+      </>
+    ),
+  },
+  {
     key: "total", label: "Total", sortKey: "total", align: "right", nowrap: true,
     title: "Ordena pelo número, sem converter moeda",
     cell: ({ summary }) => summary.totals.length === 0
@@ -137,15 +155,29 @@ const BASE_COLUMNS: Column[] = [
     cell: ({ summary }) => summary.end ? formatDate(summary.end) : "—",
   },
   {
+    key: "hours", label: "Horário", nowrap: true,
+    title: "Horário de trabalho do cliente, convertido para o seu fuso",
+    cell: ({ job }) => {
+      const h = workHoursInLocal(job.work_hours, job.timezone)
+      return h ? <span title={`${h.remoteLabel} = ${h.localLabel}`}>{h.localLabel}</span> : dash
+    },
+  },
+  {
     key: "nf_issued", label: "Emissão NF", sortKey: "nf", nowrap: true,
     cell: ({ summary }) => nfIssuedLabel(summary),
   },
   {
     key: "status", label: "Status do job",
     cell: ({ job }) => (
-      <Badge variant={jobStatusVariant[job.status] ?? "outline"}>
-        {JOB_STATUS_LABELS[job.status] ?? job.status}
-      </Badge>
+      <span className="inline-flex flex-wrap items-center gap-1">
+        <Badge variant={jobStatusVariant[job.status] ?? "outline"}>
+          {JOB_STATUS_LABELS[job.status] ?? job.status}
+        </Badge>
+        {job.is_recurring && <Badge variant="outline">Recorrente</Badge>}
+        {job.is_confidential && (
+          <Badge variant="destructive" title="Confidencial: não divulgar o trabalho">NDA</Badge>
+        )}
+      </span>
     ),
   },
   {
@@ -239,6 +271,7 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
           marca: j.end_client ?? "",
           job: j.name,
           contract: j.contract_value ?? 0,
+          rate: rateOf(j),
           amount: summary.totals[0]?.amount ?? 0,
           start: summary.start,
           end: summary.end,

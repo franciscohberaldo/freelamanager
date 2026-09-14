@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   BarChart3, Briefcase, CalendarDays, Calculator, ClipboardList,
-  FileText, History, LayoutDashboard, LogOut, Moon, Receipt, Search, Settings,
+  FileText, LayoutDashboard, LogOut, Moon, Receipt, Search, Settings,
   Sun, TrendingUp, Users, Wallet,
 } from "lucide-react"
 import { useTheme } from "next-themes"
@@ -19,8 +19,8 @@ import { CommandPalette } from "@/components/command-palette"
 const navItems = [
   { href: "/dashboard", label: "Dashboard",      icon: LayoutDashboard },
   { href: "/logs",      label: "Tracking Diário", icon: ClipboardList },
-  { href: "/jobs",      label: "Jobs",            icon: Briefcase },
-  { href: "/historico", label: "Histórico",       icon: History },
+  // a job's detail page still lives under /jobs, so the entry lights up for it too
+  { href: "/historico", label: "Jobs",            icon: Briefcase, alias: "/jobs" },
   { href: "/clients",   label: "Clientes",        icon: Users },
   { href: "/invoices",  label: "Invoices",        icon: FileText },
   { href: "/notas-fiscais", label: "Notas fiscais", icon: Receipt },
@@ -30,6 +30,9 @@ const navItems = [
   { href: "/reports",   label: "Relatórios",      icon: TrendingUp },
   { href: "/settings",  label: "Configurações",   icon: Settings },
 ]
+
+const isActive = (pathname: string, href: string) =>
+  pathname === href || pathname.startsWith(href + "/")
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -81,7 +84,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {navItems.map(({ href, label, icon: Icon, alias }) => {
           const badgeCount =
             href === "/invoices" ? overdueInvoices :
             href === "/clients" ? stalledDeals : 0
@@ -92,7 +95,7 @@ export function Sidebar() {
               href={href}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-                pathname === href || pathname.startsWith(href + "/")
+                isActive(pathname, href) || (!!alias && isActive(pathname, alias))
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
               )}

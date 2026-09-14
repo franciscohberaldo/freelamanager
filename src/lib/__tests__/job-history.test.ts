@@ -148,7 +148,7 @@ describe("summarizeJob dates", () => {
 })
 
 describe("compareRows", () => {
-  const row = (o: Partial<SortableRow> = {}): SortableRow => ({ tomador: "A", marca: "A", job: "A", contract: 0, amount: 0, start: "2020-01-01", end: "2020-01-01", nf: "2020-01-01", ...o })
+  const row = (o: Partial<SortableRow> = {}): SortableRow => ({ tomador: "A", marca: "A", job: "A", contract: 0, rate: 0, amount: 0, start: "2020-01-01", end: "2020-01-01", nf: "2020-01-01", ...o })
 
   it("orders text case-insensitively", () => {
     expect(compareRows(row({ job: "amazon" }), row({ job: "Boticario" }), "job", "asc")).toBeLessThan(0)
@@ -165,6 +165,7 @@ describe("compareRows", () => {
     expect(compareRows(row({ amount: 9000 }), row({ amount: 10000 }), "total", "asc")).toBeLessThan(0)
     expect(compareRows(row({ contract: 9000 }), row({ contract: 10000 }), "contract", "asc")).toBeLessThan(0)
     expect(compareRows(row({ contract: 9000 }), row({ contract: 10000 }), "contract", "desc")).toBeGreaterThan(0)
+    expect(compareRows(row({ rate: 150 }), row({ rate: 1200 }), "rate", "asc")).toBeLessThan(0)
   })
 
   it("orders dates chronologically", () => {
