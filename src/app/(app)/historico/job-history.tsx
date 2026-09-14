@@ -301,17 +301,14 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
         </Select>
       </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">
-          {visible.length} de {rows.length} jobs · clique no cabeçalho para ordenar, arraste para reposicionar
-        </p>
-        {reordered && (
+      {reordered && (
+        <div className="flex justify-end">
           <Button variant="ghost" size="sm" onClick={resetOrder}>
             <RotateCcw className="w-3 h-3" />
             Restaurar ordem
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="rounded-md border overflow-x-auto">
         <table className="w-full text-sm">
