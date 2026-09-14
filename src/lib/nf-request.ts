@@ -1,51 +1,44 @@
 export type NfRequestInput = {
-  seqNumber: string
   clientName: string
   legalName: string | null
-  cnpj: string | null
+  /** Printed as it is stored, line breaks and all, so it reads like an address. */
   address: string | null
+  cnpj: string | null
+  stateRegistration: string | null
   nfDescription: string | null
+  poNumber: string | null
   amountBrl: number
   dueDate: string | null
   nfRules: string | null
-  accountantName: string | null
-  provider: {
-    legalName: string | null
-    cnpj: string | null
-    bankName: string | null
-    bankAgency?: string | null
-    bankAccount: string | null
-    pixKey: string | null
-  }
-  invoicePdfUrl: string | null
 }
 
-const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v).replace(/\u00a0/g, " ")
+const brl = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v).replace(/\u00a0/g, " ")
+
 const dmy = (iso: string) => { const [y, m, d] = iso.slice(0, 10).split("-"); return `${d}/${m}/${y}` }
 
-/** Plain-text e-mail asking the accountant to issue the NF for one invoice. */
+/**
+ * The e-mail asking the accountant to issue the NF, in the shape the accountant already
+ * reads: who the tomador is, what to charge and when, then the text that goes into the
+ * note itself — description, PO and due date, which the NF has to carry.
+ */
 export function buildNfRequest(i: NfRequestInput): { subject: string; body: string } {
-  const subject = `Pedido de NF — Invoice ${i.seqNumber} — ${i.clientName}`
   const lines: string[] = []
-  lines.push(i.accountantName ? `Olá ${i.accountantName},` : "Olá,")
-  lines.push("", `Por favor, emitir a nota fiscal referente à invoice ${i.seqNumber}.`, "")
-  lines.push("TOMADOR")
-  lines.push(`Tomador: ${i.legalName ?? i.clientName}`)
-  if (i.cnpj) lines.push(`CNPJ: ${i.cnpj}`)
-  if (i.address) lines.push(`Endereço: ${i.address}`)
-  lines.push("", "SERVIÇO")
-  lines.push(`Descrição: ${i.nfDescription ?? "(preencher)"}`)
-  lines.push(`Valor: ${brl(i.amountBrl)}`)
+
+  lines.push(i.legalName ?? i.clientName)
+  if (i.address) lines.push(i.address)
+  if (i.cnpj) lines.push(`CNPJ nº ${i.cnpj}`)
+  // most tomadores of a service are exempt, and that is what the note must say
+  lines.push(`IE: ${i.stateRegistration?.trim() || "Isenta"}`)
+
+  lines.push("", `Valor: ${brl(i.amountBrl)}`)
   if (i.dueDate) lines.push(`Vencimento: ${dmy(i.dueDate)}`)
-  lines.push("", "DADOS BANCÁRIOS DO PRESTADOR (para constar na NF)")
-  if (i.provider.legalName) lines.push(`Empresa: ${i.provider.legalName}`)
-  if (i.provider.cnpj) lines.push(`CNPJ: ${i.provider.cnpj}`)
-  if (i.provider.bankName) lines.push(`Banco: ${i.provider.bankName}`)
-  if (i.provider.bankAgency) lines.push(`Agência: ${i.provider.bankAgency}`)
-  if (i.provider.bankAccount) lines.push(`Conta: ${i.provider.bankAccount}`)
-  if (i.provider.pixKey) lines.push(`PIX: ${i.provider.pixKey}`)
-  if (i.nfRules) lines.push("", "REGRAS DO CLIENTE", i.nfRules)
-  if (i.invoicePdfUrl) lines.push("", `Invoice (PDF): ${i.invoicePdfUrl}`)
-  lines.push("", "Obrigado!")
-  return { subject, body: lines.join("\n") }
+
+  lines.push("", "Descrição:", i.nfDescription?.trim() || "(preencher)")
+  if (i.poNumber) lines.push(`"Número de PO: ${i.poNumber}"`)
+  if (i.dueDate) lines.push(`Data de vencimento: ${dmy(i.dueDate)}`)
+
+  if (i.nfRules?.trim()) lines.push("", "Observações:", i.nfRules.trim())
+
+  return { subject: "Emissão de NF", body: lines.join("\n") }
 }

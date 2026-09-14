@@ -11,13 +11,13 @@ export type Json =
 type ClientRow = {
   id: string; user_id: string; name: string; company: string | null; email: string | null;
   phone: string | null; notes: string | null; score: number | null; created_at: string; updated_at: string;
-  legal_name: string | null; cnpj: string | null; address: string | null;
+  legal_name: string | null; cnpj: string | null; state_registration: string | null; address: string | null;
   billing_entity: string | null; billing_address: string | null; nf_rules: string | null
 }
 type ClientInsert = {
   user_id: string; name: string; company?: string | null; email?: string | null;
   phone?: string | null; notes?: string | null; score?: number | null;
-  legal_name?: string | null; cnpj?: string | null; address?: string | null;
+  legal_name?: string | null; cnpj?: string | null; state_registration?: string | null; address?: string | null;
   billing_entity?: string | null; billing_address?: string | null; nf_rules?: string | null
 }
 

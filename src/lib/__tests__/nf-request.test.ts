@@ -2,35 +2,57 @@ import { describe, it, expect } from "vitest"
 import { buildNfRequest } from "@/lib/nf-request"
 
 const base = {
-  seqNumber: "0102", clientName: "Lobo", legalName: "Videographica Serviços e Participações Ltda",
-  cnpj: "61.372.843/0001-03", address: "Rua Joaquim Floriano, 913 8º andar - Itaim Bibi, 04534-013 São Paulo SP",
-  nfDescription: "Serviços prestados de animação", amountBrl: 19200, dueDate: "2025-04-25",
-  nfRules: "Não mencionar nomes de jobs.", accountantName: "Ronaldo",
-  provider: { legalName: "Estúdio Judite Ltda", cnpj: "11.241.505/0001-64", bankName: "Banco Inter", bankAgency: "0001", bankAccount: "24188764-0", pixKey: null },
-  invoicePdfUrl: "https://app/api/invoices/pdf?id=abc",
+  clientName: "R/GA",
+  legalName: "R/GA Media Group Publicidade Ltda",
+  address: "Av. Manuel Bandeira, 360\nCEP: 05317-020 – Vila Leopoldina – São Paulo",
+  cnpj: "39.937.180/0001-78",
+  stateRegistration: null,
+  nfDescription: "Serviços de Motion Design",
+  poNumber: "3001630",
+  amountBrl: 15000,
+  dueDate: "2026-05-30",
+  nfRules: null,
 }
 
 describe("buildNfRequest", () => {
-  it("subject carries seq and client", () => {
-    expect(buildNfRequest(base).subject).toBe("Pedido de NF — Invoice 0102 — Lobo")
+  it("is the e-mail the accountant already reads", () => {
+    const { subject, body } = buildNfRequest(base)
+    expect(subject).toBe("Emissão de NF")
+    expect(body).toBe([
+      "R/GA Media Group Publicidade Ltda",
+      "Av. Manuel Bandeira, 360",
+      "CEP: 05317-020 – Vila Leopoldina – São Paulo",
+      "CNPJ nº 39.937.180/0001-78",
+      "IE: Isenta",
+      "",
+      "Valor: R$ 15.000,00",
+      "Vencimento: 30/05/2026",
+      "",
+      "Descrição:",
+      "Serviços de Motion Design",
+      `"Número de PO: 3001630"`,
+      "Data de vencimento: 30/05/2026",
+    ].join("\n"))
   })
-  it("body has tomador, description, value, due date, bank and rules", () => {
-    const { body } = buildNfRequest(base)
-    expect(body).toContain("Videographica Serviços e Participações Ltda")
-    expect(body).toContain("CNPJ: 61.372.843/0001-03")
-    expect(body).toContain("Descrição: Serviços prestados de animação")
-    expect(body).toContain("Valor: R$ 19.200,00")
-    expect(body).toContain("Vencimento: 25/04/2025")
-    expect(body).toContain("Banco: Banco Inter")
-    expect(body).toContain("Não mencionar nomes de jobs.")
-    expect(body).toContain("https://app/api/invoices/pdf?id=abc")
-    expect(body.startsWith("Olá Ronaldo,")).toBe(true)
+
+  it("prints the state registration when the tomador has one", () => {
+    expect(buildNfRequest({ ...base, stateRegistration: "123.456.789.000" }).body)
+      .toContain("IE: 123.456.789.000")
   })
-  it("falls back gracefully when optional fields are missing", () => {
-    const { body } = buildNfRequest({ ...base, legalName: null, cnpj: null, address: null, dueDate: null, nfRules: null, accountantName: null, invoicePdfUrl: null, nfDescription: null })
-    expect(body.startsWith("Olá,")).toBe(true)
-    expect(body).toContain("Tomador: Lobo")
-    expect(body).toContain("Descrição: (preencher)")
-    expect(body).not.toContain("Vencimento:")
+
+  it("adds the client's rules at the end", () => {
+    expect(buildNfRequest({ ...base, nfRules: "Não mencionar nomes de jobs." }).body)
+      .toContain("Observações:\nNão mencionar nomes de jobs.")
+  })
+
+  it("leaves out what the job has not filled in", () => {
+    const { body } = buildNfRequest({
+      ...base, legalName: null, address: null, cnpj: null, poNumber: null,
+      dueDate: null, nfDescription: null,
+    })
+    expect(body.startsWith("R/GA\nIE: Isenta")).toBe(true)
+    expect(body).toContain("Descrição:\n(preencher)")
+    expect(body).not.toContain("Vencimento")
+    expect(body).not.toContain("PO")
   })
 })

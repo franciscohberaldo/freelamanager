@@ -26,12 +26,17 @@ interface Props {
     notes: string | null
     legal_name?: string | null
     cnpj?: string | null
+    state_registration?: string | null
     address?: string | null
     billing_entity?: string | null
     billing_address?: string | null
     nf_rules?: string | null
   }
 }
+
+/** Two lines, because that is how the address reaches the accountant. */
+const ADDRESS_PLACEHOLDER =
+  "Av. Manuel Bandeira, 360\nCEP: 05317-020 – Vila Leopoldina – São Paulo"
 
 export function ClientDialog({ children, mode, client }: Props) {
   const [open, setOpen] = useState(false)
@@ -47,6 +52,7 @@ export function ClientDialog({ children, mode, client }: Props) {
     notes:   client?.notes ?? "",
     legal_name:      client?.legal_name ?? "",
     cnpj:            client?.cnpj ?? "",
+    state_registration: client?.state_registration ?? "",
     address:         client?.address ?? "",
     billing_entity:  client?.billing_entity ?? "",
     billing_address: client?.billing_address ?? "",
@@ -106,6 +112,7 @@ export function ClientDialog({ children, mode, client }: Props) {
       notes:   form.notes || null,
       legal_name:      normalizeName(form.legal_name) || null,
       cnpj:            form.cnpj || null,
+      state_registration: form.state_registration.trim() || null,
       address:         form.address || null,
       billing_entity:  normalizeName(form.billing_entity) || null,
       billing_address: form.billing_address || null,
@@ -186,13 +193,27 @@ export function ClientDialog({ children, mode, client }: Props) {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Entidade de cobrança (bill to)</Label>
-                <Input value={form.billing_entity} onChange={(e) => update("billing_entity", e.target.value)} />
+                <Label>Inscrição estadual</Label>
+                <Input
+                  value={form.state_registration}
+                  onChange={(e) => update("state_registration", e.target.value)}
+                  placeholder="Isenta"
+                />
               </div>
             </div>
             <div className="space-y-2">
+              <Label>Entidade de cobrança (bill to)</Label>
+              <Input value={form.billing_entity} onChange={(e) => update("billing_entity", e.target.value)} />
+            </div>
+            <div className="space-y-2">
               <Label>Endereço fiscal</Label>
-              <Input value={form.address} onChange={(e) => update("address", e.target.value)} placeholder="Rua, nº, andar, bairro, CEP, cidade, UF" />
+              <Textarea
+                value={form.address}
+                onChange={(e) => update("address", e.target.value)}
+                rows={2}
+                placeholder={ADDRESS_PLACEHOLDER}
+              />
+              <p className="text-xs text-muted-foreground">Sai assim, linha por linha, no pedido de NF ao contador.</p>
             </div>
             <div className="space-y-2">
               <Label>Endereço de cobrança (se diferente)</Label>
