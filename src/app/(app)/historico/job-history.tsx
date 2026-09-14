@@ -68,22 +68,32 @@ type Column = {
 
 const dash = <span className="text-muted-foreground">—</span>
 
+/**
+ * Two lines are enough to recognise a value, and a third pushes every row taller — the
+ * full text stays in the tooltip. Used by the columns whose content is a name.
+ */
+function Clamped({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <span className="line-clamp-2 max-w-[15rem]" title={title}>{children}</span>
+  )
+}
+
 const BASE_COLUMNS: Column[] = [
   {
     key: "tomador", label: "Tomador", sortKey: "tomador",
-    cell: ({ job }) => {
-      const full = tomador(job) + (job.intermediary ? ` · via ${job.intermediary}` : "")
-      // A razão social completa passa de três linhas e empurra a tabela inteira; duas
-      // linhas bastam para reconhecer o cliente, e o title guarda o resto.
-      return (
-        <span className="line-clamp-2 max-w-[15rem]" title={full}>
-          {tomador(job)}
-          {job.intermediary && <span className="text-muted-foreground"> · via {job.intermediary}</span>}
-        </span>
-      )
-    },
+    cell: ({ job }) => (
+      <Clamped title={tomador(job) + (job.intermediary ? ` · via ${job.intermediary}` : "")}>
+        {tomador(job)}
+        {job.intermediary && <span className="text-muted-foreground"> · via {job.intermediary}</span>}
+      </Clamped>
+    ),
   },
-  { key: "marca", label: "Marca", sortKey: "marca", cell: ({ job }) => job.end_client || dash },
+  {
+    key: "marca", label: "Marca", sortKey: "marca",
+    cell: ({ job }) => job.end_client
+      ? <Clamped title={job.end_client}>{job.end_client}</Clamped>
+      : dash,
+  },
   {
     key: "thumb", label: "Thumb",
     cell: ({ job }) => (
@@ -98,7 +108,9 @@ const BASE_COLUMNS: Column[] = [
   {
     key: "job", label: "Job", sortKey: "job",
     cell: ({ job }) => (
-      <Link href={`/jobs/${job.id}`} className="hover:underline">{job.name}</Link>
+      <Clamped title={job.name}>
+        <Link href={`/jobs/${job.id}`} className="hover:underline">{job.name}</Link>
+      </Clamped>
     ),
   },
   {
