@@ -15,7 +15,7 @@ import {
   DOCUMENT_KINDS, DOCUMENT_LABELS, DOCUMENT_SHORT_LABELS, type DocumentKind,
 } from "@/lib/job-documents"
 import {
-  ArrowDown, ArrowUp, ChevronsUpDown, GripVertical, Image as ImageIcon,
+  ArrowDown, ArrowUp, ArrowUpRight, ChevronsUpDown, GripVertical, Image as ImageIcon,
   Paperclip, RotateCcw,
 } from "lucide-react"
 import { AttachedCheck, NotAttached } from "@/components/attached-check"
@@ -107,9 +107,13 @@ const BASE_COLUMNS: Column[] = [
   },
   {
     key: "job", label: "Job", sortKey: "job",
+    // the arrow carries the "open the job" affordance the row used to spell out at its far end
     cell: ({ job }) => (
       <Clamped title={job.name}>
-        <Link href={`/jobs/${job.id}`} className="hover:underline">{job.name}</Link>
+        <Link href={`/jobs/${job.id}`} className="hover:underline" title="Abrir o job">
+          {job.name}
+          <ArrowUpRight className="ml-0.5 inline w-3.5 h-3.5 shrink-0 align-text-top text-muted-foreground" />
+        </Link>
       </Clamped>
     ),
   },
@@ -179,16 +183,6 @@ const DOCUMENT_COLUMNS: Column[] = DOCUMENT_KINDS.map(kind => ({
 const COLUMNS = [...BASE_COLUMNS, ...DOCUMENT_COLUMNS]
 
 const DEFAULT_ORDER = COLUMNS.map(c => c.key)
-
-/**
- * The table scrolls sideways past two dozen columns, so the action that opens the job is
- * pinned to the right edge instead of waiting at the end of the scroll. Its lines are drawn
- * as inset shadows because a sticky cell paints over the table's collapsed borders — the
- * header keeps only the left divider, each row also redraws the rule above it.
- */
-const STICKY_ACTION = "sticky right-0 bg-background"
-const STICKY_ACTION_HEAD = `${STICKY_ACTION} z-20 shadow-[inset_1px_0_0_hsl(var(--border))]`
-const STICKY_ACTION_CELL = `${STICKY_ACTION} z-10 shadow-[inset_1px_0_0_hsl(var(--border)),inset_0_1px_0_hsl(var(--border))]`
 
 const alignClass = (align: Column["align"]) =>
   align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left"
@@ -355,7 +349,6 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
                   </span>
                 </th>
               ))}
-              <th className={`p-2 before:absolute before:inset-0 before:bg-muted/40 ${STICKY_ACTION_HEAD}`} />
             </tr>
           </thead>
           <tbody>
@@ -369,16 +362,11 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
                     {c.cell(row)}
                   </td>
                 ))}
-                <td className={`p-2 text-right ${STICKY_ACTION_CELL}`}>
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/jobs/${row.job.id}`}>Abrir</Link>
-                  </Button>
-                </td>
               </tr>
             ))}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={columns.length + 1} className="p-6 text-center text-muted-foreground">
+                <td colSpan={columns.length} className="p-6 text-center text-muted-foreground">
                   Nenhum job nesse filtro.
                 </td>
               </tr>
