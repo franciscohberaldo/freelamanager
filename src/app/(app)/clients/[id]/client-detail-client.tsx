@@ -188,7 +188,12 @@ export function ClientDetailClient({ client, interactions, jobs, invoices, porta
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <CardTitle className="text-sm">Contato</CardTitle>
-              <ContactsDialog clientId={client.id} contacts={client.client_contacts ?? []}>
+              <ContactsDialog
+                clientId={client.id}
+                clientEmail={client.email}
+                clientPhone={client.phone}
+                contacts={client.client_contacts ?? []}
+              >
                 <Button variant="ghost" size="sm" className="-mr-2 text-muted-foreground">
                   <Pencil className="w-3.5 h-3.5" />
                   Editar

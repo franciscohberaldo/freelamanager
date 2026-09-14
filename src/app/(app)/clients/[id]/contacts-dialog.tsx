@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { normalizeName } from "@/lib/text-case"
+import { parseEmails, validateEmailList } from "@/lib/emails"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,10 +42,18 @@ const toDraft = (c: ContactRow): Draft => ({
 const blank = (): Draft => ({ name: "", role: "", email: "", phone: "", cc_invoices: false })
 
 export function ContactsDialog({
-  clientId, contacts, children,
-}: { clientId: string; contacts: ContactRow[]; children: React.ReactNode }) {
+  clientId, clientEmail, clientPhone, contacts, children,
+}: {
+  clientId: string
+  clientEmail: string | null
+  clientPhone: string | null
+  contacts: ContactRow[]
+  children: React.ReactNode
+}) {
   const [open, setOpen] = useState(false)
   const [rows, setRows] = useState<Draft[]>(contacts.map(toDraft))
+  const [email, setEmail] = useState(clientEmail ?? "")
+  const [phone, setPhone] = useState(clientPhone ?? "")
   const [removed, setRemoved] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const router = useRouter()
@@ -52,7 +61,12 @@ export function ContactsDialog({
 
   // Reopening starts from what is on the server, not from a half-finished edit.
   function onOpenChange(next: boolean) {
-    if (next) { setRows(contacts.map(toDraft)); setRemoved([]) }
+    if (next) {
+      setRows(contacts.map(toDraft))
+      setEmail(clientEmail ?? "")
+      setPhone(clientPhone ?? "")
+      setRemoved([])
+    }
     setOpen(next)
   }
 
@@ -66,12 +80,24 @@ export function ContactsDialog({
   }
 
   async function save() {
+    const emailCheck = validateEmailList(email)
+    if (!emailCheck.ok) { toast.error(emailCheck.error); return }
+
     const named = rows.filter(r => r.name.trim())
     if (named.length !== rows.length) { toast.error("Todo contato precisa de um nome"); return }
     const ccNoEmail = named.find(r => r.cc_invoices && !r.email.trim())
     if (ccNoEmail) { toast.error(`${ccNoEmail.name} está marcado para cópia mas não tem e-mail`); return }
 
     setSaving(true)
+
+    // The card shows the client's own address and its people together, so one button
+    // saves both — otherwise the top half of the card looks editable and is not.
+    const { error: clientError } = await supabase.from("clients").update({
+      email: parseEmails(email).join(", ") || null,
+      phone: phone.trim() || null,
+    }).eq("id", clientId)
+    if (clientError) { toast.error("Erro ao salvar o e-mail do cliente"); setSaving(false); return }
+
     const payload = (r: Draft) => ({
       client_id: clientId,
       name: normalizeName(r.name.trim()),
@@ -98,7 +124,7 @@ export function ContactsDialog({
       if (error) { toast.error("Erro ao criar contato"); setSaving(false); return }
     }
 
-    toast.success("Contatos salvos")
+    toast.success("Contato salvo")
     setSaving(false)
     setOpen(false)
     router.refresh()
@@ -109,10 +135,32 @@ export function ContactsDialog({
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Contatos do cliente</DialogTitle>
+          <DialogTitle>Contato do cliente</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
+          <div className="rounded-md border p-3 space-y-3">
+            <p className="text-xs font-medium text-muted-foreground">Dados do cliente</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">E-mail</Label>
+                <Input
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="email@empresa.com, outro@empresa.com"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Vários separados por vírgula. O primeiro recebe a invoice.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Telefone</Label>
+                <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+55 11 99999-9999" />
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs font-medium text-muted-foreground pt-1">Pessoas</p>
           {rows.length === 0 && (
             <p className="text-sm text-muted-foreground py-4 text-center">
               Nenhum contato ainda. Adicione quem deve receber ou acompanhar as invoices.
