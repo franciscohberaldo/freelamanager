@@ -10,6 +10,7 @@ import { workHoursInLocal } from "@/lib/timezone"
 import { JobForm } from "../job-form"
 import { JobDocumentsPanel } from "./job-documents-panel"
 import { DOCUMENT_KINDS } from "@/lib/job-documents"
+import { rateOf, rateLabel } from "@/lib/billing-mode"
 import { ArrowLeft, FileText, Image as ImageIcon } from "lucide-react"
 import type { Job, JobDocument, Invoice, DailyLog } from "@/lib/supabase/types"
 
@@ -52,6 +53,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
 
   const client = typedJob.clients
   const perDay = typedJob.billing_mode === "daily"
+  const perProject = typedJob.billing_mode === "fixed"
   const localHours = workHoursInLocal(typedJob.work_hours, typedJob.timezone)
 
   const loggedHours = jobLogs.reduce((sum, l) => sum + (l.hours_billed ?? 0), 0)
@@ -87,9 +89,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
             {typedJob.end_client && ` · ${typedJob.end_client}`}
           </p>
           <p className="text-sm text-muted-foreground">
-            {perDay
-              ? `${formatCurrency(typedJob.daily_rate, typedJob.currency)}/dia`
-              : `${formatCurrency(typedJob.hourly_rate, typedJob.currency)}/h`}
+            {`${formatCurrency(rateOf(typedJob), typedJob.currency)}${rateLabel(typedJob.billing_mode)}`}
             {typedJob.start_date && ` · ${formatDate(typedJob.start_date)}`}
             {typedJob.end_date && ` – ${formatDate(typedJob.end_date)}`}
             {typedJob.project_code && ` · ${typedJob.project_code}`}
@@ -184,8 +184,17 @@ export default async function JobPage({ params }: { params: { id: string } }) {
             </Card>
             <Card>
               <CardContent className="py-4 px-5">
-                <p className="text-xs text-muted-foreground">Valor lançado</p>
-                <p className="text-xl font-semibold">{formatCurrency(loggedValue, typedJob.currency)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {perProject ? "Valor do projeto" : "Valor lançado"}
+                </p>
+                <p className="text-xl font-semibold">
+                  {formatCurrency(perProject ? (typedJob.contract_value ?? 0) : loggedValue, typedJob.currency)}
+                </p>
+                {perProject && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Preço fechado; as horas abaixo são só o tempo gasto.
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>

@@ -29,7 +29,7 @@ type JobRow = {
   hourly_rate: number; daily_rate: number; currency: 'BRL' | 'USD' | 'EUR';
   status: 'proposal' | 'active' | 'paused' | 'completed'; contract_value: number | null;
   start_date: string | null; end_date: string | null; is_recurring: boolean;
-  tax_rate: number; notes: string | null; billing_mode: 'hourly' | 'daily'; project_code: string | null;
+  tax_rate: number; notes: string | null; billing_mode: 'hourly' | 'daily' | 'fixed'; project_code: string | null;
   timezone: string | null; work_hours: string | null; is_confidential: boolean;
   end_client: string | null; intermediary: string | null; nf_description: string | null; po_number: string | null; thumbnail_url: string | null;
   created_at: string; updated_at: string
@@ -39,7 +39,7 @@ type JobInsert = {
   hourly_rate: number; daily_rate: number; currency: 'BRL' | 'USD' | 'EUR';
   status: 'proposal' | 'active' | 'paused' | 'completed'; contract_value?: number | null;
   start_date?: string | null; end_date?: string | null; is_recurring: boolean;
-  tax_rate: number; notes?: string | null; billing_mode?: 'hourly' | 'daily'; project_code?: string | null;
+  tax_rate: number; notes?: string | null; billing_mode?: 'hourly' | 'daily' | 'fixed'; project_code?: string | null;
   timezone?: string | null; work_hours?: string | null; is_confidential?: boolean;
   end_client?: string | null; intermediary?: string | null; nf_description?: string | null; po_number?: string | null; thumbnail_url?: string | null
 }
@@ -80,8 +80,8 @@ type InvoiceInsert = {
   nf_amount_brl?: number | null; nf_requested_at?: string | null; nf_sent_at?: string | null
 }
 
-type InvoiceItemRow = { id: string; invoice_id: string; log_id: string | null; date: string; description: string | null; hours_billed: number; rate: number; subtotal: number; quantity: number | null; unit: 'hour' | 'day' | null; job_number: string | null; is_manual: boolean }
-type InvoiceItemInsert = { invoice_id: string; log_id?: string | null; date: string; description?: string | null; hours_billed: number; rate: number; subtotal: number; quantity?: number | null; unit?: 'hour' | 'day' | null; job_number?: string | null; is_manual?: boolean }
+type InvoiceItemRow = { id: string; invoice_id: string; log_id: string | null; date: string; description: string | null; hours_billed: number; rate: number; subtotal: number; quantity: number | null; unit: 'hour' | 'day' | 'project' | null; job_number: string | null; is_manual: boolean }
+type InvoiceItemInsert = { invoice_id: string; log_id?: string | null; date: string; description?: string | null; hours_billed: number; rate: number; subtotal: number; quantity?: number | null; unit?: 'hour' | 'day' | 'project' | null; job_number?: string | null; is_manual?: boolean }
 
 type AgendaEventRow = {
   id: string; user_id: string; job_id: string | null; title: string;

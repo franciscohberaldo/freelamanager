@@ -1,5 +1,5 @@
 export type InvoiceLang = "pt" | "en"
-export type BillingUnit = "hour" | "day"
+export type BillingUnit = "hour" | "day" | "project"
 
 /** Intl locale and date-fns pattern per invoice language */
 export const invoiceLocale: Record<InvoiceLang, { intl: string; dateFormat: string }> = {
@@ -22,6 +22,11 @@ export const invoiceT = {
     tableDate:     "Data",
     tableBilled:   "Horas faturadas",
     tableBilledDays: "Dias faturados",
+    tableBilledProject: "Quantidade",
+    tableRateProject: "Valor",
+    emailProject:  "Qtd",
+    emailRateProject: "Valor",
+    projectUnit:   "projeto",
     tableRate:     "Taxa/h",
     tableRateDay:  "Taxa/dia",
     tableSubtotal: "Subtotal",
@@ -73,6 +78,11 @@ export const invoiceT = {
     tableDate:     "Date",
     tableBilled:   "Billed Hours",
     tableBilledDays: "Billed Days",
+    tableBilledProject: "Quantity",
+    tableRateProject: "Amount",
+    emailProject:  "Qty",
+    emailRateProject: "Amount",
+    projectUnit:   "project",
     tableRate:     "Rate/h",
     tableRateDay:  "Rate/day",
     tableSubtotal: "Subtotal",
@@ -118,6 +128,11 @@ export function formatInvoiceCurrency(value: number, currency: string, lang: Inv
 
 /** Quantity label for a line item: "8h" or "1 day" / "1,5 dia" */
 export function formatQuantity(quantity: number, unit: BillingUnit, lang: InvoiceLang): string {
+  // A closed price prints as the thing bought, not as a measure of time.
+  if (unit === "project") {
+    const one = quantity === 1
+    return `${quantity} ${lang === "en" ? (one ? "project" : "projects") : (one ? "projeto" : "projetos")}`
+  }
   if (unit === "day") {
     const n = new Intl.NumberFormat(invoiceLocale[lang].intl, { maximumFractionDigits: 2 }).format(quantity)
     return `${n} ${lang === "en" ? (quantity === 1 ? "day" : "days") : (quantity === 1 ? "dia" : "dias")}`

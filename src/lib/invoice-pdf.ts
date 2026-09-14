@@ -5,6 +5,7 @@ import {
   invoiceT, invoiceLocale, formatInvoiceCurrency, formatQuantity, HOURS_PER_DAY,
   type InvoiceLang, type BillingUnit,
 } from "@/lib/invoice-i18n"
+import type { BillingMode } from "@/lib/billing-mode"
 
 export function formatCurrencyPDF(value: number, currency: string = "BRL", lang: InvoiceLang = "pt"): string {
   return formatInvoiceCurrency(value, currency, lang)
@@ -80,7 +81,7 @@ export interface InvoicePDFParams {
     hourly_rate: number
     currency: string
     daily_rate?: number
-    billing_mode?: "hourly" | "daily"
+    billing_mode?: BillingMode
     project_code?: string | null
   } | null
   client: {
@@ -112,9 +113,11 @@ export interface InvoicePDFParams {
 /** Resolve the quantity/unit of a line item, falling back to hours for legacy items */
 export function resolveItemQuantity(
   item: { hours_billed: number; quantity?: number | null; unit?: BillingUnit | null },
-  billingMode: "hourly" | "daily" = "hourly",
+  billingMode: BillingMode = "hourly",
 ): { quantity: number; unit: BillingUnit } {
   if (item.unit && item.quantity != null) return { quantity: item.quantity, unit: item.unit }
+  // A project is one line whatever was logged against it.
+  if (billingMode === "fixed") return { quantity: 1, unit: "project" }
   if (billingMode === "daily") return { quantity: item.hours_billed / HOURS_PER_DAY, unit: "day" }
   return { quantity: item.hours_billed, unit: "hour" }
 }
@@ -154,6 +157,7 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
 
   const billingMode = job?.billing_mode ?? "hourly"
   const isDaily     = billingMode === "daily"
+  const isProject   = billingMode === "fixed"
 
   const accentColor = settings?.invoice_color ?? "#1e40af"
   const [r, g, b]   = hexToRgb(accentColor)
@@ -257,8 +261,11 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
     doc.text(`${t.purchaseOrder}: ${invoice.po_number}`, pageW / 2, serviceY)
     serviceY += 6
   }
-  const rateValue = isDaily ? (job?.daily_rate ?? 0) : (job?.hourly_rate ?? 0)
-  doc.text(`${t.rate}: ${cur(rateValue)}/${isDaily ? t.day : t.hour}`, pageW / 2, serviceY)
+  const rateValue = isProject ? (invoice.subtotal ?? 0) : isDaily ? (job?.daily_rate ?? 0) : (job?.hourly_rate ?? 0)
+  doc.text(
+    isProject ? `${t.rate}: ${cur(rateValue)}` : `${t.rate}: ${cur(rateValue)}/${isDaily ? t.day : t.hour}`,
+    pageW / 2, serviceY,
+  )
 
   const divY = Math.max(sectionY + 25, serviceY + 6, toY + 4)
   doc.setDrawColor(200, 200, 200)
@@ -266,7 +273,10 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
 
   autoTable(doc, {
     startY: divY + 7,
-    head: [[t.tableDate, t.tableDescription, isDaily ? t.tableBilledDays : t.tableBilled, isDaily ? t.tableRateDay : t.tableRate, t.tableSubtotal]],
+    head: [[t.tableDate, t.tableDescription,
+      isProject ? t.tableBilledProject : isDaily ? t.tableBilledDays : t.tableBilled,
+      isProject ? t.tableRateProject : isDaily ? t.tableRateDay : t.tableRate,
+      t.tableSubtotal]],
     body: items.map((item) => {
       if (item.is_manual) {
         const desc = [item.description, item.job_number ? `Job: ${item.job_number}` : null].filter(Boolean).join(" — ")
@@ -275,7 +285,7 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
       const q = resolveItemQuantity(item, billingMode)
       return [
         dt(item.date),
-        item.description ?? (isDaily ? t.day : t.hour),
+        item.description ?? (isProject ? t.projectUnit : isDaily ? t.day : t.hour),
         formatQuantity(q.quantity, q.unit, lang),
         cur(item.rate),
         cur(item.subtotal),

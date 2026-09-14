@@ -14,6 +14,7 @@ import { Loader2, AlertCircle } from "lucide-react"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { format, startOfMonth, endOfMonth } from "date-fns"
 import { HOURS_PER_DAY } from "@/lib/invoice-i18n"
+import { rateOf, type BillingMode } from "@/lib/billing-mode"
 import type { DailyLog } from "@/lib/supabase/types"
 import { initialNfStatus } from "@/lib/nf-status"
 
@@ -22,7 +23,7 @@ interface JobOption {
   name: string
   hourly_rate: number
   daily_rate: number
-  billing_mode?: "hourly" | "daily"
+  billing_mode?: BillingMode
   project_code?: string | null
   po_number?: string | null
   currency: string
@@ -60,8 +61,10 @@ export function CreateInvoiceDialog({
 
   const selectedJob = jobs.find((j) => j.id === jobId)
   const isDaily     = selectedJob?.billing_mode === "daily"
+  const isProject   = selectedJob?.billing_mode === "fixed"
+  const projectValue = rateOf(selectedJob ?? {})
   const toDays      = (hours: number) => Number((hours / HOURS_PER_DAY).toFixed(2))
-  const qtyLabel    = (hours: number) => isDaily ? `${toDays(hours)} ${toDays(hours) === 1 ? "dia" : "dias"}` : `${hours}h`
+  const qtyLabel    = (hours: number) => isDaily && !isProject ? `${toDays(hours)} ${toDays(hours) === 1 ? "dia" : "dias"}` : `${hours}h`
 
   async function fetchLogs() {
     if (!jobId) { toast.error("Selecione um job"); return }
@@ -82,7 +85,7 @@ export function CreateInvoiceDialog({
   }
 
   const totalHours = logs.reduce((s, l) => s + l.hours_billed, 0)
-  const subtotal = logs.reduce((s, l) => s + l.total_value, 0) + manualSubtotal
+  const subtotal = (isProject ? projectValue : logs.reduce((s, l) => s + l.total_value, 0)) + manualSubtotal
   const taxRate = selectedJob?.tax_rate ?? 0
   const taxAmount = subtotal * (taxRate / 100)
   const total = subtotal + taxAmount
@@ -128,8 +131,18 @@ export function CreateInvoiceDialog({
 
     if (invError || !invoice) { toast.error("Erro ao criar invoice"); setLoading(false); return }
 
-    // Insert items
-    const items = logs.map((l) => ({
+    // A project is one line at its closed price; the logs behind it are time, not money.
+    const items = isProject ? [{
+      invoice_id: invoice.id,
+      log_id: null,
+      date: periodEnd,
+      description: selectedJob!.name,
+      hours_billed: totalHours,
+      quantity: 1,
+      unit: "project" as const,
+      rate: projectValue,
+      subtotal: projectValue,
+    }] : logs.map((l) => ({
       invoice_id: invoice.id,
       log_id: l.id,
       date: l.date,
@@ -255,16 +268,30 @@ export function CreateInvoiceDialog({
                 </div>
               )}
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{isDaily ? "Taxa/dia" : "Taxa/hora"}</span>
-                <span>{formatCurrency(isDaily ? (selectedJob?.daily_rate ?? 0) : (selectedJob?.hourly_rate ?? 0), selectedJob?.currency)}</span>
+                <span className="text-muted-foreground">
+                  {isProject ? "Valor do projeto" : isDaily ? "Taxa/dia" : "Taxa/hora"}
+                </span>
+                <span>
+                  {formatCurrency(
+                    isProject ? projectValue : isDaily ? (selectedJob?.daily_rate ?? 0) : (selectedJob?.hourly_rate ?? 0),
+                    selectedJob?.currency,
+                  )}
+                </span>
               </div>
 
               <div className="border-t pt-3 space-y-2">
-                <p className="text-sm font-medium">Registros ({logs.length})</p>
+                <p className="text-sm font-medium">
+                  Registros ({logs.length})
+                  {isProject && (
+                    <span className="ml-1.5 font-normal text-xs text-muted-foreground">
+                      tempo gasto; a invoice sai com uma linha só
+                    </span>
+                  )}
+                </p>
                 {logs.map((l) => (
                   <div key={l.id} className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{formatDate(l.date)} · {qtyLabel(l.hours_billed)}</span>
-                    <span>{formatCurrency(l.total_value, selectedJob?.currency)}</span>
+                    <span>{isProject ? "—" : formatCurrency(l.total_value, selectedJob?.currency)}</span>
                   </div>
                 ))}
               </div>
@@ -283,7 +310,9 @@ export function CreateInvoiceDialog({
 
               <div className="border-t pt-3 space-y-1">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{isDaily ? "Total dias faturados" : "Total horas faturadas"}</span>
+                  <span className="text-muted-foreground">
+                    {isProject ? "Total de horas gastas" : isDaily ? "Total dias faturados" : "Total horas faturadas"}
+                  </span>
                   <span>{qtyLabel(totalHours)}</span>
                 </div>
                 <div className="flex justify-between text-sm">

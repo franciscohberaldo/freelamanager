@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { calculateTotal } from "@/lib/utils"
 import { roundHours } from "@/lib/csv"
 import { HOURS_PER_DAY } from "@/lib/invoice-i18n"
+import { logValue, type BillingMode } from "@/lib/billing-mode"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,7 +23,7 @@ interface JobOption {
   name: string
   hourly_rate: number
   daily_rate: number
-  billing_mode?: "hourly" | "daily"
+  billing_mode?: BillingMode
   currency: string
   clients: { name: string } | null
 }
@@ -97,10 +98,15 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none" }: 
 
   const selectedJob = jobs.find((j) => j.id === form.job_id)
   const isDaily     = isDailyJob(selectedJob)
+  const isProject   = selectedJob?.billing_mode === "fixed"
   const daysBilled  = form.hours_billed / HOURS_PER_DAY
-  const totalValue  = isDaily
-    ? Number((daysBilled * form.daily_rate).toFixed(2))
-    : calculateTotal(form.hours_billed, selectedJob?.hourly_rate ?? 0)
+  // A project is billed once, at its closed price, so the hours here are time spent rather
+  // than money earned.
+  const totalValue  = isProject
+    ? 0
+    : isDaily
+      ? Number((daysBilled * form.daily_rate).toFixed(2))
+      : calculateTotal(form.hours_billed, selectedJob?.hourly_rate ?? 0)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -261,9 +267,11 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none" }: 
                 {selectedJob ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: selectedJob.currency }).format(totalValue) : "—"}
               </div>
               <p className="text-xs text-muted-foreground">
-                {isDaily
-                  ? `${daysBilled} ${daysBilled === 1 ? "dia" : "dias"} × ${form.daily_rate}/dia`
-                  : `${form.hours_billed}h × ${selectedJob?.hourly_rate ?? 0}/h`}
+                {isProject
+                  ? "Job por projeto: as horas ficam registradas, mas o valor vem do preço fechado."
+                  : isDaily
+                    ? `${daysBilled} ${daysBilled === 1 ? "dia" : "dias"} × ${form.daily_rate}/dia`
+                    : `${form.hours_billed}h × ${selectedJob?.hourly_rate ?? 0}/h`}
               </p>
             </div>
           </div>

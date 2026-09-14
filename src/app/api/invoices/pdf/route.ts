@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     .order("date")
 
   const job    = invoice.jobs as {
-    name: string; hourly_rate: number; daily_rate: number; billing_mode: "hourly" | "daily"; project_code: string | null; currency: string
+    name: string; hourly_rate: number; daily_rate: number; billing_mode: "hourly" | "daily" | "fixed"; project_code: string | null; currency: string
     clients: {
       name: string; company: string | null; email: string | null
       legal_name: string | null; cnpj: string | null; address: string | null; billing_entity: string | null; billing_address: string | null

@@ -23,9 +23,10 @@ export async function POST(request: NextRequest) {
 
   if (!invoice) return NextResponse.json({ error: "Invoice não encontrado" }, { status: 404 })
 
-  const job         = invoice.jobs as { name: string; currency: string; billing_mode: "hourly" | "daily"; project_code: string | null; clients: { name: string; email: string | null } | null } | null
+  const job         = invoice.jobs as { name: string; currency: string; billing_mode: "hourly" | "daily" | "fixed"; project_code: string | null; clients: { name: string; email: string | null } | null } | null
   const clientEmail = job?.clients?.email
   const isDaily     = job?.billing_mode === "daily"
+  const isProject   = job?.billing_mode === "fixed"
 
   if (!clientEmail) {
     return NextResponse.json({ error: "Cliente sem e-mail cadastrado" }, { status: 400 })
@@ -66,8 +67,8 @@ export async function POST(request: NextRequest) {
           <thead>
             <tr style="background:#f5f7ff">
               <th style="padding:10px 8px;text-align:left;border-bottom:2px solid #1e40af">${t.emailDate}</th>
-              <th style="padding:10px 8px;text-align:center;border-bottom:2px solid #1e40af">${isDaily ? t.emailDays : t.emailHours}</th>
-              <th style="padding:10px 8px;text-align:right;border-bottom:2px solid #1e40af">${isDaily ? t.emailRateDay : t.emailRate}</th>
+              <th style="padding:10px 8px;text-align:center;border-bottom:2px solid #1e40af">${isProject ? t.emailProject : isDaily ? t.emailDays : t.emailHours}</th>
+              <th style="padding:10px 8px;text-align:right;border-bottom:2px solid #1e40af">${isProject ? t.emailRateProject : isDaily ? t.emailRateDay : t.emailRate}</th>
               <th style="padding:10px 8px;text-align:right;border-bottom:2px solid #1e40af">${t.tableSubtotal}</th>
             </tr>
           </thead>

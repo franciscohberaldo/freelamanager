@@ -79,13 +79,17 @@ async function run(req: NextRequest) {
 
     const { data: job } = await supabase
       .from("jobs")
-      .select("name, hourly_rate, daily_rate, billing_mode, currency, tax_rate, clients(name)")
+      .select("name, hourly_rate, daily_rate, contract_value, billing_mode, currency, tax_rate, clients(name)")
       .eq("id", jobId)
       .single()
     if (!job) continue
 
     const isDaily   = job.billing_mode === "daily"
-    const subtotal  = logs.reduce((s, l) => s + l.total_value, 0)
+    const isProject = job.billing_mode === "fixed"
+    // A project renews at its closed price; its logs carry time, not money.
+    const subtotal  = isProject
+      ? (job.contract_value ?? 0)
+      : logs.reduce((s, l) => s + l.total_value, 0)
     const taxAmount = subtotal * ((job.tax_rate ?? 0) / 100)
     const total     = subtotal + taxAmount
     const totalHrs  = logs.reduce((s, l) => s + l.hours_billed, 0)
@@ -129,9 +133,9 @@ async function run(req: NextRequest) {
       log_id:       l.id,
       date:         l.date,
       hours_billed: l.hours_billed,
-      quantity:     isDaily ? Number((l.hours_billed / HOURS_PER_DAY).toFixed(2)) : l.hours_billed,
-      unit:         (isDaily ? "day" : "hour") as "day" | "hour",
-      rate:         isDaily ? job.daily_rate : job.hourly_rate,
+      quantity:     isProject ? 1 : isDaily ? Number((l.hours_billed / HOURS_PER_DAY).toFixed(2)) : l.hours_billed,
+      unit:         (isProject ? "project" : isDaily ? "day" : "hour") as "day" | "hour" | "project",
+      rate:         isProject ? (job.contract_value ?? 0) : isDaily ? job.daily_rate : job.hourly_rate,
       subtotal:     l.total_value,
     })))
 

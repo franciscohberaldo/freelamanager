@@ -20,12 +20,13 @@ import {
 import { Loader2, Image as ImageIcon } from "lucide-react"
 import type { Job } from "@/lib/supabase/types"
 import { COMMON_TIMEZONES, workHoursInLocal } from "@/lib/timezone"
+import { BILLING_MODES, BILLING_MODE_LABELS, type BillingMode } from "@/lib/billing-mode"
 
 const jobSchema = z.object({
   client_id:      z.string().min(1, "Selecione um cliente"),
   name:           z.string().min(1, "Nome obrigatório"),
   description:    z.string().optional(),
-  billing_mode:   z.enum(["hourly", "daily"]),
+  billing_mode:   z.enum(BILLING_MODES),
   project_code:   z.string().optional(),
   end_client:     z.string().optional(),
   intermediary:   z.string().optional(),
@@ -190,11 +191,12 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
 
         <div className="space-y-2">
           <Label>Cobrança</Label>
-          <Select defaultValue={job?.billing_mode ?? "hourly"} onValueChange={(v) => setValue("billing_mode", v as "hourly" | "daily")}>
+          <Select defaultValue={job?.billing_mode ?? "hourly"} onValueChange={(v) => setValue("billing_mode", v as BillingMode)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="hourly">Por hora</SelectItem>
-              <SelectItem value="daily">Por diária</SelectItem>
+              {BILLING_MODES.map(m => (
+                <SelectItem key={m} value={m}>{BILLING_MODE_LABELS[m]}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -256,12 +258,14 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
         </div>
 
         <div className="space-y-2">
-          <Label>{billingMode === "daily" ? "Valor/hora (ref)" : "Valor/hora"}</Label>
+          <Label>{billingMode === "hourly" ? "Valor/hora" : "Valor/hora (ref)"}</Label>
           <Input {...register("hourly_rate")} type="number" step="0.01" placeholder="0.00" />
         </div>
 
         <div className="space-y-2">
-          <Label>{billingMode === "daily" ? "Valor/dia *" : "Valor/dia"}</Label>
+          <Label>
+            {billingMode === "daily" ? "Valor/dia *" : billingMode === "fixed" ? "Valor/dia (ref)" : "Valor/dia"}
+          </Label>
           <Input {...register("daily_rate")} type="number" step="0.01" placeholder="0.00" />
           {billingMode === "daily" && (
             <p className="text-xs text-muted-foreground">Registros e invoices deste job são calculados em dias (1 dia = 8h).</p>
@@ -304,8 +308,14 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
         </div>
 
         <div className="space-y-2">
-          <Label>Valor do contrato</Label>
+          <Label>{billingMode === "fixed" ? "Valor do projeto *" : "Valor do contrato"}</Label>
           <Input {...register("contract_value")} type="number" step="0.01" placeholder="Total do contrato" />
+          {billingMode === "fixed" && (
+            <p className="text-xs text-muted-foreground">
+              É o preço fechado. Os registros continuam aceitando horas, mas sem valor — a
+              invoice sai com uma linha só.
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">

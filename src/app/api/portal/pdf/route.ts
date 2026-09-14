@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
   }
 
   const job = invoice.jobs as unknown as {
-    id: string; name: string; hourly_rate: number; daily_rate: number; billing_mode: "hourly" | "daily"; project_code: string | null
+    id: string; name: string; hourly_rate: number; daily_rate: number; billing_mode: "hourly" | "daily" | "fixed"; project_code: string | null
     currency: string; client_id: string
     clients: {
       id: string; name: string; company: string | null; email: string | null

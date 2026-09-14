@@ -35,7 +35,7 @@ export default async function InvoicesPage() {
       invoices={(invoices ?? []) as never[]}
       invoicesCount={invoicesCount ?? 0}
       paidMap={paidMap}
-      jobs={(jobs ?? []) as unknown as { id: string; name: string; hourly_rate: number; daily_rate: number; billing_mode: "hourly" | "daily"; project_code: string | null; currency: string; tax_rate: number; clients: { name: string; email: string | null } | null }[]}
+      jobs={(jobs ?? []) as unknown as { id: string; name: string; hourly_rate: number; daily_rate: number; billing_mode: "hourly" | "daily" | "fixed"; project_code: string | null; currency: string; tax_rate: number; clients: { name: string; email: string | null } | null }[]}
     />
   )
 }

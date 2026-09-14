@@ -9,6 +9,7 @@ import { JobDialog } from "./job-dialog"
 import { LoadMoreButton } from "@/components/load-more-button"
 import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { JOB_STATUS_LABELS } from "@/lib/utils"
+import { rateOf, rateLabel, type BillingMode } from "@/lib/billing-mode"
 import Link from "next/link"
 import { Plus, Building2, History } from "lucide-react"
 
@@ -26,7 +27,7 @@ interface Job {
   is_recurring: boolean
   hourly_rate: number
   daily_rate: number
-  billing_mode?: "hourly" | "daily"
+  billing_mode?: BillingMode
   project_code?: string | null
   timezone?: string | null
   work_hours?: string | null
@@ -113,20 +114,15 @@ export function JobsClient({ jobs, jobsCount, clients }: Props) {
                 </p>
               </div>
               <div className="text-right shrink-0 space-y-0.5">
-                {job.billing_mode === "daily" ? (
-                  <>
-                    <p className="text-sm font-medium">{formatCurrency(job.daily_rate, job.currency)}/dia</p>
-                    {job.project_code && (
-                      <p className="text-xs text-muted-foreground font-mono">{job.project_code}</p>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm font-medium">{formatCurrency(job.hourly_rate, job.currency)}/h</p>
-                    {job.daily_rate > 0 && (
-                      <p className="text-xs text-muted-foreground">{formatCurrency(job.daily_rate, job.currency)}/dia</p>
-                    )}
-                  </>
+                <p className="text-sm font-medium">
+                  {formatCurrency(rateOf(job), job.currency)}
+                  <span className="text-muted-foreground">{rateLabel(job.billing_mode)}</span>
+                </p>
+                {job.billing_mode === "hourly" && job.daily_rate > 0 && (
+                  <p className="text-xs text-muted-foreground">{formatCurrency(job.daily_rate, job.currency)}/dia</p>
+                )}
+                {job.project_code && (
+                  <p className="text-xs text-muted-foreground font-mono">{job.project_code}</p>
                 )}
               </div>
               <Button variant="ghost" size="sm" asChild>
