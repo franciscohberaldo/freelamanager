@@ -344,6 +344,19 @@ type JobDocumentInsert = {
   path: string; file_name: string; mime_type?: string | null; size_bytes?: number | null
 }
 
+type AccountingDocumentRow = {
+  id: string; user_id: string; competencia: string; scope: 'month' | 'year';
+  kind: 'das_guide' | 'das_payment' | 'fee_receipt' | 'fee_payment' | 'tfe' | 'dasn_guide' | 'dasn_payment' | 'statement';
+  path: string; file_name: string; mime_type: string | null; size_bytes: number | null;
+  amount: number | null; uploaded_at: string
+}
+type AccountingDocumentInsert = {
+  user_id: string; competencia: string; scope?: 'month' | 'year';
+  kind: 'das_guide' | 'das_payment' | 'fee_receipt' | 'fee_payment' | 'tfe' | 'dasn_guide' | 'dasn_payment' | 'statement';
+  path: string; file_name: string; mime_type?: string | null; size_bytes?: number | null;
+  amount?: number | null
+}
+
 // ─── Database Type Map ────────────────────────────────────────────────────────
 
 export type Database = {
@@ -379,6 +392,7 @@ export type Database = {
       webhook_deliveries:   { Row: WebhookDeliveryRow;    Insert: WebhookDeliveryInsert;    Update: Partial<WebhookDeliveryInsert>;    Relationships: [] }
       nf_requests:          { Row: NfRequestRow;          Insert: NfRequestInsert;          Update: Partial<NfRequestInsert>;          Relationships: [] }
       job_documents:        { Row: JobDocumentRow;        Insert: JobDocumentInsert;        Update: Partial<JobDocumentInsert>;        Relationships: [] }
+      accounting_documents: { Row: AccountingDocumentRow; Insert: AccountingDocumentInsert; Update: Partial<AccountingDocumentInsert>; Relationships: [] }
     }
     Views: Record<string, never>
     Functions: {
@@ -427,6 +441,7 @@ export type PaymentLink = Database['public']['Tables']['payment_links']['Row']
 export type WebhookDelivery = Database['public']['Tables']['webhook_deliveries']['Row']
 export type NfRequest = Database['public']['Tables']['nf_requests']['Row']
 export type JobDocument = Database['public']['Tables']['job_documents']['Row']
+export type AccountingDocument = Database['public']['Tables']['accounting_documents']['Row']
 
 // ─── Composite Types (matching actual query shapes) ───────────────────────────
 

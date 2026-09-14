@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
-  BarChart3, Briefcase, CalendarDays, ClipboardList,
+  BarChart3, Briefcase, CalendarDays, Calculator, ClipboardList,
   FileText, History, LayoutDashboard, LogOut, Moon, Receipt, Search, Settings,
   Sun, TrendingUp, Users, Wallet,
 } from "lucide-react"
@@ -25,6 +25,7 @@ const navItems = [
   { href: "/invoices",  label: "Invoices",        icon: FileText },
   { href: "/notas-fiscais", label: "Notas fiscais", icon: Receipt },
   { href: "/despesas",  label: "Despesas",        icon: Wallet },
+  { href: "/contabilidade", label: "Contabilidade", icon: Calculator },
   { href: "/agenda",    label: "Agenda",          icon: CalendarDays },
   { href: "/reports",   label: "Relatórios",      icon: TrendingUp },
   { href: "/settings",  label: "Configurações",   icon: Settings },
