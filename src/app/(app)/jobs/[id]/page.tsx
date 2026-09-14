@@ -4,11 +4,11 @@ import { createClient } from "@/lib/supabase/server"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { formatCurrency, formatDate, formatHours, JOB_STATUS_LABELS } from "@/lib/utils"
 import { workHoursInLocal } from "@/lib/timezone"
 import { JobForm } from "../job-form"
 import { JobDocumentsPanel } from "./job-documents-panel"
+import { SectionNav } from "./section-nav"
 import { DOCUMENT_KINDS } from "@/lib/job-documents"
 import { rateOf, rateLabel } from "@/lib/billing-mode"
 import { ArrowLeft, FileText, Image as ImageIcon } from "lucide-react"
@@ -59,6 +59,13 @@ export default async function JobPage({ params }: { params: { id: string } }) {
   const loggedHours = jobLogs.reduce((sum, l) => sum + (l.hours_billed ?? 0), 0)
   const loggedValue = jobLogs.reduce((sum, l) => sum + (l.total_value ?? 0), 0)
 
+  const sections = [
+    { id: "dados", label: "Dados" },
+    { id: "documentos", label: "Documentos", count: docs.length ? `${docs.length}/${DOCUMENT_KINDS.length}` : undefined },
+    { id: "invoices", label: "Invoices", count: jobInvoices.length ? String(jobInvoices.length) : undefined },
+    { id: "registros", label: "Registros", count: jobLogs.length ? String(jobLogs.length) : undefined },
+  ]
+
   return (
     <div className="p-6 space-y-6">
       <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
@@ -98,150 +105,140 @@ export default async function JobPage({ params }: { params: { id: string } }) {
         </div>
       </div>
 
-      <Tabs defaultValue="dados">
-        <TabsList>
-          <TabsTrigger value="dados">Dados</TabsTrigger>
-          <TabsTrigger value="documentos">
-            Documentos
-            {docs.length > 0 && <span className="ml-1.5 text-xs text-muted-foreground">{docs.length}/{DOCUMENT_KINDS.length}</span>}
-          </TabsTrigger>
-          <TabsTrigger value="invoices">
-            Invoices
-            {jobInvoices.length > 0 && <span className="ml-1.5 text-xs text-muted-foreground">{jobInvoices.length}</span>}
-          </TabsTrigger>
-          <TabsTrigger value="registros">
-            Registros
-            {jobLogs.length > 0 && <span className="ml-1.5 text-xs text-muted-foreground">{jobLogs.length}</span>}
-          </TabsTrigger>
-        </TabsList>
+      <SectionNav sections={sections} />
 
-        <TabsContent value="dados" className="mt-4 max-w-3xl">
+      <section id="dados" className="scroll-mt-24 space-y-3">
+        <h2 className="text-lg font-semibold">Dados</h2>
+        <div className="max-w-3xl">
           <JobForm clients={clients ?? []} job={typedJob} mode="edit" />
-        </TabsContent>
+        </div>
+      </section>
 
-        <TabsContent value="documentos" className="mt-4">
-          <JobDocumentsPanel jobId={typedJob.id} userId={user!.id} documents={docs} />
-        </TabsContent>
+      <section id="documentos" className="scroll-mt-24 space-y-3">
+        <h2 className="text-lg font-semibold">Documentos</h2>
+        <JobDocumentsPanel jobId={typedJob.id} userId={user!.id} documents={docs} />
+      </section>
 
-        <TabsContent value="invoices" className="mt-4">
-          {jobInvoices.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                <p>Nenhuma invoice para este job.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="rounded-md border overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40 text-xs text-muted-foreground">
-                  <tr>
-                    <th className="p-2 text-left">Nº</th>
-                    <th className="p-2 text-left">Período</th>
-                    <th className="p-2 text-right">Total</th>
-                    <th className="p-2 text-left">Status</th>
-                    <th className="p-2 text-left">NF</th>
+      <section id="invoices" className="scroll-mt-24 space-y-3">
+        <h2 className="text-lg font-semibold">Invoices</h2>
+        {jobInvoices.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p>Nenhuma invoice para este job.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="rounded-md border overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-xs text-muted-foreground">
+                <tr>
+                  <th className="p-2 text-left">Nº</th>
+                  <th className="p-2 text-left">Período</th>
+                  <th className="p-2 text-right">Total</th>
+                  <th className="p-2 text-left">Status</th>
+                  <th className="p-2 text-left">NF</th>
+                </tr>
+              </thead>
+              <tbody>
+                {jobInvoices.map(inv => (
+                  <tr key={inv.id} className="border-t">
+                    <td className="p-2 font-mono">{inv.seq_number ?? inv.invoice_number}</td>
+                    <td className="p-2 whitespace-nowrap">
+                      {formatDate(inv.period_start)} – {formatDate(inv.period_end)}
+                    </td>
+                    <td className="p-2 text-right whitespace-nowrap">
+                      {formatCurrency(inv.total, inv.currency)}
+                    </td>
+                    <td className="p-2">
+                      <Badge variant={invoiceVariant[inv.status] ?? "outline"}>
+                        {INVOICE_STATUS_LABELS[inv.status] ?? inv.status}
+                      </Badge>
+                    </td>
+                    <td className="p-2 font-mono">
+                      {inv.nf_number ?? <span className="text-muted-foreground font-sans">—</span>}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {jobInvoices.map(inv => (
-                    <tr key={inv.id} className="border-t">
-                      <td className="p-2 font-mono">{inv.seq_number ?? inv.invoice_number}</td>
-                      <td className="p-2 whitespace-nowrap">
-                        {formatDate(inv.period_start)} – {formatDate(inv.period_end)}
-                      </td>
-                      <td className="p-2 text-right whitespace-nowrap">
-                        {formatCurrency(inv.total, inv.currency)}
-                      </td>
-                      <td className="p-2">
-                        <Badge variant={invoiceVariant[inv.status] ?? "outline"}>
-                          {INVOICE_STATUS_LABELS[inv.status] ?? inv.status}
-                        </Badge>
-                      </td>
-                      <td className="p-2 font-mono">
-                        {inv.nf_number ?? <span className="text-muted-foreground font-sans">—</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground mt-3">
-            Invoices são criadas e editadas em <Link href="/invoices" className="underline">Invoices</Link>.
-          </p>
-        </TabsContent>
-
-        <TabsContent value="registros" className="mt-4 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Card>
-              <CardContent className="py-4 px-5">
-                <p className="text-xs text-muted-foreground">Faturável lançado</p>
-                <p className="text-xl font-semibold">
-                  {perDay ? `${(loggedHours / 8).toLocaleString("pt-BR")} dias` : formatHours(loggedHours)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="py-4 px-5">
-                <p className="text-xs text-muted-foreground">
-                  {perProject ? "Valor do projeto" : "Valor lançado"}
-                </p>
-                <p className="text-xl font-semibold">
-                  {formatCurrency(perProject ? (typedJob.contract_value ?? 0) : loggedValue, typedJob.currency)}
-                </p>
-                {perProject && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Preço fechado; as horas abaixo são só o tempo gasto.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+                ))}
+              </tbody>
+            </table>
           </div>
+        )}
+        <p className="text-xs text-muted-foreground mt-3">
+          Invoices são criadas e editadas em <Link href="/invoices" className="underline">Invoices</Link>.
+        </p>
+      </section>
 
-          {jobLogs.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <p>Nenhum registro para este job.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="rounded-md border overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40 text-xs text-muted-foreground">
-                  <tr>
-                    <th className="p-2 text-left">Data</th>
-                    <th className="p-2 text-right">{perDay ? "Dias" : "Horas"}</th>
-                    <th className="p-2 text-right">Valor</th>
-                    <th className="p-2 text-left">Reuniões / pedidos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {jobLogs.slice(0, 30).map(log => (
-                    <tr key={log.id} className="border-t">
-                      <td className="p-2 whitespace-nowrap">{formatDate(log.date)}</td>
-                      <td className="p-2 text-right whitespace-nowrap">
-                        {perDay ? (log.hours_billed / 8).toLocaleString("pt-BR") : formatHours(log.hours_billed)}
-                      </td>
-                      <td className="p-2 text-right whitespace-nowrap">
-                        {formatCurrency(log.total_value, typedJob.currency)}
-                      </td>
-                      <td className="p-2 text-muted-foreground">
-                        {[log.meetings, log.requests].filter(Boolean).join(" · ") || "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {jobLogs.length > 30 && (
-                <p className="p-2 text-xs text-muted-foreground border-t">
-                  Mostrando os 30 mais recentes de {jobLogs.length}.
+      <section id="registros" className="scroll-mt-24 space-y-3">
+        <h2 className="text-lg font-semibold">Registros</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card>
+            <CardContent className="py-4 px-5">
+              <p className="text-xs text-muted-foreground">Faturável lançado</p>
+              <p className="text-xl font-semibold">
+                {perDay ? `${(loggedHours / 8).toLocaleString("pt-BR")} dias` : formatHours(loggedHours)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="py-4 px-5">
+              <p className="text-xs text-muted-foreground">
+                {perProject ? "Valor do projeto" : "Valor lançado"}
+              </p>
+              <p className="text-xl font-semibold">
+                {formatCurrency(perProject ? (typedJob.contract_value ?? 0) : loggedValue, typedJob.currency)}
+              </p>
+              {perProject && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Preço fechado; as horas abaixo são só o tempo gasto.
                 </p>
               )}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+            </CardContent>
+          </Card>
+        </div>
+
+        {jobLogs.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <p>Nenhum registro para este job.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="rounded-md border overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-xs text-muted-foreground">
+                <tr>
+                  <th className="p-2 text-left">Data</th>
+                  <th className="p-2 text-right">{perDay ? "Dias" : "Horas"}</th>
+                  <th className="p-2 text-right">Valor</th>
+                  <th className="p-2 text-left">Reuniões / pedidos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {jobLogs.slice(0, 30).map(log => (
+                  <tr key={log.id} className="border-t">
+                    <td className="p-2 whitespace-nowrap">{formatDate(log.date)}</td>
+                    <td className="p-2 text-right whitespace-nowrap">
+                      {perDay ? (log.hours_billed / 8).toLocaleString("pt-BR") : formatHours(log.hours_billed)}
+                    </td>
+                    <td className="p-2 text-right whitespace-nowrap">
+                      {formatCurrency(log.total_value, typedJob.currency)}
+                    </td>
+                    <td className="p-2 text-muted-foreground">
+                      {[log.meetings, log.requests].filter(Boolean).join(" · ") || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {jobLogs.length > 30 && (
+              <p className="p-2 text-xs text-muted-foreground border-t">
+                Mostrando os 30 mais recentes de {jobLogs.length}.
+              </p>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   )
 }
