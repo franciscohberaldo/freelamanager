@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/client"
+import { validateThumbnail, thumbnailPath, pathFromPublicUrl, THUMBNAIL_BUCKET } from "@/lib/job-thumbnail"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,7 +19,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import { Loader2 } from "lucide-react"
+import { Loader2, Image as ImageIcon } from "lucide-react"
 import type { Job } from "@/lib/supabase/types"
 import { COMMON_TIMEZONES, workHoursInLocal } from "@/lib/timezone"
 
@@ -59,6 +60,8 @@ interface Props {
 export function JobDialog({ children, clients, job, mode }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [thumbnail, setThumbnail] = useState<string | null>(job?.thumbnail_url ?? null)
+  const [uploading, setUploading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -95,6 +98,32 @@ export function JobDialog({ children, clients, job, mode }: Props) {
   const workHours   = watch("work_hours")
   const localHours  = workHoursInLocal(workHours, tzValue)
 
+  async function onPickThumbnail(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ""                       // let the same file be picked again after a failure
+    if (!file) return
+    const check = validateThumbnail(file)
+    if (!check.ok) { toast.error(check.error); return }
+
+    setUploading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const path = thumbnailPath(user!.id, file.name, crypto.randomUUID())
+    const { error } = await supabase.storage.from(THUMBNAIL_BUCKET).upload(path, file, { upsert: false })
+    if (error) { toast.error("Erro ao enviar a imagem"); setUploading(false); return }
+
+    const previous = pathFromPublicUrl(thumbnail)
+    const { data: pub } = supabase.storage.from(THUMBNAIL_BUCKET).getPublicUrl(path)
+    setThumbnail(pub.publicUrl)
+    if (previous) await supabase.storage.from(THUMBNAIL_BUCKET).remove([previous])
+    setUploading(false)
+  }
+
+  async function onRemoveThumbnail() {
+    const previous = pathFromPublicUrl(thumbnail)
+    setThumbnail(null)
+    if (previous) await supabase.storage.from(THUMBNAIL_BUCKET).remove([previous])
+  }
+
   async function onSubmit(data: JobForm) {
     setLoading(true)
     const payload = {
@@ -109,6 +138,7 @@ export function JobDialog({ children, clients, job, mode }: Props) {
       contract_value: data.contract_value || null,
       start_date: data.start_date || null,
       end_date: data.end_date || null,
+      thumbnail_url: thumbnail,
     }
 
     if (mode === "create") {
@@ -174,8 +204,38 @@ export function JobDialog({ children, clients, job, mode }: Props) {
             </div>
 
             <div className="space-y-2">
-              <Label>Cliente final (marca)</Label>
+              <Label>Marca (cliente final)</Label>
               <Input {...register("end_client")} placeholder="ex: Mastercard" />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Thumbnail do projeto</Label>
+              <div className="flex items-center gap-3">
+                <div className="w-24 h-16 rounded border bg-muted/40 overflow-hidden shrink-0 flex items-center justify-center">
+                  {thumbnail
+                    // storage URLs are user-supplied, so plain img keeps next/image config out of it
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={thumbnail} alt="" className="w-full h-full object-cover" />
+                    : <ImageIcon className="w-5 h-5 text-muted-foreground/50" />}
+                </div>
+                <div className="space-y-1">
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" size="sm" disabled={uploading} asChild>
+                      <label className="cursor-pointer">
+                        {uploading && <Loader2 className="w-3 h-3 animate-spin" />}
+                        {thumbnail ? "Trocar imagem" : "Escolher imagem"}
+                        <input type="file" accept="image/*" className="hidden" onChange={onPickThumbnail} disabled={uploading} />
+                      </label>
+                    </Button>
+                    {thumbnail && (
+                      <Button type="button" variant="ghost" size="sm" onClick={onRemoveThumbnail} disabled={uploading}>
+                        Remover
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">PNG, JPG ou WebP, até 5 MB.</p>
+                </div>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Intermediário (estúdio)</Label>

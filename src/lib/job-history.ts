@@ -28,10 +28,12 @@ export interface JobSummary {
   nfTo: string | null
 }
 
-export type SortKey = "tomador" | "job" | "total" | "start" | "end" | "nf"
+export type SortKey = "tomador" | "marca" | "job" | "total" | "start" | "end" | "nf"
 
 export interface SortableRow {
   tomador: string
+  /** The brand served through the tomador; empty when not recorded yet. */
+  marca: string
   job: string
   amount: number
   start: string | null
@@ -46,7 +48,11 @@ const maxOf = (v: (string | null)[]) => v.filter(Boolean).sort().at(-1) ?? null
 export function compareRows(a: SortableRow, b: SortableRow, key: SortKey, dir: "asc" | "desc"): number {
   const flip = dir === "asc" ? 1 : -1
   if (key === "total") return (a.amount - b.amount) * flip
-  if (key === "tomador" || key === "job") {
+  if (key === "tomador" || key === "job" || key === "marca") {
+    // an unrecorded brand sorts last either way, like a missing date
+    if (!a[key] && !b[key]) return 0
+    if (!a[key]) return 1
+    if (!b[key]) return -1
     return a[key].localeCompare(b[key], "pt-BR", { sensitivity: "base" }) * flip
   }
   const x = a[key], y = b[key]

@@ -20,7 +20,7 @@ export default async function JobsPage() {
       .order("name"),
     supabase
       .from("jobs")
-      .select("id, name, status, start_date, end_date, end_client, intermediary, clients(name, legal_name), invoices(seq_number, invoice_number, nf_number, total, currency, status, nf_status, period_start, period_end, nf_issued_at)")
+      .select("*, clients(name, legal_name), invoices(seq_number, invoice_number, nf_number, total, currency, status, nf_status, period_start, period_end, nf_issued_at)")
       .eq("user_id", user!.id)
       .order("created_at", { ascending: false }),
   ])

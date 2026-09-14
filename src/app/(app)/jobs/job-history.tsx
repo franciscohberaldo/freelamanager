@@ -9,16 +9,12 @@ import {
   summarizeJob, compareRows, BILLING_STATUS_LABELS,
   type BillingStatus, type HistoryInvoice, type SortKey, type JobSummary,
 } from "@/lib/job-history"
-import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react"
+import { ArrowDown, ArrowUp, ChevronsUpDown, Image as ImageIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { JobDialog } from "./job-dialog"
+import type { Job } from "@/lib/supabase/types"
 
-export interface HistoryJob {
-  id: string
-  name: string
-  status: string
-  start_date: string | null
-  end_date: string | null
-  end_client: string | null
-  intermediary: string | null
+export type HistoryJob = Job & {
   clients: { name: string; legal_name: string | null } | null
   invoices: HistoryInvoice[]
 }
@@ -42,6 +38,7 @@ function nfIssuedLabel(s: JobSummary) {
 
 const COLUMNS: { key: SortKey | null; label: string; align?: "right"; title?: string }[] = [
   { key: "tomador", label: "Tomador" },
+  { key: "marca", label: "Marca" },
   { key: "job", label: "Job" },
   { key: "total", label: "Total", align: "right", title: "Ordena pelo número, sem converter moeda" },
   { key: "start", label: "Início" },
@@ -51,9 +48,10 @@ const COLUMNS: { key: SortKey | null; label: string; align?: "right"; title?: st
   { key: null, label: "Faturamento" },
   { key: null, label: "Invoices" },
   { key: null, label: "NFs" },
+  { key: null, label: "" },
 ]
 
-export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
+export function JobHistory({ jobs, clients }: { jobs: HistoryJob[]; clients: { id: string; name: string }[] }) {
   const [query, setQuery] = useState("")
   const [client, setClient] = useState("all")
   const [billing, setBilling] = useState<"all" | BillingStatus>("all")
@@ -68,6 +66,7 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
         summary,
         sortable: {
           tomador: tomador(j),
+          marca: j.end_client ?? "",
           job: j.name,
           amount: summary.totals[0]?.amount ?? 0,
           start: summary.start,
@@ -93,7 +92,7 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
     .filter(r => billing === "all" || r.summary.billing === billing)
     .filter(r => client === "all" || r.job.clients?.name === client)
     .filter(r => year === "all" || r.summary.start?.startsWith(year))
-    .filter(r => !q || r.job.name.toLowerCase().includes(q) || tomador(r.job).toLowerCase().includes(q))
+    .filter(r => !q || [r.job.name, tomador(r.job), r.job.end_client ?? ""].some(v => v.toLowerCase().includes(q)))
     .sort((a, b) => compareRows(a.sortable, b.sortable, sort.key, sort.dir))
 
   const toggleSort = (key: SortKey) =>
@@ -105,7 +104,7 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
         <Input
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Buscar por job ou tomador"
+          placeholder="Buscar por job, marca ou tomador"
           className="w-64"
         />
         <Select value={client} onValueChange={setClient}>
@@ -164,9 +163,19 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
                 <td className="p-2">
                   {tomador(job)}
                   {job.intermediary && <span className="text-muted-foreground"> · via {job.intermediary}</span>}
-                  {job.end_client && <span className="text-muted-foreground"> · {job.end_client}</span>}
                 </td>
-                <td className="p-2">{job.name}</td>
+                <td className="p-2">{job.end_client || <span className="text-muted-foreground">—</span>}</td>
+                <td className="p-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-7 rounded border bg-muted/40 overflow-hidden shrink-0 flex items-center justify-center">
+                      {job.thumbnail_url
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={job.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                        : <ImageIcon className="w-3 h-3 text-muted-foreground/40" />}
+                    </div>
+                    <span>{job.name}</span>
+                  </div>
+                </td>
                 <td className="p-2 text-right whitespace-nowrap">
                   {summary.totals.length === 0
                     ? "—"
@@ -188,6 +197,11 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
                 </td>
                 <td className="p-2 font-mono">{summary.invoiceLabel}</td>
                 <td className="p-2 font-mono">{summary.nfLabel}</td>
+                <td className="p-2 text-right">
+                  <JobDialog clients={clients} job={job} mode="edit">
+                    <Button variant="ghost" size="sm">Editar</Button>
+                  </JobDialog>
+                </td>
               </tr>
             ))}
             {visible.length === 0 && (

@@ -141,7 +141,7 @@ export function JobsClient({ jobs, jobsCount, clients, history }: Props) {
         </TabsContent>
 
         <TabsContent value="historico">
-          <JobHistory jobs={history} />
+          <JobHistory jobs={history} clients={clients} />
         </TabsContent>
       </Tabs>
     </div>

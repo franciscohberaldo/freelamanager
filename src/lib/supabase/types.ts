@@ -31,7 +31,7 @@ type JobRow = {
   start_date: string | null; end_date: string | null; is_recurring: boolean;
   tax_rate: number; notes: string | null; billing_mode: 'hourly' | 'daily'; project_code: string | null;
   timezone: string | null; work_hours: string | null; is_confidential: boolean;
-  end_client: string | null; intermediary: string | null; nf_description: string | null; po_number: string | null;
+  end_client: string | null; intermediary: string | null; nf_description: string | null; po_number: string | null; thumbnail_url: string | null;
   created_at: string; updated_at: string
 }
 type JobInsert = {
@@ -41,7 +41,7 @@ type JobInsert = {
   start_date?: string | null; end_date?: string | null; is_recurring: boolean;
   tax_rate: number; notes?: string | null; billing_mode?: 'hourly' | 'daily'; project_code?: string | null;
   timezone?: string | null; work_hours?: string | null; is_confidential?: boolean;
-  end_client?: string | null; intermediary?: string | null; nf_description?: string | null; po_number?: string | null
+  end_client?: string | null; intermediary?: string | null; nf_description?: string | null; po_number?: string | null; thumbnail_url?: string | null
 }
 
 type DailyLogRow = {
