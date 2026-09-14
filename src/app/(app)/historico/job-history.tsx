@@ -15,9 +15,10 @@ import {
   DOCUMENT_KINDS, DOCUMENT_LABELS, DOCUMENT_SHORT_LABELS, type DocumentKind,
 } from "@/lib/job-documents"
 import {
-  ArrowDown, ArrowUp, Check, ChevronsUpDown, GripVertical, Image as ImageIcon,
+  ArrowDown, ArrowUp, ChevronsUpDown, GripVertical, Image as ImageIcon,
   Paperclip, RotateCcw,
 } from "lucide-react"
+import { AttachedCheck, NotAttached } from "@/components/attached-check"
 import { Button } from "@/components/ui/button"
 import type { Job } from "@/lib/supabase/types"
 
@@ -147,8 +148,8 @@ const DOCUMENT_COLUMNS: Column[] = DOCUMENT_KINDS.map(kind => ({
   align: "center" as const,
   title: `Documento anexado: ${DOCUMENT_LABELS[kind]}`,
   cell: ({ job }: Row) => (job.job_documents ?? []).some(d => d.kind === kind)
-    ? <Check className="w-4 h-4 mx-auto text-emerald-600" aria-label="anexado" />
-    : <span className="text-muted-foreground/40">—</span>,
+    ? <AttachedCheck />
+    : <NotAttached />,
 }))
 
 const COLUMNS = [...BASE_COLUMNS, ...DOCUMENT_COLUMNS]

@@ -10,7 +10,8 @@ import {
   ACCOUNTING_KINDS, ACCOUNTING_LABELS, ACCOUNTING_SHORT_LABELS,
   formatCompetencia, type AccountingKind, type CompetenciaScope,
 } from "@/lib/accounting-documents"
-import { Check, GripVertical, Paperclip, RotateCcw } from "lucide-react"
+import { GripVertical, Paperclip, RotateCcw } from "lucide-react"
+import { AttachedCheck, NotAttached } from "@/components/attached-check"
 
 export type CompetenciaRow = {
   competencia: string
@@ -50,13 +51,7 @@ const KIND_COLUMNS: Column[] = ACCOUNTING_KINDS.map(kind => ({
   title: ACCOUNTING_LABELS[kind],
   cell: (row: CompetenciaRow) => {
     const n = row.counts[kind] ?? 0
-    if (n === 0) return <span className="text-muted-foreground/40">—</span>
-    return (
-      <span className="inline-flex items-center gap-0.5 text-emerald-600">
-        <Check className="w-4 h-4" aria-label="anexado" />
-        {n > 1 && <span className="text-xs">{n}</span>}
-      </span>
-    )
+    return n === 0 ? <NotAttached /> : <AttachedCheck count={n} />
   },
 }))
 
