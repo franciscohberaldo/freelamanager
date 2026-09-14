@@ -9,6 +9,7 @@ import { formatCurrency, formatDate, formatHours, JOB_STATUS_LABELS } from "@/li
 import { workHoursInLocal } from "@/lib/timezone"
 import { JobForm } from "../job-form"
 import { JobDocumentsPanel } from "./job-documents-panel"
+import { DOCUMENT_KINDS } from "@/lib/job-documents"
 import { ArrowLeft, FileText, Image as ImageIcon } from "lucide-react"
 import type { Job, JobDocument, Invoice, DailyLog } from "@/lib/supabase/types"
 
@@ -102,7 +103,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
           <TabsTrigger value="dados">Dados</TabsTrigger>
           <TabsTrigger value="documentos">
             Documentos
-            {docs.length > 0 && <span className="ml-1.5 text-xs text-muted-foreground">{docs.length}/6</span>}
+            {docs.length > 0 && <span className="ml-1.5 text-xs text-muted-foreground">{docs.length}/{DOCUMENT_KINDS.length}</span>}
           </TabsTrigger>
           <TabsTrigger value="invoices">
             Invoices

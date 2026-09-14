@@ -11,12 +11,19 @@ import {
   type BillingStatus, type HistoryInvoice, type SortKey, type JobSummary,
 } from "@/lib/job-history"
 import { reorder, mergeColumnOrder } from "@/lib/column-order"
-import { ArrowDown, ArrowUp, ChevronsUpDown, GripVertical, Image as ImageIcon, RotateCcw } from "lucide-react"
+import {
+  DOCUMENT_KINDS, DOCUMENT_LABELS, DOCUMENT_SHORT_LABELS, type DocumentKind,
+} from "@/lib/job-documents"
+import {
+  ArrowDown, ArrowUp, Check, ChevronsUpDown, GripVertical, Image as ImageIcon,
+  Paperclip, RotateCcw,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { Job } from "@/lib/supabase/types"
 
 export type HistoryJob = Job & {
   clients: { name: string; legal_name: string | null } | null
+  job_documents: { kind: DocumentKind }[]
   invoices: HistoryInvoice[]
 }
 
@@ -50,15 +57,17 @@ type Column = {
   key: string
   label: string
   sortKey?: SortKey
-  align?: "right"
+  align?: "right" | "center"
   nowrap?: boolean
   title?: string
+  /** Marks a column as being about an attached file rather than a value. */
+  icon?: React.ElementType
   cell: (row: Row) => React.ReactNode
 }
 
 const dash = <span className="text-muted-foreground">—</span>
 
-const COLUMNS: Column[] = [
+const BASE_COLUMNS: Column[] = [
   {
     key: "tomador", label: "Tomador", sortKey: "tomador",
     cell: ({ job }) => (
@@ -70,17 +79,20 @@ const COLUMNS: Column[] = [
   },
   { key: "marca", label: "Marca", sortKey: "marca", cell: ({ job }) => job.end_client || dash },
   {
+    key: "thumb", label: "Thumb",
+    cell: ({ job }) => (
+      <Link href={`/jobs/${job.id}`} className="w-10 h-7 rounded border bg-muted/40 overflow-hidden flex items-center justify-center">
+        {job.thumbnail_url
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={job.thumbnail_url} alt="" className="w-full h-full object-cover" />
+          : <ImageIcon className="w-3 h-3 text-muted-foreground/40" />}
+      </Link>
+    ),
+  },
+  {
     key: "job", label: "Job", sortKey: "job",
     cell: ({ job }) => (
-      <Link href={`/jobs/${job.id}`} className="flex items-center gap-2 hover:underline">
-        <span className="w-10 h-7 rounded border bg-muted/40 overflow-hidden shrink-0 flex items-center justify-center">
-          {job.thumbnail_url
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={job.thumbnail_url} alt="" className="w-full h-full object-cover" />
-            : <ImageIcon className="w-3 h-3 text-muted-foreground/40" />}
-        </span>
-        <span>{job.name}</span>
-      </Link>
+      <Link href={`/jobs/${job.id}`} className="hover:underline">{job.name}</Link>
     ),
   },
   {
@@ -123,7 +135,28 @@ const COLUMNS: Column[] = [
   { key: "nfs", label: "NFs", cell: ({ summary }) => <span className="font-mono">{summary.nfLabel}</span> },
 ]
 
+/**
+ * Generated from DOCUMENT_KINDS so a kind added later becomes a column without anyone
+ * having to remember this file. The paperclip separates these from the "Invoices" and
+ * "NFs" columns above, which carry numbers rather than attachments.
+ */
+const DOCUMENT_COLUMNS: Column[] = DOCUMENT_KINDS.map(kind => ({
+  key: `doc_${kind}`,
+  label: DOCUMENT_SHORT_LABELS[kind],
+  icon: Paperclip,
+  align: "center" as const,
+  title: `Documento anexado: ${DOCUMENT_LABELS[kind]}`,
+  cell: ({ job }: Row) => (job.job_documents ?? []).some(d => d.kind === kind)
+    ? <Check className="w-4 h-4 mx-auto text-emerald-600" aria-label="anexado" />
+    : <span className="text-muted-foreground/40">—</span>,
+}))
+
+const COLUMNS = [...BASE_COLUMNS, ...DOCUMENT_COLUMNS]
+
 const DEFAULT_ORDER = COLUMNS.map(c => c.key)
+
+const alignClass = (align: Column["align"]) =>
+  align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left"
 
 export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
   const [query, setQuery] = useState("")
@@ -269,13 +302,14 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
                   title={c.title}
                   className={[
                     "group p-2 select-none cursor-grab active:cursor-grabbing",
-                    c.align === "right" ? "text-right" : "text-left",
+                    alignClass(c.align),
                     dragging === c.key ? "opacity-40" : "",
                     dragging && dragging !== c.key ? "bg-accent/40" : "",
                   ].join(" ")}
                 >
                   <span className={`inline-flex items-center gap-1 ${c.align === "right" ? "flex-row-reverse" : ""}`}>
                     <GripVertical className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-40" />
+                    {c.icon && <c.icon className="w-3 h-3 shrink-0 opacity-50" />}
                     {c.sortKey ? (
                       <button
                         type="button"
@@ -299,7 +333,7 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
                 {columns.map(c => (
                   <td
                     key={c.key}
-                    className={`p-2 ${c.align === "right" ? "text-right" : ""} ${c.nowrap ? "whitespace-nowrap" : ""}`}
+                    className={`p-2 ${alignClass(c.align)} ${c.nowrap ? "whitespace-nowrap" : ""}`}
                   >
                     {c.cell(row)}
                   </td>

@@ -1,26 +1,39 @@
 /** The paperwork a job accumulates. One file per kind; uploading again replaces it. */
 export const DOCUMENT_KINDS = [
-  "contract", "invoice", "nf", "das_received", "das_paid", "payment_proof",
+  "contract", "invoice", "accountant_email", "nf", "das_issued", "das_paid", "payment_proof",
 ] as const
 
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number]
 
 export const DOCUMENT_LABELS: Record<DocumentKind, string> = {
-  contract:      "Contrato",
-  invoice:       "Invoice",
-  nf:            "NF emitida",
-  das_received:  "DAS recebido",
-  das_paid:      "DAS pago",
-  payment_proof: "Comprovante de pagamento",
+  contract:         "Contrato",
+  invoice:          "Invoice enviada",
+  accountant_email: "Email pro contador",
+  nf:               "NF emitida",
+  das_issued:       "DAS emitido",
+  das_paid:         "DAS pago",
+  payment_proof:    "Pagamento recebido",
+}
+
+/** For table headers, where the full label does not fit. Kept to 10 characters. */
+export const DOCUMENT_SHORT_LABELS: Record<DocumentKind, string> = {
+  contract:         "Contrato",
+  invoice:          "Invoice",
+  accountant_email: "Contador",
+  nf:               "NF",
+  das_issued:       "DAS emit.",
+  das_paid:         "DAS pago",
+  payment_proof:    "Comprov.",
 }
 
 export const DOCUMENT_HINTS: Record<DocumentKind, string> = {
-  contract:      "Contrato ou ordem de serviço assinada",
-  invoice:       "A invoice enviada ao tomador",
-  nf:            "A nota fiscal emitida pelo contador",
-  das_received:  "A guia do DAS que o contador mandou",
-  das_paid:      "O DAS já pago, com autenticação",
-  payment_proof: "Comprovante do dinheiro que entrou",
+  contract:         "Contrato ou ordem de serviço assinada",
+  invoice:          "A invoice enviada ao tomador",
+  accountant_email: "O email pedindo a NF ao contador",
+  nf:               "A nota fiscal emitida pelo contador",
+  das_issued:       "A guia do DAS que o contador emitiu",
+  das_paid:         "O DAS já pago, com autenticação",
+  payment_proof:    "Comprovante do dinheiro que entrou",
 }
 
 export const DOCUMENT_BUCKET = "job-documents"

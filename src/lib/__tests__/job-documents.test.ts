@@ -1,19 +1,26 @@
 import { describe, it, expect } from "vitest"
 import {
-  DOCUMENT_KINDS, DOCUMENT_LABELS, isDocumentKind,
+  DOCUMENT_KINDS, DOCUMENT_LABELS, DOCUMENT_SHORT_LABELS, isDocumentKind,
   validateDocument, documentPath, formatFileSize, MAX_DOCUMENT_BYTES,
 } from "@/lib/job-documents"
 
 describe("DOCUMENT_KINDS", () => {
-  it("lists the six kinds a job can hold", () => {
+  it("lists the seven kinds a job can hold", () => {
     expect(DOCUMENT_KINDS).toEqual([
-      "contract", "invoice", "nf", "das_received", "das_paid", "payment_proof",
+      "contract", "invoice", "accountant_email", "nf", "das_issued", "das_paid", "payment_proof",
     ])
   })
 
-  it("labels every kind", () => {
+  it("labels every kind, long and short", () => {
     for (const kind of DOCUMENT_KINDS) {
       expect(DOCUMENT_LABELS[kind]).toBeTruthy()
+      expect(DOCUMENT_SHORT_LABELS[kind]).toBeTruthy()
+    }
+  })
+
+  it("keeps short labels short enough for a table header", () => {
+    for (const kind of DOCUMENT_KINDS) {
+      expect(DOCUMENT_SHORT_LABELS[kind].length).toBeLessThanOrEqual(10)
     }
   })
 })
@@ -21,11 +28,16 @@ describe("DOCUMENT_KINDS", () => {
 describe("isDocumentKind", () => {
   it("accepts a known kind", () => {
     expect(isDocumentKind("das_paid")).toBe(true)
+    expect(isDocumentKind("accountant_email")).toBe(true)
   })
 
   it("rejects anything else", () => {
     expect(isDocumentKind("contrato")).toBe(false)
     expect(isDocumentKind("")).toBe(false)
+  })
+
+  it("rejects das_received, renamed to das_issued in migration 019", () => {
+    expect(isDocumentKind("das_received")).toBe(false)
   })
 })
 

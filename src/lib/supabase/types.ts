@@ -335,12 +335,12 @@ type NfRequestInsert = {
 
 type JobDocumentRow = {
   id: string; user_id: string; job_id: string;
-  kind: 'contract' | 'invoice' | 'nf' | 'das_received' | 'das_paid' | 'payment_proof';
+  kind: 'contract' | 'invoice' | 'accountant_email' | 'nf' | 'das_issued' | 'das_paid' | 'payment_proof';
   path: string; file_name: string; mime_type: string | null; size_bytes: number | null; uploaded_at: string
 }
 type JobDocumentInsert = {
   user_id: string; job_id: string;
-  kind: 'contract' | 'invoice' | 'nf' | 'das_received' | 'das_paid' | 'payment_proof';
+  kind: 'contract' | 'invoice' | 'accountant_email' | 'nf' | 'das_issued' | 'das_paid' | 'payment_proof';
   path: string; file_name: string; mime_type?: string | null; size_bytes?: number | null
 }
 
