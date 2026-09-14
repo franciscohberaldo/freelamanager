@@ -114,6 +114,13 @@ const BASE_COLUMNS: Column[] = [
     ),
   },
   {
+    key: "contract", label: "Contrato", sortKey: "contract", align: "right", nowrap: true,
+    title: "Valor combinado no job, independente do que já foi faturado",
+    cell: ({ job }) => job.contract_value == null
+      ? dash
+      : formatCurrency(job.contract_value, job.currency),
+  },
+  {
     key: "total", label: "Total", sortKey: "total", align: "right", nowrap: true,
     title: "Ordena pelo número, sem converter moeda",
     cell: ({ summary }) => summary.totals.length === 0
@@ -229,6 +236,7 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
           tomador: tomador(j),
           marca: j.end_client ?? "",
           job: j.name,
+          contract: j.contract_value ?? 0,
           amount: summary.totals[0]?.amount ?? 0,
           start: summary.start,
           end: summary.end,
