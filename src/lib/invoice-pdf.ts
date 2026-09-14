@@ -1,11 +1,15 @@
 import jsPDF from "jspdf"
-import autoTable from "jspdf-autotable"
 import { format, parseISO } from "date-fns"
 import {
   invoiceT, invoiceLocale, formatInvoiceCurrency, formatQuantity, HOURS_PER_DAY,
   type InvoiceLang, type BillingUnit,
 } from "@/lib/invoice-i18n"
 import type { BillingMode } from "@/lib/billing-mode"
+import { registerJost, JOST, type JostStyle } from "@/lib/fonts"
+import {
+  X, Y, ROW, BODY_PT, TOTAL_PT, INK, LOGO_W, LOGO_H,
+} from "@/lib/invoice-layout"
+
 
 export function formatCurrencyPDF(value: number, currency: string = "BRL", lang: InvoiceLang = "pt"): string {
   return formatInvoiceCurrency(value, currency, lang)
@@ -149,6 +153,14 @@ export function paymentDetailRows(
   return rows.filter((r): r is [string, string] => !!r[1] && r[1].trim().length > 0)
 }
 
+
+/**
+ * The invoice, drawn to the design in MaterialCliente_2: Jost on white, labels in black and
+ * figures in a softer grey, the sender on the right and the client in the middle, items
+ * over a rule, then the payment instructions and the monogram at the foot.
+ *
+ * Positions come from `invoice-layout`, which carries the model's own coordinates.
+ */
 export async function generateInvoicePDF(params: InvoicePDFParams): Promise<ArrayBuffer> {
   const { invoice, items, job, client, settings, lang } = params
   const t = invoiceT[lang] ?? invoiceT.pt
@@ -156,292 +168,149 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   const dt  = (d: string | Date) => formatDatePDF(d, lang)
 
   const billingMode = job?.billing_mode ?? "hourly"
-  const isDaily     = billingMode === "daily"
-  const isProject   = billingMode === "fixed"
+  const isBRL = invoice.currency === "BRL"
 
-  const accentColor = settings?.invoice_color ?? "#1e40af"
-  const [r, g, b]   = hexToRgb(accentColor)
+  const doc = new jsPDF({ unit: "mm", format: "a4" })
+  registerJost(doc)
 
-  const doc   = new jsPDF()
-  const pageW = doc.internal.pageSize.getWidth()
-  const pageH = doc.internal.pageSize.getHeight()
+  const ink = (tone: readonly number[]) => doc.setTextColor(tone[0], tone[1], tone[2])
 
-  let logoBase64: string | null = null
-  if (settings?.logo_url) {
-    logoBase64 = await fetchImageBase64(settings.logo_url)
+  /** Every piece of text on this invoice is one of four voices. */
+  const say = (
+    text: string,
+    px: number,
+    py: number,
+    opts: { style?: JostStyle; size?: number; tone?: readonly number[]; align?: "right" } = {},
+  ) => {
+    if (!text) return
+    doc.setFont(JOST, opts.style ?? "normal")
+    doc.setFontSize(opts.size ?? BODY_PT)
+    ink(opts.tone ?? INK.label)
+    doc.text(text, px, py, opts.align ? { align: opts.align } : undefined)
   }
 
-  let headerOffsetY = 0
-  if (logoBase64) {
-    doc.addImage(logoBase64, "PNG", 20, 12, 0, 16)
-    headerOffsetY = 12
+  const heading = (text: string, px: number, py: number) => say(text, px, py, { style: "heavy" })
+
+  // ── who and when ───────────────────────────────────────────────────────────
+  const city = settings?.fiscal_address?.split(",").pop()?.trim() || "São Paulo"
+  say(`${city.toUpperCase()}, ${dt(invoice.period_end)}`, X.edge, Y.date, { style: "heavy", align: "right" })
+
+  heading(t.billTo, X.label, Y.header)
+  heading(t.recipientInfo, X.right, Y.header)
+
+  // the client, in the middle column
+  const clientName = client?.billing_entity || client?.legal_name || client?.name || ""
+  const clientLines = [
+    clientName,
+    ...(client?.billing_address || client?.address || "").split(/\s*[\n]\s*/).filter(Boolean),
+    client?.email ?? "",
+  ].filter(Boolean)
+  say(clientLines[0] ?? "", X.mid, Y.header)
+  const clientRows = [Y.line2, Y.line3, Y.line4]
+  clientLines.slice(1, 4).forEach((line, i) => say(line, X.mid, clientRows[i]))
+
+  // the sender, on the right
+  const senderLines = [
+    settings?.legal_name || settings?.company_name || "",
+    settings?.bank_beneficiary ? "" : "",
+  ].filter(Boolean)
+  say(senderLines[0] ?? "", X.right, Y.line2)
+  say(settings?.cnpj_cpf ? `CNPJ: ${settings.cnpj_cpf}` : "", X.right, Y.line3)
+  const fiscal = (settings?.fiscal_address ?? "").trim()
+  if (fiscal) {
+    const wrapped = doc.splitTextToSize(fiscal, X.edge - X.right) as string[]
+    wrapped.slice(0, 3).forEach((line, i) => say(line, X.right, [Y.line4, Y.line5, Y.purchase][i]))
   }
 
-  doc.setFontSize(24)
-  doc.setFont("helvetica", "bold")
-  doc.setTextColor(r, g, b)
-  doc.text(t.invoice, 20, 25 + headerOffsetY)
+  // ── what was ordered ───────────────────────────────────────────────────────
+  heading(`${t.purchaseOrder}:`, X.label, Y.purchase)
+  say(invoice.po_number ?? job?.project_code ?? "—", X.mid, Y.purchase)
 
-  doc.setFontSize(11)
-  doc.setFont("helvetica", "normal")
-  doc.setTextColor(80, 80, 80)
-  doc.text(`#${invoice.seq_number ?? invoice.invoice_number}`, 20, 33 + headerOffsetY)
+  heading(`${t.serviceOrdered}:`, X.label, Y.service)
+  say(job?.name ?? "", X.mid, Y.service)
 
-  const metaX = pageW - 20
-  let metaY = 20
-  if (settings?.company_name) {
-    doc.setFontSize(10)
-    doc.setFont("helvetica", "bold")
-    doc.setTextColor(30, 30, 30)
-    doc.text(settings.company_name, metaX, metaY, { align: "right" })
-    metaY += 6
-    doc.setFont("helvetica", "normal")
-    doc.setTextColor(80, 80, 80)
-  }
-  if (settings?.cnpj_cpf) {
-    doc.setFontSize(9)
-    doc.text(`CNPJ/CPF: ${settings.cnpj_cpf}`, metaX, metaY, { align: "right" })
-    metaY += 5
-  }
-  doc.setFontSize(10)
-  doc.text(`${t.date}: ${dt(new Date())}`, metaX, metaY, { align: "right" })
-  metaY += 7
-  doc.text(`${t.period}: ${dt(invoice.period_start)} – ${dt(invoice.period_end)}`, metaX, metaY, { align: "right" })
-  if (invoice.due_date) {
-    metaY += 7
-    doc.text(`${t.dueDate}: ${dt(invoice.due_date)}`, metaX, metaY, { align: "right" })
+  // ── the lines ──────────────────────────────────────────────────────────────
+  let y = Y.itemsStart
+  for (const item of items) {
+    const q = resolveItemQuantity(item, billingMode)
+    say(dt(item.date), X.label, y, { tone: INK.figure })
+    say(item.description ?? formatQuantity(q.quantity, q.unit, lang), X.itemDesc, y, { tone: INK.figure })
+    say(cur(item.subtotal), X.itemAmount, y, { tone: INK.figure, align: "right" })
+    y += ROW
   }
 
-  const sectionY = 48 + headerOffsetY
+  const ruleY = Math.max(Y.rule, y + ROW / 2)
+  doc.setDrawColor(INK.figure[0], INK.figure[1], INK.figure[2])
+  doc.setLineWidth(0.15)
+  doc.line(X.label, ruleY, X.itemAmount, ruleY)
 
-  doc.setFontSize(10)
-  doc.setFont("helvetica", "bold")
-  doc.setTextColor(30, 30, 30)
-  doc.text(`${t.to}:`, 20, sectionY)
-  doc.setFont("helvetica", "normal")
-  doc.setTextColor(80, 80, 80)
-  const toMaxW = pageW / 2 - 30
-  let toY = sectionY + 7
-  const toLine = (text: string, bold = false) => {
-    doc.setFont("helvetica", bold ? "bold" : "normal")
-    doc.setTextColor(bold ? 30 : 80, bold ? 30 : 80, bold ? 30 : 80)
-    const lines = doc.splitTextToSize(text, toMaxW) as string[]
-    doc.text(lines, 20, toY)
-    toY += lines.length * 5
-    doc.setFont("helvetica", "normal")
-    doc.setTextColor(80, 80, 80)
+  let totalY = ruleY + (Y.total - Y.rule)
+  if (invoice.tax_rate > 0) {
+    say(t.subtotal, X.label, totalY, { tone: INK.figure })
+    say(cur(invoice.subtotal), X.itemAmount, totalY, { tone: INK.figure, align: "right" })
+    totalY += ROW
+    say(`${t.taxes} (${invoice.tax_rate}%)`, X.label, totalY, { tone: INK.figure })
+    say(cur(invoice.tax_amount), X.itemAmount, totalY, { tone: INK.figure, align: "right" })
+    totalY += ROW
   }
-  if (client?.billing_entity) {
-    toLine(client.billing_entity, true)
-    const billAddr = client.billing_address ?? client.address
-    if (billAddr) toLine(billAddr)
-    toY += 2
-    toLine(client.legal_name ?? client.name)
-    if (client.email) toLine(client.email)
+  say(t.total, X.label, totalY, { style: "bold", size: TOTAL_PT, tone: INK.figure })
+  say(cur(invoice.total), X.itemAmount, totalY, { style: "bold", size: TOTAL_PT, tone: INK.figure, align: "right" })
+
+  // ── how to pay ─────────────────────────────────────────────────────────────
+  // The payment block is anchored low on the page; a long list of items pushes it to its
+  // own page rather than letting the two collide.
+  let base = Y.payment
+  if (totalY > Y.payment - 20) {
+    doc.addPage()
+    base = 30
+  }
+  const at = (anchor: number) => base + (anchor - Y.payment)
+
+  heading(t.paymentInstructions, X.label, at(Y.payment))
+  say(isBRL ? t.pixOnly : t.wireOnly, X.bank, at(Y.payment), { style: "italic" })
+
+  if (isBRL) {
+    for (const [i, [label, value]] of paymentDetailRows(settings, invoice.currency, lang).entries()) {
+      say(`${label}: ${value}`, X.bank, at([Y.intermediary, Y.aba, Y.account, Y.bankName][i] ?? Y.bankName))
+    }
   } else {
-    toLine(client?.legal_name ?? client?.name ?? "—")
-    if (client?.company && client.company !== (client.legal_name ?? "")) toLine(client.company)
-    if (client?.cnpj)    toLine(`${t.cnpj}: ${client.cnpj}`)
-    if (client?.address) toLine(client.address)
-    if (client?.email)   toLine(client.email)
+    heading(`${t.intermediaryBank}:`, X.label, at(Y.intermediary))
+    say(settings?.intermediary_bank_swift ? `SWIFT: ${settings.intermediary_bank_swift}` : "", X.bankWide, at(Y.intermediary))
+    say(settings?.intermediary_bank_aba ? `ABA: ${settings.intermediary_bank_aba}` : "", X.bank, at(Y.aba))
+    say(settings?.intermediary_bank_account ? `${t.accountNumber}: ${settings.intermediary_bank_account}` : "", X.bank, at(Y.account))
+    say(settings?.intermediary_bank_name ?? "", X.bank, at(Y.bankName))
+
+    heading(`${t.destinationBank}:`, X.label, at(Y.destination))
+    say(settings?.bank_swift ? `SWIFT: ${settings.bank_swift}` : "", X.bank, at(Y.destination))
+    say(settings?.bank_name ? `${t.beneficiaryBank}: ${settings.bank_name}` : "", X.bank, at(Y.beneficiaryBank))
+
+    heading(`${t.beneficiaryField}:`, X.label, at(Y.beneficiary))
+    say(settings?.bank_beneficiary ?? "", X.bank, at(Y.beneficiary))
+    say(settings?.bank_iban ? `IBAN: ${settings.bank_iban}` : "", X.bank, at(Y.iban))
+
+    const extras = [settings?.intermediary_bank_address, settings?.bank_address].filter(Boolean) as string[]
+    if (extras.length) {
+      heading(`${t.additionalInfo}:`, X.label, at(Y.additional))
+      extras.slice(0, 2).forEach((line, i) =>
+        say(line, i === 0 ? X.bankWide : X.bank, at([Y.additional, Y.additional2][i])))
+    }
   }
 
-  doc.setFont("helvetica", "bold")
-  doc.setTextColor(30, 30, 30)
-  doc.text(`${t.service}:`, pageW / 2, sectionY)
-  doc.setFont("helvetica", "normal")
-  doc.setTextColor(80, 80, 80)
-  doc.text(job?.name ?? "—", pageW / 2, sectionY + 7)
-  let serviceY = sectionY + 13
-  if (job?.project_code) {
-    doc.text(`${t.project}: ${job.project_code}`, pageW / 2, serviceY)
-    serviceY += 6
-  }
-  if (invoice.po_number) {
-    doc.text(`${t.purchaseOrder}: ${invoice.po_number}`, pageW / 2, serviceY)
-    serviceY += 6
-  }
-  const rateValue = isProject ? (invoice.subtotal ?? 0) : isDaily ? (job?.daily_rate ?? 0) : (job?.hourly_rate ?? 0)
-  doc.text(
-    isProject ? `${t.rate}: ${cur(rateValue)}` : `${t.rate}: ${cur(rateValue)}/${isDaily ? t.day : t.hour}`,
-    pageW / 2, serviceY,
-  )
-
-  const divY = Math.max(sectionY + 25, serviceY + 6, toY + 4)
-  doc.setDrawColor(200, 200, 200)
-  doc.line(20, divY, pageW - 20, divY)
-
-  autoTable(doc, {
-    startY: divY + 7,
-    head: [[t.tableDate, t.tableDescription,
-      isProject ? t.tableBilledProject : isDaily ? t.tableBilledDays : t.tableBilled,
-      isProject ? t.tableRateProject : isDaily ? t.tableRateDay : t.tableRate,
-      t.tableSubtotal]],
-    body: items.map((item) => {
-      if (item.is_manual) {
-        const desc = [item.description, item.job_number ? `Job: ${item.job_number}` : null].filter(Boolean).join(" — ")
-        return [dt(item.date), desc, String(item.quantity ?? 0), cur(item.rate), cur(item.subtotal)]
+  // ── the mark ───────────────────────────────────────────────────────────────
+  if (settings?.logo_url) {
+    const logo = await fetchImageBase64(settings.logo_url)
+    if (logo) {
+      try {
+        doc.addImage(logo, "PNG", X.logo, at(Y.logo) - LOGO_H, LOGO_W, LOGO_H)
+      } catch {
+        // a logo that will not decode is not worth losing the invoice over
       }
-      const q = resolveItemQuantity(item, billingMode)
-      return [
-        dt(item.date),
-        item.description ?? (isProject ? t.projectUnit : isDaily ? t.day : t.hour),
-        formatQuantity(q.quantity, q.unit, lang),
-        cur(item.rate),
-        cur(item.subtotal),
-      ]
-    }),
-    margin: { left: 20, right: 20 },
-    styles: { fontSize: 10, cellPadding: 4 },
-    headStyles: { fillColor: [r, g, b], textColor: 255, fontStyle: "bold" },
-    alternateRowStyles: { fillColor: [245, 247, 255] },
-    columnStyles: {
-      0: { cellWidth: 30 },
-      1: { cellWidth: "auto" },
-      2: { cellWidth: 26, halign: "center" },
-      3: { cellWidth: 28, halign: "right" },
-      4: { cellWidth: 30, halign: "right" },
-    },
-  })
-
-  const finalY   = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10
-  const totalsX  = pageW - 80
-  const hasInTax = invoice.tax_rate > 0
-
-  doc.setFontSize(10)
-  doc.setTextColor(80, 80, 80)
-  doc.text(`${t.subtotal}:`, totalsX, finalY)
-  doc.text(cur(invoice.subtotal), pageW - 20, finalY, { align: "right" })
-
-  if (hasInTax) {
-    doc.text(`${t.taxes} (${invoice.tax_rate}%):`, totalsX, finalY + 7)
-    doc.text(cur(invoice.tax_amount), pageW - 20, finalY + 7, { align: "right" })
-  }
-
-  doc.setFont("helvetica", "bold")
-  doc.setFontSize(12)
-  doc.setTextColor(30, 30, 30)
-  doc.text(`${t.total}:`, totalsX, finalY + (hasInTax ? 17 : 10))
-  doc.setTextColor(r, g, b)
-  doc.text(cur(invoice.total), pageW - 20, finalY + (hasInTax ? 17 : 10), { align: "right" })
-
-  let cursorY = finalY + (hasInTax ? 17 : 10) + 14
-
-  const printLabelRows = (title: string, rows: Array<[string, string | null | undefined]>) => {
-    const filled = rows.filter((row): row is [string, string] => !!row[1] && row[1].trim().length > 0)
-    if (filled.length === 0) return
-    const blockH = 8 + filled.length * 5.5
-    if (cursorY + blockH > pageH - 20) { doc.addPage(); cursorY = 20 }
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(9)
-    doc.setTextColor(30, 30, 30)
-    doc.text(title, 20, cursorY)
-    cursorY += 5.5
-    doc.setFont("helvetica", "normal")
-    for (const [label, value] of filled) {
-      doc.setTextColor(120, 120, 120)
-      doc.text(`${label}:`, 20, cursorY)
-      doc.setTextColor(30, 30, 30)
-      const lines = doc.splitTextToSize(value, pageW - 82) as string[]
-      doc.text(lines, 62, cursorY)
-      cursorY += 5.5 * lines.length
     }
-    cursorY += 3
-  }
-
-  if (invoice.currency !== "BRL") {
-    // Wire instructions in SWIFT field order (56 → 57 → 59), then the recipient's fiscal identity
-    const s: Partial<NonNullable<InvoicePDFParams["settings"]>> = settings ?? {}
-    const sections: Array<[string, Array<[string, string | null | undefined]>]> = [
-      [t.intermediaryBank, [
-        [t.swift,         s.intermediary_bank_swift],
-        [t.routing,       s.intermediary_bank_aba],
-        [t.accountNumber, s.intermediary_bank_account],
-        [t.bankName,      s.intermediary_bank_name],
-        [t.bankAddress,   s.intermediary_bank_address],
-      ]],
-      [t.destinationBank, [
-        [t.swift,       s.bank_swift],
-        [t.bankName,    s.bank_name],
-        [t.bankAddress, s.bank_address],
-      ]],
-      [t.beneficiaryField, [
-        [t.beneficiary,   s.bank_beneficiary ?? s.legal_name],
-        [t.iban,          s.bank_iban],
-        [t.accountNumber, s.bank_account_number],
-        [t.routing,       s.bank_routing],
-        [t.accountType,   s.bank_account_type],
-      ]],
-    ]
-    const hasWire = sections.some(([, rows]) => rows.some((row) => !!row[1] && row[1].trim().length > 0))
-    if (hasWire) {
-      if (cursorY + 20 > pageH - 20) { doc.addPage(); cursorY = 20 }
-      doc.setDrawColor(200, 200, 200)
-      doc.line(20, cursorY, pageW - 20, cursorY)
-      cursorY += 8
-      doc.setFont("helvetica", "bold")
-      doc.setFontSize(10)
-      doc.setTextColor(30, 30, 30)
-      doc.text(t.paymentInstructions, 20, cursorY)
-      cursorY += 7
-      for (const [title, rows] of sections) printLabelRows(title, rows)
-    }
-    const recipientLines = [
-      s.legal_name ?? s.company_name,
-      s.cnpj_cpf ? `${t.cnpj}: ${s.cnpj_cpf}` : null,
-      s.fiscal_address,
-    ].filter((v): v is string => !!v && v.trim().length > 0)
-    if (recipientLines.length > 0) {
-      const wrapped = recipientLines.flatMap((l) => doc.splitTextToSize(l, pageW - 40) as string[])
-      const blockH = 8 + wrapped.length * 5
-      if (cursorY + blockH > pageH - 20) { doc.addPage(); cursorY = 20 }
-      doc.setFont("helvetica", "bold")
-      doc.setFontSize(9)
-      doc.setTextColor(30, 30, 30)
-      doc.text(t.recipientInfo, 20, cursorY)
-      cursorY += 5.5
-      doc.setFont("helvetica", "normal")
-      doc.setTextColor(80, 80, 80)
-      doc.text(wrapped, 20, cursorY)
-      cursorY += wrapped.length * 5 + 4
-    }
-  }
-
-  // Payment details block (PIX for BRL)
-  const bankRows = invoice.currency === "BRL" ? paymentDetailRows(settings, invoice.currency, lang) : []
-  if (bankRows.length > 0) {
-    const blockH = 14 + bankRows.length * 6
-    if (cursorY + blockH > pageH - 20) { doc.addPage(); cursorY = 20 }
-
-    doc.setDrawColor(200, 200, 200)
-    doc.line(20, cursorY, pageW - 20, cursorY)
-    cursorY += 8
-
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(10)
-    doc.setTextColor(30, 30, 30)
-    doc.text(t.paymentDetails, 20, cursorY)
-    cursorY += 6
-
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(9)
-    for (const [label, value] of bankRows) {
-      doc.setTextColor(120, 120, 120)
-      doc.text(`${label}:`, 20, cursorY)
-      doc.setTextColor(30, 30, 30)
-      doc.text(value, 62, cursorY)
-      cursorY += 6
-    }
-    cursorY += 4
   }
 
   if (invoice.notes) {
-    if (cursorY + 10 > pageH - 20) { doc.addPage(); cursorY = 20 }
-    doc.setFontSize(9)
-    doc.setFont("helvetica", "normal")
-    doc.setTextColor(120, 120, 120)
-    const lines = doc.splitTextToSize(`${t.notes}: ${invoice.notes}`, pageW - 40) as string[]
-    doc.text(lines, 20, cursorY)
+    const lines = doc.splitTextToSize(`${t.notes}: ${invoice.notes}`, X.edge - X.label) as string[]
+    say(lines.join("\n"), X.label, at(Y.additional2) + ROW * 2, { tone: INK.figure })
   }
 
   return doc.output("arraybuffer")
