@@ -7,6 +7,7 @@
  *
  * Protected by CRON_SECRET env var.
  */
+import { primaryEmail } from "@/lib/emails"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { isCronAuthorized } from "@/lib/cron-auth"
 import { NextRequest, NextResponse } from "next/server"
@@ -54,7 +55,7 @@ async function run(req: NextRequest) {
 
     for (const inv of invoices ?? []) {
       const job         = inv.jobs as unknown as { name: string; clients: { name: string; email: string | null } | null } | null
-      const clientEmail = job?.clients?.email
+      const clientEmail = primaryEmail(job?.clients?.email)
       if (!clientEmail) continue
 
       const daysPast = differenceInDays(today, parseISO(inv.due_date!))

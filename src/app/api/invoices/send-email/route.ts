@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { primaryEmail, extraEmails, parseEmails } from "@/lib/emails"
 import { NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 import { invoiceT, formatInvoiceCurrency, formatQuantity, type InvoiceLang } from "@/lib/invoice-i18n"
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
   if (!invoice) return NextResponse.json({ error: "Invoice não encontrado" }, { status: 404 })
 
   const job         = invoice.jobs as { name: string; currency: string; billing_mode: "hourly" | "daily" | "fixed"; project_code: string | null; clients: { id: string; name: string; email: string | null } | null } | null
-  const clientEmail = job?.clients?.email
+  const clientEmail = primaryEmail(job?.clients?.email)
   const isDaily     = job?.billing_mode === "daily"
   const isProject   = job?.billing_mode === "fixed"
 
@@ -36,9 +37,10 @@ export async function POST(request: NextRequest) {
     .eq("client_id", job?.clients?.id ?? "")
     .eq("cc_invoices", true)
 
-  const cc = [...new Set((contacts ?? [])
-    .map(c => c.email?.trim().toLowerCase())
-    .filter((e): e is string => !!e && e !== clientEmail?.trim().toLowerCase()))]
+  const cc = [...new Set([
+    ...extraEmails(job?.clients?.email),
+    ...(contacts ?? []).flatMap(c => parseEmails(c.email)),
+  ])].filter(e => e !== clientEmail)
 
   if (!clientEmail) {
     return NextResponse.json({ error: "Cliente sem e-mail cadastrado" }, { status: 400 })

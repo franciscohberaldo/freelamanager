@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { normalizeName } from "@/lib/text-case"
 import { formatCnpj, isValidCnpj } from "@/lib/cnpj"
+import { parseEmails, validateEmailList } from "@/lib/emails"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -93,12 +94,14 @@ export function ClientDialog({ children, mode, client }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.name.trim()) { toast.error("Nome obrigatório"); return }
+    const emailCheck = validateEmailList(form.email)
+    if (!emailCheck.ok) { toast.error(emailCheck.error); return }
     setLoading(true)
 
     const payload = {
       name:    normalizeName(form.name),
       company: normalizeName(form.company) || null,
-      email:   form.email || null,
+      email:   parseEmails(form.email).join(", ") || null,
       phone:   form.phone || null,
       notes:   form.notes || null,
       legal_name:      normalizeName(form.legal_name) || null,
@@ -143,7 +146,15 @@ export function ClientDialog({ children, mode, client }: Props) {
           </div>
           <div className="space-y-2">
             <Label>E-mail</Label>
-            <Input value={form.email} onChange={(e) => update("email", e.target.value)} type="email" placeholder="email@empresa.com" />
+            <Input
+              value={form.email}
+              onChange={(e) => update("email", e.target.value)}
+              placeholder="email@empresa.com, outro@empresa.com"
+            />
+            <p className="text-xs text-muted-foreground">
+              Aceita mais de um, separados por vírgula. O primeiro recebe a invoice; os
+              outros entram em cópia.
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Telefone</Label>

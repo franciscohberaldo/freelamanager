@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { primaryEmail } from "@/lib/emails"
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -41,7 +42,9 @@ export async function POST(req: NextRequest) {
     "metadata[user_id]": user.id,
   })
 
-  if (client?.email) params.set("customer_email", client.email)
+  // Stripe takes exactly one address, so a client with several gives only the first.
+  const customerEmail = primaryEmail(client?.email)
+  if (customerEmail) params.set("customer_email", customerEmail)
 
   const stripeRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
