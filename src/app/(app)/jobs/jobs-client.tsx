@@ -5,13 +5,12 @@ import { workHoursInLocal } from "@/lib/timezone"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { JobDialog } from "./job-dialog"
-import { JobHistory, type HistoryJob } from "./job-history"
 import { LoadMoreButton } from "@/components/load-more-button"
 import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { JOB_STATUS_LABELS } from "@/lib/utils"
-import { Plus, Building2 } from "lucide-react"
+import Link from "next/link"
+import { Plus, Building2, History } from "lucide-react"
 
 const statusVariant: Record<string, "default" | "success" | "warning" | "outline" | "destructive"> = {
   proposal: "outline",
@@ -49,10 +48,9 @@ interface Props {
   jobs: Job[]
   jobsCount: number
   clients: Client[]
-  history: HistoryJob[]
 }
 
-export function JobsClient({ jobs, jobsCount, clients, history }: Props) {
+export function JobsClient({ jobs, jobsCount, clients }: Props) {
   const { items: jobList, loadMore, hasMore, loading } = usePaginatedList({
     table: "jobs",
     select: "*, clients(name)",
@@ -69,22 +67,23 @@ export function JobsClient({ jobs, jobsCount, clients, history }: Props) {
           <h1 className="text-2xl font-bold">Jobs</h1>
           <p className="text-muted-foreground text-sm">{jobsCount} jobs cadastrados</p>
         </div>
-        <JobDialog clients={clients} mode="create">
-          <Button>
-            <Plus className="w-4 h-4" />
-            Novo Job
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/historico">
+              <History className="w-4 h-4" />
+              Histórico
+            </Link>
           </Button>
-        </JobDialog>
+          <JobDialog clients={clients} mode="create">
+            <Button>
+              <Plus className="w-4 h-4" />
+              Novo Job
+            </Button>
+          </JobDialog>
+        </div>
       </div>
 
-      <Tabs defaultValue="jobs">
-        <TabsList>
-          <TabsTrigger value="jobs">Jobs</TabsTrigger>
-          <TabsTrigger value="historico">Histórico</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="jobs">
-      <div className="grid gap-4 mt-2">
+      <div className="grid gap-4">
         {(jobList as unknown as Job[]).length === 0 && (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
@@ -138,12 +137,6 @@ export function JobsClient({ jobs, jobsCount, clients, history }: Props) {
         ))}
         <LoadMoreButton hasMore={hasMore} loading={loading} onClick={loadMore} />
       </div>
-        </TabsContent>
-
-        <TabsContent value="historico">
-          <JobHistory jobs={history} clients={clients} />
-        </TabsContent>
-      </Tabs>
     </div>
   )
 }

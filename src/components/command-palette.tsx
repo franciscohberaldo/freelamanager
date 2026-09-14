@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
-import { Search, Briefcase, Users, FileText, LayoutDashboard, ClipboardList, CalendarDays, Settings, TrendingUp, Wallet, Receipt } from "lucide-react"
+import { Search, Briefcase, Users, FileText, History, LayoutDashboard, ClipboardList, CalendarDays, Settings, TrendingUp, Wallet, Receipt } from "lucide-react"
 
 interface Result {
   id: string
@@ -19,6 +19,7 @@ const STATIC_LINKS: Result[] = [
   { id: "dash",    label: "Dashboard",        href: "/dashboard", icon: LayoutDashboard, category: "Páginas" },
   { id: "logs",    label: "Registro Diário",  href: "/logs",      icon: ClipboardList,   category: "Páginas" },
   { id: "jobs",    label: "Jobs",             href: "/jobs",      icon: Briefcase,       category: "Páginas" },
+  { id: "hist",    label: "Histórico de jobs", href: "/historico", icon: History,         category: "Páginas" },
   { id: "clients", label: "Clientes",         href: "/clients",   icon: Users,           category: "Páginas" },
   { id: "inv",     label: "Invoices",         href: "/invoices",  icon: FileText,        category: "Páginas" },
   { id: "nf",      label: "Notas fiscais",    href: "/notas-fiscais", icon: Receipt,     category: "Páginas" },

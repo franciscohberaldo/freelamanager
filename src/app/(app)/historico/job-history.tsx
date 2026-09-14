@@ -11,7 +11,7 @@ import {
 } from "@/lib/job-history"
 import { ArrowDown, ArrowUp, ChevronsUpDown, Image as ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { JobDialog } from "./job-dialog"
+import { JobDialog } from "../jobs/job-dialog"
 import type { Job } from "@/lib/supabase/types"
 
 export type HistoryJob = Job & {
@@ -99,7 +99,7 @@ export function JobHistory({ jobs, clients }: { jobs: HistoryJob[]; clients: { i
     setSort(s => s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" })
 
   return (
-    <div className="space-y-4 mt-2">
+    <div className="space-y-4">
       <div className="flex gap-2 flex-wrap">
         <Input
           value={query}
