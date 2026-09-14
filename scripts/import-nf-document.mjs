@@ -17,7 +17,7 @@ import { normalizeName } from "../src/lib/text-case.ts"
 const DRY = process.argv.includes("--dry")
 
 const NF = {
-  pdf:        "MaterialCliente/260914/251027_NFE_0090_RGA_MotionDesign.pdf",
+  pdf:        "MaterialCliente/250110_0090_Rga_MotionDesign/251027_NFE_0090_RGA_MotionDesign.pdf",
   number:     "0090",
   series:     "sao_paulo",
   issuedAt:   "2025-10-27",
