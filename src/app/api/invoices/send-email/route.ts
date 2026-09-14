@@ -16,17 +16,29 @@ export async function POST(request: NextRequest) {
 
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("*, jobs(name, currency, billing_mode, project_code, clients(name, email))")
+    .select("*, jobs(name, currency, billing_mode, project_code, clients(id, name, email))")
     .eq("id", invoiceId)
     .eq("user_id", user.id)
     .single()
 
   if (!invoice) return NextResponse.json({ error: "Invoice não encontrado" }, { status: 404 })
 
-  const job         = invoice.jobs as { name: string; currency: string; billing_mode: "hourly" | "daily" | "fixed"; project_code: string | null; clients: { name: string; email: string | null } | null } | null
+  const job         = invoice.jobs as { name: string; currency: string; billing_mode: "hourly" | "daily" | "fixed"; project_code: string | null; clients: { id: string; name: string; email: string | null } | null } | null
   const clientEmail = job?.clients?.email
   const isDaily     = job?.billing_mode === "daily"
   const isProject   = job?.billing_mode === "fixed"
+
+  // Some clients want more than one person on the invoice: the contacts marked for it are
+  // copied, the client's own address stays the recipient.
+  const { data: contacts } = await supabase
+    .from("client_contacts")
+    .select("email")
+    .eq("client_id", job?.clients?.id ?? "")
+    .eq("cc_invoices", true)
+
+  const cc = [...new Set((contacts ?? [])
+    .map(c => c.email?.trim().toLowerCase())
+    .filter((e): e is string => !!e && e !== clientEmail?.trim().toLowerCase()))]
 
   if (!clientEmail) {
     return NextResponse.json({ error: "Cliente sem e-mail cadastrado" }, { status: 400 })
@@ -92,6 +104,7 @@ export async function POST(request: NextRequest) {
   const { error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL ?? "invoices@freelamanager.com",
     to: [clientEmail],
+    ...(cc.length > 0 ? { cc } : {}),
     subject: t.subject(invoice.invoice_number, job?.name ?? "Freela Manager"),
     html,
   })

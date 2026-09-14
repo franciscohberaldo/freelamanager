@@ -12,17 +12,18 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { ContactsDialog, type ContactRow } from "./contacts-dialog"
 import { formatCurrency } from "@/lib/utils"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { ArrowLeft, Plus, Star, Link2, Copy, Phone, Mail, Briefcase, Loader2 } from "lucide-react"
+import { ArrowLeft, Plus, Star, Link2, Copy, Phone, Mail, Briefcase, Loader2, Pencil } from "lucide-react"
 import Link from "next/link"
 
 interface Props {
   client: {
     id: string; name: string; company: string | null; email: string | null
     phone: string | null; notes: string | null; score: number | null
-    client_contacts: { id: string; name: string; role: string | null; email: string | null }[]
+    client_contacts: ContactRow[]
   }
   interactions: {
     id: string; type: string; summary: string; happened_at: string
@@ -185,7 +186,15 @@ export function ClientDetailClient({ client, interactions, jobs, invoices, porta
         <div className="space-y-4">
           {/* Contact info */}
           <Card>
-            <CardHeader><CardTitle className="text-sm">Contato</CardTitle></CardHeader>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-sm">Contato</CardTitle>
+              <ContactsDialog clientId={client.id} contacts={client.client_contacts ?? []}>
+                <Button variant="ghost" size="sm" className="-mr-2 text-muted-foreground">
+                  <Pencil className="w-3.5 h-3.5" />
+                  Editar
+                </Button>
+              </ContactsDialog>
+            </CardHeader>
             <CardContent className="space-y-2.5 text-sm">
               {client.email && (
                 <a href={`mailto:${client.email}`} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
@@ -197,6 +206,30 @@ export function ClientDetailClient({ client, interactions, jobs, invoices, porta
                   <Phone className="w-3.5 h-3.5" /> {client.phone}
                 </a>
               )}
+
+              {(client.client_contacts ?? []).length > 0 && (
+                <div className="pt-2 border-t space-y-2">
+                  {client.client_contacts.map(c => (
+                    <div key={c.id} className="space-y-0.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-medium">{c.name}</span>
+                        {c.role && <span className="text-xs text-muted-foreground">{c.role}</span>}
+                        {c.cc_invoices && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0" title="Entra em cópia no e-mail da invoice">
+                            cópia
+                          </Badge>
+                        )}
+                      </div>
+                      {c.email && (
+                        <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-xs">
+                          <Mail className="w-3 h-3" /> {c.email}
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {client.notes && (
                 <p className="text-muted-foreground text-xs mt-2 leading-relaxed">{client.notes}</p>
               )}

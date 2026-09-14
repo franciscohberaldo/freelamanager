@@ -21,8 +21,8 @@ type ClientInsert = {
   billing_entity?: string | null; billing_address?: string | null; nf_rules?: string | null
 }
 
-type ClientContactRow = { id: string; client_id: string; name: string; role: string | null; email: string | null; phone: string | null; created_at: string }
-type ClientContactInsert = { client_id: string; name: string; role?: string | null; email?: string | null; phone?: string | null }
+type ClientContactRow = { id: string; client_id: string; name: string; role: string | null; email: string | null; phone: string | null; cc_invoices: boolean; created_at: string }
+type ClientContactInsert = { client_id: string; name: string; role?: string | null; email?: string | null; phone?: string | null; cc_invoices?: boolean }
 
 type JobRow = {
   id: string; user_id: string; client_id: string; name: string; description: string | null;
