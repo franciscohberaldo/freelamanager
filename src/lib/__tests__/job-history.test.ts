@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { summarizeJob, compactNumbers, type HistoryInvoice } from "@/lib/job-history"
+import { summarizeJob, compactNumbers, compareRows, type HistoryInvoice, type SortableRow } from "@/lib/job-history"
 
 const inv = (o: Partial<HistoryInvoice> = {}): HistoryInvoice => ({
   seq_number: null,
@@ -9,6 +9,9 @@ const inv = (o: Partial<HistoryInvoice> = {}): HistoryInvoice => ({
   currency: "BRL",
   status: "paid",
   nf_status: "not_required",
+  period_start: "2020-01-01",
+  period_end: "2020-01-01",
+  nf_issued_at: null,
   ...o,
 })
 
@@ -94,5 +97,80 @@ describe("compactNumbers", () => {
   it("returns an em dash when nothing is left", () => {
     expect(compactNumbers([])).toBe("—")
     expect(compactNumbers([null, null])).toBe("—")
+  })
+})
+
+describe("summarizeJob dates", () => {
+  const dated = (o: Partial<HistoryInvoice>) => inv({ period_start: "2018-03-20", period_end: "2018-03-20", ...o })
+
+  it("spans from the earliest period start to the latest period end", () => {
+    const s = summarizeJob([
+      dated({ period_start: "2018-03-20", period_end: "2018-03-31" }),
+      dated({ period_start: "2019-08-01", period_end: "2019-08-12" }),
+    ])
+    expect(s.start).toBe("2018-03-20")
+    expect(s.end).toBe("2019-08-12")
+  })
+
+  it("reports a single NF issue date as a point, not a range", () => {
+    const s = summarizeJob([dated({ nf_issued_at: "2018-12-14" })])
+    expect(s.nfFrom).toBe("2018-12-14")
+    expect(s.nfTo).toBe("2018-12-14")
+  })
+
+  it("spans the NF issue dates when several were issued", () => {
+    const s = summarizeJob([
+      dated({ nf_issued_at: "2019-08-12" }),
+      dated({ nf_issued_at: "2018-03-20" }),
+      dated({ nf_issued_at: null }),
+    ])
+    expect(s.nfFrom).toBe("2018-03-20")
+    expect(s.nfTo).toBe("2019-08-12")
+  })
+
+  it("leaves the NF dates empty when no NF was ever issued", () => {
+    const s = summarizeJob([dated({ nf_issued_at: null })])
+    expect(s.nfFrom).toBeNull()
+    expect(s.nfTo).toBeNull()
+  })
+
+  it("falls back to the job's own dates when it has no invoices", () => {
+    const s = summarizeJob([], { start_date: "2026-09-01", end_date: null })
+    expect(s.start).toBe("2026-09-01")
+    expect(s.end).toBeNull()
+  })
+
+  it("prefers the invoice span over the job's recorded dates", () => {
+    const s = summarizeJob([dated({ period_start: "2018-03-20", period_end: "2018-03-31" })], { start_date: "2000-01-01", end_date: "2000-12-31" })
+    expect(s.start).toBe("2018-03-20")
+    expect(s.end).toBe("2018-03-31")
+  })
+})
+
+describe("compareRows", () => {
+  const row = (o: Partial<SortableRow> = {}): SortableRow => ({ tomador: "A", job: "A", amount: 0, start: "2020-01-01", end: "2020-01-01", nf: "2020-01-01", ...o })
+
+  it("orders text case-insensitively", () => {
+    expect(compareRows(row({ job: "amazon" }), row({ job: "Boticario" }), "job", "asc")).toBeLessThan(0)
+    expect(compareRows(row({ job: "amazon" }), row({ job: "Boticario" }), "job", "desc")).toBeGreaterThan(0)
+  })
+
+  it("orders amounts numerically, not as text", () => {
+    expect(compareRows(row({ amount: 9000 }), row({ amount: 10000 }), "total", "asc")).toBeLessThan(0)
+  })
+
+  it("orders dates chronologically", () => {
+    expect(compareRows(row({ start: "2015-08-10" }), row({ start: "2019-01-01" }), "start", "asc")).toBeLessThan(0)
+    expect(compareRows(row({ start: "2015-08-10" }), row({ start: "2019-01-01" }), "start", "desc")).toBeGreaterThan(0)
+  })
+
+  it("keeps rows without a date at the bottom in both directions", () => {
+    expect(compareRows(row({ start: null }), row({ start: "2019-01-01" }), "start", "asc")).toBeGreaterThan(0)
+    expect(compareRows(row({ start: null }), row({ start: "2019-01-01" }), "start", "desc")).toBeGreaterThan(0)
+    expect(compareRows(row({ start: "2019-01-01" }), row({ start: null }), "start", "desc")).toBeLessThan(0)
+  })
+
+  it("treats two missing dates as a tie", () => {
+    expect(compareRows(row({ start: null }), row({ start: null }), "start", "asc")).toBe(0)
   })
 })
