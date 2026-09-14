@@ -68,8 +68,9 @@ tmp/
 # supabase cli
 supabase/.temp/
 
-# client material (CNPJ, addresses) - never commit
-MaterialCliente/
+# client material (CNPJ, addresses, bank statements) - never commit.
+# The glob matters: a copy named MaterialCliente_2 slipped past "MaterialCliente/" once.
+MaterialCliente*/
 
 # superpowers scratch
 .superpowers/
