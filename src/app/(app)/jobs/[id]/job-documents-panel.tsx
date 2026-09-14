@@ -18,9 +18,11 @@ interface Props {
   jobId: string
   userId: string
   documents: JobDocument[]
+  /** What a kind can do besides holding a file — asking the accountant for the NF, say. */
+  actions?: Partial<Record<DocumentKind, React.ReactNode>>
 }
 
-export function JobDocumentsPanel({ jobId, userId, documents }: Props) {
+export function JobDocumentsPanel({ jobId, userId, documents, actions }: Props) {
   const [busy, setBusy] = useState<DocumentKind | null>(null)
   const router = useRouter()
   const supabase = createClient()
@@ -94,6 +96,8 @@ export function JobDocumentsPanel({ jobId, userId, documents }: Props) {
                 </div>
                 <FileText className={`w-4 h-4 shrink-0 ${doc ? "text-foreground" : "text-muted-foreground/30"}`} />
               </div>
+
+              {actions?.[kind]}
 
               {doc ? (
                 <div className="space-y-2">

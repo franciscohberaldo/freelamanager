@@ -9,8 +9,10 @@ import { workHoursInLocal } from "@/lib/timezone"
 import { JobForm } from "../job-form"
 import { JobDocumentsPanel } from "./job-documents-panel"
 import { SectionNav } from "./section-nav"
+import { NfRequestAction } from "./nf-request-action"
 import { DOCUMENT_KINDS } from "@/lib/job-documents"
 import { rateOf, rateLabel } from "@/lib/billing-mode"
+import { canTransition, type NfStatus } from "@/lib/nf-status"
 import { ArrowLeft, FileText, Image as ImageIcon } from "lucide-react"
 import type { Job, JobDocument, Invoice, DailyLog } from "@/lib/supabase/types"
 
@@ -58,6 +60,11 @@ export default async function JobPage({ params }: { params: { id: string } }) {
 
   const loggedHours = jobLogs.reduce((sum, l) => sum + (l.hours_billed ?? 0), 0)
   const loggedValue = jobLogs.reduce((sum, l) => sum + (l.total_value ?? 0), 0)
+
+  // only an invoice still waiting on its NF can be sent to the accountant
+  const nfCandidates = jobInvoices
+    .filter(i => canTransition((i.nf_status ?? "not_required") as NfStatus, "requested"))
+    .map(i => ({ id: i.id, label: i.seq_number ?? i.invoice_number }))
 
   const sections = [
     { id: "dados", label: "Dados" },
@@ -116,7 +123,16 @@ export default async function JobPage({ params }: { params: { id: string } }) {
 
       <section id="documentos" className="scroll-mt-24 space-y-3">
         <h2 className="text-lg font-semibold">Documentos</h2>
-        <JobDocumentsPanel jobId={typedJob.id} userId={user!.id} documents={docs} />
+        <JobDocumentsPanel
+          jobId={typedJob.id}
+          userId={user!.id}
+          documents={docs}
+          actions={{
+            accountant_email: (
+              <NfRequestAction candidates={nfCandidates} hasInvoices={jobInvoices.length > 0} />
+            ),
+          }}
+        />
       </section>
 
       <section id="invoices" className="scroll-mt-24 space-y-3">
