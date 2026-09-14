@@ -4,13 +4,14 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { normalizeName } from "@/lib/text-case"
+import { formatCnpj, isValidCnpj } from "@/lib/cnpj"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
-import { Loader2 } from "lucide-react"
+import { Loader2, Search } from "lucide-react"
 
 interface Props {
   children: React.ReactNode
@@ -53,6 +54,40 @@ export function ClientDialog({ children, mode, client }: Props) {
 
   function update(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }))
+  }
+
+  const [lookingUp, setLookingUp] = useState(false)
+
+  /**
+   * The Receita's record wins for the legal name and the address — that is what the lookup
+   * is for. The contact fields are the user's own, so they are only filled when empty.
+   */
+  async function lookupCnpj() {
+    if (!isValidCnpj(form.cnpj)) { toast.error("Digite um CNPJ válido"); return }
+    setLookingUp(true)
+    try {
+      const res = await fetch(`/api/cnpj?cnpj=${encodeURIComponent(form.cnpj)}`)
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error ?? "Não deu para buscar"); return }
+
+      setForm(f => ({
+        ...f,
+        cnpj:       data.cnpj || f.cnpj,
+        legal_name: data.legal_name || f.legal_name,
+        address:    data.address || f.address,
+        name:       f.name.trim() || data.company || data.legal_name || "",
+        company:    f.company.trim() || data.company || "",
+        email:      f.email.trim() || data.email || "",
+        phone:      f.phone.trim() || data.phone || "",
+      }))
+
+      if (data.active) toast.success(`${data.legal_name} · ${data.situacao}`)
+      else toast.warning(`${data.legal_name} · situação cadastral: ${data.situacao}`)
+    } catch {
+      toast.error("Não deu para buscar")
+    } finally {
+      setLookingUp(false)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -118,16 +153,30 @@ export function ClientDialog({ children, mode, client }: Props) {
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dados fiscais (tomador da NF)</p>
             <div className="space-y-2">
               <Label>Razão social</Label>
-              <Input value={form.legal_name} onChange={(e) => update("legal_name", e.target.value)} placeholder="Videographica Serviços e Participações Ltda" />
+              <Input value={form.legal_name} onChange={(e) => update("legal_name", e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>CNPJ</Label>
-                <Input value={form.cnpj} onChange={(e) => update("cnpj", e.target.value)} placeholder="00.000.000/0001-00" />
+                <div className="flex gap-2">
+                  <Input
+                    value={form.cnpj}
+                    onChange={(e) => update("cnpj", e.target.value)}
+                    onBlur={(e) => update("cnpj", formatCnpj(e.target.value))}
+                    placeholder="00.000.000/0001-00"
+                  />
+                  <Button
+                    type="button" variant="outline" onClick={lookupCnpj}
+                    disabled={lookingUp} className="shrink-0"
+                  >
+                    {lookingUp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                    Buscar
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Entidade de cobrança (bill to)</Label>
-                <Input value={form.billing_entity} onChange={(e) => update("billing_entity", e.target.value)} placeholder="ex: Steelhead" />
+                <Input value={form.billing_entity} onChange={(e) => update("billing_entity", e.target.value)} />
               </div>
             </div>
             <div className="space-y-2">
@@ -136,11 +185,11 @@ export function ClientDialog({ children, mode, client }: Props) {
             </div>
             <div className="space-y-2">
               <Label>Endereço de cobrança (se diferente)</Label>
-              <Input value={form.billing_address} onChange={(e) => update("billing_address", e.target.value)} placeholder="12901 W. Jefferson Blvd, Los Angeles CA 90066, USA" />
+              <Input value={form.billing_address} onChange={(e) => update("billing_address", e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Regras do cliente para a NF</Label>
-              <Textarea value={form.nf_rules} onChange={(e) => update("nf_rules", e.target.value)} rows={3} placeholder="ex: sem palavras em inglês, sem nome do job, dados bancários no corpo da NF" />
+              <Textarea value={form.nf_rules} onChange={(e) => update("nf_rules", e.target.value)} rows={3} placeholder="Regras deste cliente para a emissão da NF" />
             </div>
           </div>
           <div className="space-y-2">
