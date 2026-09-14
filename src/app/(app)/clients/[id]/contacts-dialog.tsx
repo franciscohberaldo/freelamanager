@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { normalizeName } from "@/lib/text-case"
@@ -13,7 +13,8 @@ import { Switch } from "@/components/ui/switch"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { Check, Loader2, Pencil, Plus, Trash2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 export type ContactRow = {
   id: string
@@ -24,8 +25,13 @@ export type ContactRow = {
   cc_invoices: boolean
 }
 
-/** A row being edited: `id` is absent until it has been saved once. */
+/**
+ * A row in the dialog: `id` is absent until it has been saved once, while `key` identifies
+ * it for the whole time the dialog is open — including which rows are open for editing,
+ * which would follow the wrong row if it went by position.
+ */
 type Draft = {
+  key: string
   id?: string
   name: string
   role: string
@@ -35,11 +41,17 @@ type Draft = {
 }
 
 const toDraft = (c: ContactRow): Draft => ({
-  id: c.id, name: c.name, role: c.role ?? "", email: c.email ?? "",
+  key: c.id, id: c.id, name: c.name, role: c.role ?? "", email: c.email ?? "",
   phone: c.phone ?? "", cc_invoices: c.cc_invoices,
 })
 
-const blank = (): Draft => ({ name: "", role: "", email: "", phone: "", cc_invoices: false })
+const blank = (key: string): Draft => ({
+  key, name: "", role: "", email: "", phone: "", cc_invoices: false,
+})
+
+/** What a contact reads as when it is not being edited. */
+const summary = (r: Draft) =>
+  [r.email.trim(), r.phone.trim()].filter(Boolean).join(" · ") || "Sem e-mail nem telefone"
 
 export function ContactsDialog({
   clientId, clientEmail, clientPhone, contacts, children,
@@ -55,6 +67,9 @@ export function ContactsDialog({
   const [email, setEmail] = useState(clientEmail ?? "")
   const [phone, setPhone] = useState(clientPhone ?? "")
   const [removed, setRemoved] = useState<string[]>([])
+  // saved contacts start closed; a contact just added opens, since it has nothing to show yet
+  const [editing, setEditing] = useState<string[]>([])
+  const newKey = useRef(0)
   const [saving, setSaving] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -66,6 +81,7 @@ export function ContactsDialog({
       setEmail(clientEmail ?? "")
       setPhone(clientPhone ?? "")
       setRemoved([])
+      setEditing([])
     }
     setOpen(next)
   }
@@ -77,7 +93,17 @@ export function ContactsDialog({
     const row = rows[i]
     if (row.id) setRemoved(ids => [...ids, row.id!])
     setRows(rs => rs.filter((_, j) => j !== i))
+    setEditing(ks => ks.filter(k => k !== row.key))
   }
+
+  function add() {
+    const draft = blank(`novo-${newKey.current++}`)
+    setRows(rs => [...rs, draft])
+    setEditing(ks => [...ks, draft.key])
+  }
+
+  const toggleEdit = (key: string) =>
+    setEditing(ks => (ks.includes(key) ? ks.filter(k => k !== key) : [...ks, key]))
 
   async function save() {
     const emailCheck = validateEmailList(email)
@@ -167,12 +193,12 @@ export function ContactsDialog({
             </p>
           )}
 
-          {rows.map((row, i) => (
-            <div key={row.id ?? `novo-${i}`} className="rounded-md border p-3 space-y-3">
+          {rows.map((row, i) => editing.includes(row.key) ? (
+            <div key={row.key} className="rounded-md border p-3 space-y-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Nome *</Label>
-                  <Input value={row.name} onChange={e => update(i, { name: e.target.value })} />
+                  <Input value={row.name} onChange={e => update(i, { name: e.target.value })} autoFocus />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Cargo</Label>
@@ -195,27 +221,63 @@ export function ContactsDialog({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <Switch
-                    id={`cc-${i}`}
+                    id={`cc-${row.key}`}
                     checked={row.cc_invoices}
                     onCheckedChange={v => update(i, { cc_invoices: v })}
                   />
-                  <Label htmlFor={`cc-${i}`} className="text-sm font-normal">
+                  <Label htmlFor={`cc-${row.key}`} className="text-sm font-normal">
                     Copiar nas invoices
                   </Label>
                 </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button" variant="ghost" size="sm"
+                    onClick={() => remove(i)}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Remover
+                  </Button>
+                  <Button
+                    type="button" variant="outline" size="sm"
+                    onClick={() => toggleEdit(row.key)}
+                    disabled={!row.name.trim()}
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Pronto
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div key={row.key} className="rounded-md border p-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">
+                  {row.name}
+                  {row.role && <span className="font-normal text-muted-foreground"> · {row.role}</span>}
+                </p>
+                <p className="text-sm text-muted-foreground truncate">{summary(row)}</p>
+                {row.cc_invoices && (
+                  <Badge variant="outline" className="mt-1.5">Cópia nas invoices</Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button type="button" variant="ghost" size="sm" onClick={() => toggleEdit(row.key)}>
+                  <Pencil className="w-3.5 h-3.5" />
+                  Editar
+                </Button>
                 <Button
                   type="button" variant="ghost" size="sm"
                   onClick={() => remove(i)}
                   className="text-muted-foreground hover:text-destructive"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  Remover
                 </Button>
               </div>
             </div>
           ))}
 
-          <Button type="button" variant="outline" size="sm" onClick={() => setRows(rs => [...rs, blank()])}>
+          <Button type="button" variant="outline" size="sm" onClick={add}>
             <Plus className="w-4 h-4" />
             Adicionar contato
           </Button>
