@@ -269,7 +269,7 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex flex-wrap items-center gap-2">
         <Input
           value={query}
           onChange={e => setQuery(e.target.value)}
@@ -299,16 +299,14 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
             {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
           </SelectContent>
         </Select>
-      </div>
 
-      {reordered && (
-        <div className="flex justify-end">
-          <Button variant="ghost" size="sm" onClick={resetOrder}>
+        {reordered && (
+          <Button variant="ghost" size="sm" onClick={resetOrder} className="ml-auto">
             <RotateCcw className="w-3 h-3" />
             Restaurar ordem
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="rounded-md border overflow-x-auto">
         <table className="w-full text-sm">
