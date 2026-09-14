@@ -71,12 +71,17 @@ const dash = <span className="text-muted-foreground">—</span>
 const BASE_COLUMNS: Column[] = [
   {
     key: "tomador", label: "Tomador", sortKey: "tomador",
-    cell: ({ job }) => (
-      <>
-        {tomador(job)}
-        {job.intermediary && <span className="text-muted-foreground"> · via {job.intermediary}</span>}
-      </>
-    ),
+    cell: ({ job }) => {
+      const full = tomador(job) + (job.intermediary ? ` · via ${job.intermediary}` : "")
+      // A razão social completa passa de três linhas e empurra a tabela inteira; duas
+      // linhas bastam para reconhecer o cliente, e o title guarda o resto.
+      return (
+        <span className="line-clamp-2 max-w-[15rem]" title={full}>
+          {tomador(job)}
+          {job.intermediary && <span className="text-muted-foreground"> · via {job.intermediary}</span>}
+        </span>
+      )
+    },
   },
   { key: "marca", label: "Marca", sortKey: "marca", cell: ({ job }) => job.end_client || dash },
   {
