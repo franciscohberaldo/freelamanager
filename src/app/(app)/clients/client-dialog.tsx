@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { normalizeName } from "@/lib/text-case"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -60,15 +61,15 @@ export function ClientDialog({ children, mode, client }: Props) {
     setLoading(true)
 
     const payload = {
-      name:    form.name,
-      company: form.company || null,
+      name:    normalizeName(form.name),
+      company: normalizeName(form.company) || null,
       email:   form.email || null,
       phone:   form.phone || null,
       notes:   form.notes || null,
-      legal_name:      form.legal_name || null,
+      legal_name:      normalizeName(form.legal_name) || null,
       cnpj:            form.cnpj || null,
       address:         form.address || null,
-      billing_entity:  form.billing_entity || null,
+      billing_entity:  normalizeName(form.billing_entity) || null,
       billing_address: form.billing_address || null,
       nf_rules:        form.nf_rules || null,
     }

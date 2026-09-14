@@ -1,7 +1,10 @@
 // scripts/import-nf-document.mjs — files one issued NFS-e: the client's fiscal data, the
 // job, the invoice, and the PDF itself in the job's "NF emitida" slot.
 //
-// Usage: node scripts/import-nf-document.mjs [--dry]
+// Usage: node --experimental-strip-types scripts/import-nf-document.mjs [--dry]
+//
+// The flag lets it import the app's own name normaliser, so a name copied off a shouting
+// document lands in the database the way the rest of the data reads.
 //
 // Written for NFS-e 00000090 (R/GA, 27/10/2025). The NF data sits in NF below; point it at
 // another note by editing that block. Re-running is safe: every write is keyed on something
@@ -9,6 +12,7 @@
 // duplicating.
 import { readFileSync } from "node:fs"
 import { createClient } from "@supabase/supabase-js"
+import { normalizeName } from "../src/lib/text-case.ts"
 
 const DRY = process.argv.includes("--dry")
 
@@ -60,7 +64,7 @@ say("cliente", `${client.name} (${client.id})`)
 
 // ── 1. The client's fiscal identity, straight off the note ───────────────────
 const clientPatch = {
-  legal_name: NF.client.legal_name,
+  legal_name: normalizeName(NF.client.legal_name),
   cnpj:       NF.client.cnpj,
   address:    NF.client.address,
   email:      NF.client.email,
@@ -88,7 +92,7 @@ if (jobFindErr) die("buscar job", jobFindErr)
 
 const jobPayload = {
   user_id: userId, client_id: client.id,
-  name: NF.service, po_number: NF.po, nf_description: NF.service,
+  name: normalizeName(NF.service), po_number: NF.po, nf_description: NF.service,
   currency: NF.currency, status: "completed", billing_mode: "hourly",
   hourly_rate: 0, daily_rate: 0, tax_rate: 0, is_recurring: false, is_confidential: false,
   start_date: NF.periodStart, end_date: NF.periodEnd,

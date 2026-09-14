@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/client"
 import { validateThumbnail, thumbnailPath, pathFromPublicUrl, THUMBNAIL_BUCKET } from "@/lib/job-thumbnail"
+import { normalizeName } from "@/lib/text-case"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -127,6 +128,7 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
     setLoading(true)
     const payload = {
       ...data,
+      name: normalizeName(data.name.trim()),
       project_code: data.project_code?.trim() || null,
       end_client:     data.end_client?.trim() || null,
       intermediary:   data.intermediary?.trim() || null,
