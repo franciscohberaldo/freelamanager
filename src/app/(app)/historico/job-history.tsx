@@ -19,10 +19,11 @@ import {
 } from "@/lib/job-documents"
 import {
   ArrowDown, ArrowUp, ChevronsUpDown, GripVertical, Image as ImageIcon,
-  Paperclip, RotateCcw,
+  Mail, Paperclip, RotateCcw,
 } from "lucide-react"
 import { AttachedCheck, NotAttached } from "@/components/attached-check"
 import { Button } from "@/components/ui/button"
+import { NfRequestDialog } from "../invoices/nf-request-dialog"
 import type { Job } from "@/lib/supabase/types"
 
 export type HistoryJob = Job & {
@@ -80,6 +81,43 @@ const dash = <span className="text-muted-foreground">—</span>
 function Clamped({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <span className="line-clamp-2 max-w-[15rem]" title={title}>{children}</span>
+  )
+}
+
+/**
+ * The e-mail to the accountant, one click away from the job row. A request that went out
+ * reads "Enviado" with its date — the dialog's own success toast is the approval message —
+ * and can be sent again; a job never asked shows the button that opens the request dialog.
+ * The row's own click opens the job, so the cell stops every click from bubbling up.
+ */
+function AccountantEmailCell({ job }: { job: HistoryJob }) {
+  const [open, setOpen] = useState(false)
+  const sent = (job.nf_requests ?? []).find(r => r.status !== "failed")
+
+  return (
+    <div onClick={e => e.stopPropagation()} className="flex items-center gap-1.5">
+      {sent ? (
+        <>
+          <span className="space-y-0.5">
+            <Badge variant="success" className="whitespace-nowrap">Enviado</Badge>
+            <span className="block text-xs text-muted-foreground">{formatDate(sent.created_at)}</span>
+          </span>
+          <Button
+            variant="ghost" size="sm" className="px-1.5"
+            title="Enviar novamente"
+            onClick={() => setOpen(true)}
+          >
+            <Mail className="w-3.5 h-3.5" />
+          </Button>
+        </>
+      ) : (
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+          <Mail className="w-3.5 h-3.5" />
+          Enviar
+        </Button>
+      )}
+      <NfRequestDialog jobId={job.id} open={open} onClose={() => setOpen(false)} />
+    </div>
   )
 }
 
@@ -193,6 +231,11 @@ const BASE_COLUMNS: Column[] = [
   },
   { key: "invoices", label: "Invoices", cell: ({ summary }) => <span className="font-mono">{summary.invoiceLabel}</span> },
   { key: "nfs", label: "NFs", cell: ({ summary }) => <span className="font-mono">{summary.nfLabel}</span> },
+  {
+    key: "contador", label: "Contador", nowrap: true,
+    title: "E-mail de pedido de NF enviado ao contador",
+    cell: ({ job }) => <AccountantEmailCell job={job} />,
+  },
 ]
 
 /**
