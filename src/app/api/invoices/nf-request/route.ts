@@ -112,11 +112,13 @@ export async function POST(request: NextRequest) {
 
   const built = invoice ? buildFromInvoice(invoice) : buildFromJob(job!)
   if (!built.amountBrl) {
-    return NextResponse.json({
-      error: invoice
-        ? "Valor em reais da NF não definido"
-        : "Defina o valor do contrato do job, em reais, para pedir a NF",
-    }, { status: 400 })
+    // The NF is always in reais; a job in another currency only knows that figure once an
+    // invoice has been paid and its nf_amount_brl recorded.
+    const why = invoice ? "Valor em reais da NF não definido"
+      : job!.currency !== "BRL"
+        ? `O job é em ${job!.currency}: o valor da NF em reais vem da invoice, crie uma para pedir a NF`
+        : "Defina o valor do contrato do job para pedir a NF"
+    return NextResponse.json({ error: why }, { status: 400 })
   }
 
   const subject = typeof customSubject === "string" && customSubject.trim() ? customSubject : built.subject
