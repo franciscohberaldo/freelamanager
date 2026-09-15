@@ -44,6 +44,8 @@ export interface CompanySettings {
   fx_bank_agency: string | null
   fx_bank_account: string | null
   fx_bank_swift: string | null
+  invoice_contact_email: string | null
+  invoice_contact_phone: string | null
 }
 
 type Field = { key: keyof CompanySettings; label: string; placeholder: string; wide?: boolean }
@@ -89,6 +91,8 @@ const FISCAL_FIELDS: Field[] = [
   { key: "legal_name",             label: "Razão social",              placeholder: "Estúdio Judite Ltda" },
   { key: "municipal_registration", label: "Inscrição municipal (CCM)", placeholder: "64377270" },
   { key: "fiscal_address",         label: "Endereço fiscal",           placeholder: "Rua, número, bairro, cidade, UF, CEP", wide: true },
+  { key: "invoice_contact_email",  label: "E-mail no invoice",         placeholder: "hello@chico.cx" },
+  { key: "invoice_contact_phone",  label: "Telefone no invoice",       placeholder: "+55 (11) 976.947.533" },
   { key: "accountant_name",        label: "Contador (nome)",           placeholder: "Nome do contador" },
   { key: "accountant_email",       label: "Contador (e-mail)",         placeholder: "contador@escritorio.com.br" },
 ]

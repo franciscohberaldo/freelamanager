@@ -7,7 +7,7 @@ import {
 import type { BillingMode } from "@/lib/billing-mode"
 import { registerJost, JOST, type JostStyle } from "@/lib/fonts"
 import {
-  X, Y, ROW, BODY_PT, TOTAL_PT, INK, LOGO_W, LOGO_H,
+  X, Y, ROW, BODY_PT, TOTAL_PT, INK, LOGO_W, LOGO_H, LOGO_TOP,
 } from "@/lib/invoice-layout"
 
 
@@ -15,9 +15,38 @@ export function formatCurrencyPDF(value: number, currency: string = "BRL", lang:
   return formatInvoiceCurrency(value, currency, lang)
 }
 
+/** The model writes money as "US$ 500" and "US$ 1,500": a sign, a thin space, no bare cents. */
+const CURRENCY_SIGNS: Record<string, string> = { USD: "US$", BRL: "R$", EUR: "€" }
+
+export function formatModelCurrency(value: number, currency: string): string {
+  const sign = CURRENCY_SIGNS[currency] ?? `${currency} `
+  const grouping = currency === "BRL" ? "pt-BR" : "en-US"
+  const decimals = Number.isInteger(value) ? 0 : 2
+  const num = new Intl.NumberFormat(grouping, {
+    minimumFractionDigits: decimals, maximumFractionDigits: 2,
+  }).format(value)
+  return `${sign} ${num}`
+}
+
 export function formatDatePDF(date: string | Date, lang: InvoiceLang = "pt"): string {
   const d = typeof date === "string" ? parseISO(date) : date
   return format(d, invoiceLocale[lang]?.dateFormat ?? "dd/MM/yyyy")
+}
+
+/** The header's date stamp, as in the model: "SÃO PAULO, 20.07.2026". */
+export function formatHeaderDate(date: string | Date): string {
+  const d = typeof date === "string" ? parseISO(date) : date
+  return format(d, "dd.MM.yyyy")
+}
+
+/**
+ * The city in the header. A fiscal address is a comma list that usually ends in a zip code,
+ * so the city is the last piece that has letters and no digits.
+ */
+export function cityOf(fiscalAddress: string | null | undefined): string {
+  const parts = (fiscalAddress ?? "").split(",").map(p => p.trim()).filter(Boolean)
+  const city = [...parts].reverse().find(p => /[a-zA-ZÀ-ú]/.test(p) && !/\d/.test(p))
+  return (city ?? "São Paulo").toUpperCase()
 }
 
 export function hexToRgb(hex: string): [number, number, number] {
@@ -105,6 +134,8 @@ export interface InvoicePDFParams {
     invoice_color: string | null
     legal_name?: string | null
     fiscal_address?: string | null
+    invoice_contact_email?: string | null
+    invoice_contact_phone?: string | null
     intermediary_bank_name?: string | null
     intermediary_bank_swift?: string | null
     intermediary_bank_aba?: string | null
@@ -155,17 +186,17 @@ export function paymentDetailRows(
 
 
 /**
- * The invoice, drawn to the design in MaterialCliente_2: Jost on white, labels in black and
- * figures in a softer grey, the sender on the right and the client in the middle, items
- * over a rule, then the payment instructions and the monogram at the foot.
+ * The invoice, drawn to the model in MaterialCliente_2 (260914_Buck Invoice 02): Jost on
+ * white, the monogram at the top left and the city-date stamp at the top right; labels in
+ * black capitals and figures in a softer grey; the client in the middle, the issuer's
+ * contact on the right; items over a rule; payment instructions anchored at the foot.
  *
  * Positions come from `invoice-layout`, which carries the model's own coordinates.
  */
 export async function generateInvoicePDF(params: InvoicePDFParams): Promise<ArrayBuffer> {
   const { invoice, items, job, client, settings, lang } = params
   const t = invoiceT[lang] ?? invoiceT.pt
-  const cur = (v: number) => formatCurrencyPDF(v, invoice.currency, lang)
-  const dt  = (d: string | Date) => formatDatePDF(d, lang)
+  const cur = (v: number) => formatModelCurrency(v, invoice.currency)
 
   const billingMode = job?.billing_mode ?? "hourly"
   const isBRL = invoice.currency === "BRL"
@@ -189,13 +220,24 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
     doc.text(text, px, py, opts.align ? { align: opts.align } : undefined)
   }
 
-  const heading = (text: string, px: number, py: number) => say(text, px, py, { style: "heavy" })
+  const heading = (text: string, px: number, py: number) =>
+    say(text.toUpperCase(), px, py, { style: "heavy" })
+
+  // ── the mark and the date ────────────────────────────────────────────────────
+  if (settings?.logo_url) {
+    const logo = await fetchImageBase64(settings.logo_url)
+    if (logo) {
+      try {
+        doc.addImage(logo, "PNG", X.logo, LOGO_TOP, LOGO_W, LOGO_H)
+      } catch {
+        // a logo that will not decode is not worth losing the invoice over
+      }
+    }
+  }
+  say(`${cityOf(settings?.fiscal_address)}, ${formatHeaderDate(invoice.period_end)}`, X.edge, Y.date, { style: "heavy", align: "right" })
 
   // ── who and when ───────────────────────────────────────────────────────────
-  const city = settings?.fiscal_address?.split(",").pop()?.trim() || "São Paulo"
-  say(`${city.toUpperCase()}, ${dt(invoice.period_end)}`, X.edge, Y.date, { style: "heavy", align: "right" })
-
-  heading(t.billTo, X.label, Y.header)
+  heading(`${t.billTo}:`, X.label, Y.header)
   heading(t.recipientInfo, X.right, Y.header)
 
   // the client, in the middle column
@@ -209,22 +251,19 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   const clientRows = [Y.line2, Y.line3, Y.line4]
   clientLines.slice(1, 4).forEach((line, i) => say(line, X.mid, clientRows[i]))
 
-  // the sender, on the right
-  const senderLines = [
-    settings?.legal_name || settings?.company_name || "",
-    settings?.bank_beneficiary ? "" : "",
-  ].filter(Boolean)
-  say(senderLines[0] ?? "", X.right, Y.line2)
-  say(settings?.cnpj_cpf ? `CNPJ: ${settings.cnpj_cpf}` : "", X.right, Y.line3)
+  // the issuer, on the right: name, then how to reach them, then where they are
+  say(settings?.legal_name || settings?.company_name || "", X.right, Y.line2)
+  say(settings?.invoice_contact_email ? `Email: ${settings.invoice_contact_email}` : "", X.right, Y.line3)
+  say(settings?.invoice_contact_phone ? `${t.tel}: ${settings.invoice_contact_phone}` : "", X.right, Y.line4)
   const fiscal = (settings?.fiscal_address ?? "").trim()
   if (fiscal) {
-    const wrapped = doc.splitTextToSize(fiscal, X.edge - X.right) as string[]
-    wrapped.slice(0, 3).forEach((line, i) => say(line, X.right, [Y.line4, Y.line5, Y.purchase][i]))
+    const wrapped = doc.splitTextToSize(`${t.streetAddress}: ${fiscal}`, X.edge - X.right) as string[]
+    wrapped.slice(0, 3).forEach((line, i) => say(line, X.right, [Y.line5, Y.purchase, Y.service][i]))
   }
 
   // ── what was ordered ───────────────────────────────────────────────────────
   heading(`${t.purchaseOrder}:`, X.label, Y.purchase)
-  say(invoice.po_number ?? job?.project_code ?? "—", X.mid, Y.purchase)
+  say(invoice.po_number ?? job?.project_code ?? "", X.mid, Y.purchase)
 
   heading(`${t.serviceOrdered}:`, X.label, Y.service)
   say(job?.name ?? "", X.mid, Y.service)
@@ -233,28 +272,28 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   let y = Y.itemsStart
   for (const item of items) {
     const q = resolveItemQuantity(item, billingMode)
-    say(dt(item.date), X.label, y, { tone: INK.figure })
+    say(format(parseISO(item.date), "dd/MM"), X.label, y, { tone: INK.figure })
     say(item.description ?? formatQuantity(q.quantity, q.unit, lang), X.itemDesc, y, { tone: INK.figure })
-    say(cur(item.subtotal), X.itemAmount, y, { tone: INK.figure, align: "right" })
+    say(cur(item.subtotal), X.itemAmount, y, { tone: INK.figure })
     y += ROW
   }
 
   const ruleY = Math.max(Y.rule, y + ROW / 2)
   doc.setDrawColor(INK.figure[0], INK.figure[1], INK.figure[2])
   doc.setLineWidth(0.15)
-  doc.line(X.label, ruleY, X.itemAmount, ruleY)
+  doc.line(X.label, ruleY, X.itemAmount + 18, ruleY)
 
   let totalY = ruleY + (Y.total - Y.rule)
   if (invoice.tax_rate > 0) {
     say(t.subtotal, X.label, totalY, { tone: INK.figure })
-    say(cur(invoice.subtotal), X.itemAmount, totalY, { tone: INK.figure, align: "right" })
+    say(cur(invoice.subtotal), X.itemAmount, totalY, { tone: INK.figure })
     totalY += ROW
     say(`${t.taxes} (${invoice.tax_rate}%)`, X.label, totalY, { tone: INK.figure })
-    say(cur(invoice.tax_amount), X.itemAmount, totalY, { tone: INK.figure, align: "right" })
+    say(cur(invoice.tax_amount), X.itemAmount, totalY, { tone: INK.figure })
     totalY += ROW
   }
-  say(t.total, X.label, totalY, { style: "bold", size: TOTAL_PT, tone: INK.figure })
-  say(cur(invoice.total), X.itemAmount, totalY, { style: "bold", size: TOTAL_PT, tone: INK.figure, align: "right" })
+  say("Total", X.label, totalY, { style: "bold", size: TOTAL_PT, tone: INK.figure })
+  say(cur(invoice.total), X.itemAmount, totalY, { style: "bold", size: TOTAL_PT, tone: INK.figure })
 
   // ── how to pay ─────────────────────────────────────────────────────────────
   // The payment block is anchored low on the page; a long list of items pushes it to its
@@ -277,7 +316,7 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
     heading(`${t.intermediaryBank}:`, X.label, at(Y.intermediary))
     say(settings?.intermediary_bank_swift ? `SWIFT: ${settings.intermediary_bank_swift}` : "", X.bankWide, at(Y.intermediary))
     say(settings?.intermediary_bank_aba ? `ABA: ${settings.intermediary_bank_aba}` : "", X.bank, at(Y.aba))
-    say(settings?.intermediary_bank_account ? `${t.accountNumber}: ${settings.intermediary_bank_account}` : "", X.bank, at(Y.account))
+    say(settings?.intermediary_bank_account ? `${t.account}: ${settings.intermediary_bank_account}` : "", X.bank, at(Y.account))
     say(settings?.intermediary_bank_name ?? "", X.bank, at(Y.bankName))
 
     heading(`${t.destinationBank}:`, X.label, at(Y.destination))
@@ -285,26 +324,21 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
     say(settings?.bank_name ? `${t.beneficiaryBank}: ${settings.bank_name}` : "", X.bank, at(Y.beneficiaryBank))
 
     heading(`${t.beneficiaryField}:`, X.label, at(Y.beneficiary))
-    say(settings?.bank_beneficiary ?? "", X.bank, at(Y.beneficiary))
+    say(settings?.bank_beneficiary ? `${t.beneficiaryInBrazil}: ${settings.bank_beneficiary}` : "", X.bank, at(Y.beneficiary))
     say(settings?.bank_iban ? `IBAN: ${settings.bank_iban}` : "", X.bank, at(Y.iban))
 
-    const extras = [settings?.intermediary_bank_address, settings?.bank_address].filter(Boolean) as string[]
+    const extras = [
+      settings?.intermediary_bank_address && settings?.intermediary_bank_name
+        ? `${settings.intermediary_bank_name} address: ${settings.intermediary_bank_address}`
+        : settings?.intermediary_bank_address ?? null,
+      settings?.bank_address && settings?.bank_name
+        ? `${settings.bank_name} address: ${settings.bank_address}`
+        : settings?.bank_address ?? null,
+    ].filter(Boolean) as string[]
     if (extras.length) {
       heading(`${t.additionalInfo}:`, X.label, at(Y.additional))
       extras.slice(0, 2).forEach((line, i) =>
         say(line, i === 0 ? X.bankWide : X.bank, at([Y.additional, Y.additional2][i])))
-    }
-  }
-
-  // ── the mark ───────────────────────────────────────────────────────────────
-  if (settings?.logo_url) {
-    const logo = await fetchImageBase64(settings.logo_url)
-    if (logo) {
-      try {
-        doc.addImage(logo, "PNG", X.logo, at(Y.logo) - LOGO_H, LOGO_W, LOGO_H)
-      } catch {
-        // a logo that will not decode is not worth losing the invoice over
-      }
     }
   }
 

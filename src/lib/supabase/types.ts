@@ -161,6 +161,7 @@ type UserSettingsRow = {
   br_bank_name: string | null; br_bank_agency: string | null; br_bank_account: string | null;
   fx_bank_name: string | null; fx_bank_agency: string | null; fx_bank_account: string | null;
   fx_bank_swift: string | null;
+  invoice_contact_email: string | null; invoice_contact_phone: string | null;
   created_at: string; updated_at: string
 }
 type UserSettingsInsert = {
@@ -175,7 +176,8 @@ type UserSettingsInsert = {
   intermediary_bank_account?: string | null; intermediary_bank_address?: string | null;
   br_bank_name?: string | null; br_bank_agency?: string | null; br_bank_account?: string | null;
   fx_bank_name?: string | null; fx_bank_agency?: string | null; fx_bank_account?: string | null;
-  fx_bank_swift?: string | null
+  fx_bank_swift?: string | null;
+  invoice_contact_email?: string | null; invoice_contact_phone?: string | null
 }
 
 type ExpenseRow = {

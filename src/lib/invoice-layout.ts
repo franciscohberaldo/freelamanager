@@ -69,5 +69,8 @@ export const ROW = fromBottom(795) - fromBottom(812)
 export const LOGO_W = x(82)
 export const LOGO_H = ((322 / 235) * 82 / MODEL_W) * PAGE_W
 
+/** The monogram opens the page at the top left in the new model, not the foot. */
+export const LOGO_TOP = 9
+
 /** Ink: black for the labels, a softer grey for the figures, as in the model. */
 export const INK = { label: [0, 0, 0], figure: [33, 33, 33] } as const
