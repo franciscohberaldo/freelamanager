@@ -15,6 +15,13 @@ export default async function EmailsPage() {
     .eq("user_id", user!.id)
     .order("created_at", { ascending: false })
 
+  // The jobs an unmatched attachment can be filed to as an NF.
+  const { data: jobs } = await supabase
+    .from("jobs")
+    .select("id, name")
+    .eq("user_id", user!.id)
+    .order("name")
+
   const emails = (rows ?? []) as unknown as InboundEmail[]
 
   // An attachment's bytes live in the documents bucket; what reaches the browser is a
@@ -47,7 +54,7 @@ export default async function EmailsPage() {
         </p>
       </div>
 
-      <EmailsClient emails={emails} />
+      <EmailsClient emails={emails} jobs={jobs ?? []} />
     </div>
   )
 }

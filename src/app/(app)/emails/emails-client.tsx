@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn, formatDate } from "@/lib/utils"
-import { AlertCircle, CheckCircle2, Inbox, Loader2, Paperclip, Search, Send, X } from "lucide-react"
+import { AlertCircle, CheckCircle2, FileCheck, Inbox, Loader2, Paperclip, Search, Send, X } from "lucide-react"
 
 export type EmailAttachment = {
   id: string
@@ -23,7 +24,7 @@ export type EmailAttachment = {
 }
 
 /** An attachment with bytes behind it opens in a new tab; one without stays a label. */
-function AttachmentItem({ a }: { a: EmailAttachment }) {
+function AttachmentItem({ a, action }: { a: EmailAttachment; action?: React.ReactNode }) {
   return (
     <li className="flex items-center gap-2">
       <Paperclip className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -37,7 +38,75 @@ function AttachmentItem({ a }: { a: EmailAttachment }) {
       {a.size != null && (
         <span className="text-xs text-muted-foreground shrink-0">({formatSize(a.size)})</span>
       )}
+      {action}
     </li>
+  )
+}
+
+const isPdfAttachment = (a: EmailAttachment) =>
+  a.content_type === "application/pdf" || !!a.filename?.toLowerCase().endsWith(".pdf")
+
+/** Pick the job an unmatched PDF belongs to, and it becomes that job's filed NF. */
+function FileAsNfDialog({ email, attachment, jobs, open, onClose, onFiled }: {
+  email: InboundEmail
+  attachment: EmailAttachment | null
+  jobs: { id: string; name: string }[]
+  open: boolean
+  onClose: () => void
+  onFiled: () => void
+}) {
+  const [jobId, setJobId] = useState("")
+  const [filing, setFiling] = useState(false)
+
+  async function fileNf() {
+    if (!attachment || !jobId || filing) return
+    setFiling(true)
+    try {
+      const res = await fetch("/api/inbound/nf/file-attachment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailId: email.id, attachmentId: attachment.id, jobId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(data.error ?? "Não consegui arquivar a NF")
+        return
+      }
+      toast.success("NF arquivada no job")
+      setJobId("")
+      onClose()
+      onFiled()
+    } catch {
+      toast.error("Falha de rede ao arquivar a NF")
+    } finally {
+      setFiling(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Arquivar como NF</DialogTitle>
+          <DialogDescription>
+            {attachment?.filename ?? "O anexo"} será guardado como a NF emitida do job escolhido.
+          </DialogDescription>
+        </DialogHeader>
+        <Select value={jobId} onValueChange={setJobId}>
+          <SelectTrigger><SelectValue placeholder="Escolha o job" /></SelectTrigger>
+          <SelectContent>
+            {jobs.map(j => <SelectItem key={j.id} value={j.id}>{j.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={fileNf} disabled={!jobId || filing}>
+            {filing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCheck className="w-4 h-4" />}
+            {filing ? "Arquivando..." : "Arquivar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -188,12 +257,13 @@ function ReplyBox({ email, onSent }: { email: InboundEmail; onSent: () => void }
   )
 }
 
-export function EmailsClient({ emails }: { emails: InboundEmail[] }) {
+export function EmailsClient({ emails, jobs }: { emails: InboundEmail[]; jobs: { id: string; name: string }[] }) {
   const router = useRouter()
   const [filter, setFilter] = useState<Filter>("all")
   const [query, setQuery] = useState("")
   const received = useMemo(() => emails.filter(e => e.direction === "in"), [emails])
   const [selectedId, setSelectedId] = useState<string | null>(received[0]?.id ?? null)
+  const [filing, setFiling] = useState<EmailAttachment | null>(null)
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -355,7 +425,20 @@ export function EmailsClient({ emails }: { emails: InboundEmail[] }) {
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Anexos</p>
                     <ul className="text-sm space-y-1">
-                      {selected.attachments.map((a, i) => <AttachmentItem key={a.id ?? i} a={a} />)}
+                      {selected.attachments.map((a, i) => (
+                        <AttachmentItem
+                          key={a.id ?? i}
+                          a={a}
+                          action={!selected.filed && isPdfAttachment(a) && a.url ? (
+                            <button
+                              onClick={() => setFiling(a)}
+                              className="shrink-0 text-xs font-medium text-primary hover:underline ml-1"
+                            >
+                              Arquivar como NF
+                            </button>
+                          ) : undefined}
+                        />
+                      ))}
                     </ul>
                   </div>
                 )}
@@ -393,6 +476,15 @@ export function EmailsClient({ emails }: { emails: InboundEmail[] }) {
                 )}
 
                 <ReplyBox email={selected} onSent={() => router.refresh()} />
+
+                <FileAsNfDialog
+                  email={selected}
+                  attachment={filing}
+                  jobs={jobs}
+                  open={filing !== null}
+                  onClose={() => setFiling(null)}
+                  onFiled={() => router.refresh()}
+                />
               </div>
             )}
           </div>
