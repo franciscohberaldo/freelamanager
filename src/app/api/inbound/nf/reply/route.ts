@@ -3,16 +3,30 @@ import { Resend } from "resend"
 import { createClient } from "@/lib/supabase/server"
 import { replyAddress } from "@/lib/inbound-email"
 
+/** Resend tops out near 40 MB per message; staying well under keeps room for the text. */
+const MAX_TOTAL_BYTES = 25 * 1024 * 1024
+
 /**
- * An answer written in the inbox. It goes out from the same sender the NF requests use,
- * and — when the original message is tied to a request — carries that request's
- * plus-address as replyTo, so the accountant's next answer still lands on the same thread.
- * The sent copy is filed as an `out` row, making the conversation readable end to end.
+ * An answer written in the inbox, now carrying files too. It goes out from the same sender
+ * the NF requests use, and — when the original message is tied to a request — carries that
+ * request's plus-address as replyTo, so the accountant's next answer still lands on the
+ * same thread. The sent copy is filed as an `out` row, attachments as metadata only (the
+ * bytes travel with the e-mail; what stays here is the record of what was sent).
  */
 export async function POST(request: NextRequest) {
-  const { id, body } = await request.json().catch(() => ({})) as { id?: string; body?: string }
-  if (!id || !body?.trim()) {
+  const form = await request.formData().catch(() => null)
+  if (!form) return NextResponse.json({ error: "Corpo da requisição inválido" }, { status: 400 })
+
+  const id = String(form.get("id") ?? "")
+  const body = String(form.get("body") ?? "").trim()
+  const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0)
+
+  if (!id || (!body && files.length === 0)) {
     return NextResponse.json({ error: "Informe o e-mail e o texto da resposta" }, { status: 400 })
+  }
+  const totalBytes = files.reduce((sum, f) => sum + f.size, 0)
+  if (totalBytes > MAX_TOTAL_BYTES) {
+    return NextResponse.json({ error: "Anexos passam de 25 MB no total" }, { status: 400 })
   }
 
   const supabase = await createClient()
@@ -36,13 +50,19 @@ export async function POST(request: NextRequest) {
   const subject = /^re:/i.test(baseSubject.trim()) ? baseSubject : `Re: ${baseSubject}`
   const from = process.env.RESEND_FROM_EMAIL ?? "invoices@freelamanager.com"
 
+  const attachments = await Promise.all(files.map(async f => ({
+    filename: f.name,
+    content: Buffer.from(await f.arrayBuffer()),
+  })))
+
   const resend = new Resend(process.env.RESEND_API_KEY)
   const { data: sent, error } = await resend.emails.send({
     from,
     to: [original.from_email],
     replyTo: replyTo ?? undefined,
     subject,
-    text: body.trim(),
+    text: body || "(anexo)",
+    attachments: attachments.length ? attachments : undefined,
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 502 })
 
@@ -55,7 +75,13 @@ export async function POST(request: NextRequest) {
     from_email: from,
     to_email: original.from_email,
     subject,
-    body: body.trim(),
+    body,
+    attachments: files.map(f => ({
+      id: crypto.randomUUID(),
+      filename: f.name,
+      content_type: f.type || null,
+      size: f.size,
+    })),
     direction: "out",
     in_reply_to: original.id,
   })

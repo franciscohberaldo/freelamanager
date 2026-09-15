@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn, formatDate } from "@/lib/utils"
-import { AlertCircle, CheckCircle2, Inbox, Loader2, Paperclip, Search, Send } from "lucide-react"
+import { AlertCircle, CheckCircle2, Inbox, Loader2, Paperclip, Search, Send, X } from "lucide-react"
 
 export type EmailAttachment = {
   id: string
@@ -67,17 +67,32 @@ function formatWhen(iso: string): string {
 
 function ReplyBox({ email, onSent }: { email: InboundEmail; onSent: () => void }) {
   const [body, setBody] = useState("")
+  const [files, setFiles] = useState<File[]>([])
   const [sending, setSending] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  function addFiles(list: FileList | null) {
+    if (!list) return
+    setFiles(prev => {
+      const next = [...prev]
+      for (const f of Array.from(list)) {
+        if (!next.some(x => x.name === f.name && x.size === f.size)) next.push(f)
+      }
+      return next
+    })
+  }
+
+  const canSend = (body.trim().length > 0 || files.length > 0) && !sending
 
   async function send() {
-    if (!body.trim() || sending) return
+    if (!canSend) return
     setSending(true)
     try {
-      const res = await fetch("/api/inbound/nf/reply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: email.id, body }),
-      })
+      const form = new FormData()
+      form.set("id", email.id)
+      form.set("body", body)
+      for (const f of files) form.append("files", f)
+      const res = await fetch("/api/inbound/nf/reply", { method: "POST", body: form })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         toast.error(data.error ?? "Não consegui enviar a resposta")
@@ -85,6 +100,7 @@ function ReplyBox({ email, onSent }: { email: InboundEmail; onSent: () => void }
       }
       toast.success(`Resposta enviada para ${email.from_email}`)
       setBody("")
+      setFiles([])
       onSent()
     } catch {
       toast.error("Falha de rede ao enviar a resposta")
@@ -105,15 +121,49 @@ function ReplyBox({ email, onSent }: { email: InboundEmail; onSent: () => void }
         rows={4}
         disabled={sending}
       />
+      {files.length > 0 && (
+        <ul className="space-y-1">
+          {files.map((f, i) => (
+            <li key={`${f.name}-${i}`} className="flex items-center gap-2 text-sm rounded-md border px-2.5 py-1.5">
+              <Paperclip className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <span className="truncate flex-1">{f.name}</span>
+              <span className="text-xs text-muted-foreground shrink-0">{formatSize(f.size)}</span>
+              <button
+                onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))}
+                className="text-muted-foreground hover:text-destructive shrink-0"
+                aria-label={`Remover ${f.name}`}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">
-          Sai de nf@nf.chico.cx e a conversa continua nesta thread.
-        </p>
-        <Button onClick={send} disabled={!body.trim() || sending} size="sm">
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={e => { addFiles(e.target.files); e.target.value = "" }}
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fileInput.current?.click()}
+          disabled={sending}
+        >
+          <Paperclip className="w-4 h-4" />
+          Anexar
+        </Button>
+        <Button onClick={send} disabled={!canSend} size="sm">
           {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           {sending ? "Enviando..." : "Enviar resposta"}
         </Button>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Sai de nf@nf.chico.cx e a conversa continua nesta thread. Anexos até 25 MB no total.
+      </p>
     </div>
   )
 }
@@ -317,7 +367,22 @@ export function EmailsClient({ emails }: { emails: InboundEmail[] }) {
                         <p className="text-xs text-muted-foreground">
                           Você · {formatDate(r.created_at, "dd/MM/yyyy 'às' HH:mm")}
                         </p>
-                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{r.body}</p>
+                        {r.body && (
+                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{r.body}</p>
+                        )}
+                        {r.attachments.length > 0 && (
+                          <ul className="text-sm space-y-0.5">
+                            {r.attachments.map((a, i) => (
+                              <li key={a.id ?? i} className="flex items-center gap-2">
+                                <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span>{a.filename ?? "anexo"}</span>
+                                {a.size != null && (
+                                  <span className="text-xs text-muted-foreground">({formatSize(a.size)})</span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                     ))}
                   </div>
