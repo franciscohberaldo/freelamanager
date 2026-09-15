@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validatePortalToken } from "@/lib/portal-auth"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { generateInvoicePDF } from "@/lib/invoice-pdf"
+import { generateInvoicePDF, type InvoicePDFParams } from "@/lib/invoice-pdf"
+import { itemsFromLogs } from "@/lib/invoice-items"
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
@@ -49,6 +50,19 @@ export async function GET(request: NextRequest) {
     .eq("invoice_id", invoiceId)
     .order("date")
 
+  // An invoice without stored items still owes the client the worked days.
+  let itemRows: InvoicePDFParams["items"] = items ?? []
+  if (itemRows.length === 0) {
+    const { data: logs } = await supabase
+      .from("daily_logs")
+      .select("date, hours_billed, total_value")
+      .eq("job_id", job.id)
+      .gte("date", invoice.period_start)
+      .lte("date", invoice.period_end)
+      .order("date")
+    itemRows = itemsFromLogs(logs ?? [], job, invoice)
+  }
+
   const { data: settings } = await supabase
     .from("user_settings")
     .select("*")
@@ -70,7 +84,7 @@ export async function GET(request: NextRequest) {
       total: invoice.total,
       notes: invoice.notes,
     },
-    items: items ?? [],
+    items: itemRows,
     job: {
       name: job.name, hourly_rate: job.hourly_rate, daily_rate: job.daily_rate,
       billing_mode: job.billing_mode, project_code: job.project_code, currency: job.currency,

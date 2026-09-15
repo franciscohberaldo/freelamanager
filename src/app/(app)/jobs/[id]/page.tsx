@@ -10,6 +10,7 @@ import { JobForm } from "../job-form"
 import { JobDocumentsPanel } from "./job-documents-panel"
 import { SectionNav } from "@/components/section-nav"
 import { NfRequestAction, type SentRequest } from "./nf-request-action"
+import { InvoiceDocAction } from "./invoice-doc-action"
 import { DOCUMENT_KINDS } from "@/lib/job-documents"
 import { rateOf, rateLabel } from "@/lib/billing-mode"
 import { canTransition, type NfStatus } from "@/lib/nf-status"
@@ -34,7 +35,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
 
   const { data: job } = await supabase
     .from("jobs")
-    .select("*, clients(id, name, legal_name)")
+    .select("*, clients(id, name, legal_name, email)")
     .eq("id", params.id)
     .eq("user_id", user!.id)
     .maybeSingle()
@@ -48,7 +49,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
     supabase.from("daily_logs").select("*").eq("job_id", params.id).order("date", { ascending: false }),
   ])
 
-  const typedJob = job as unknown as Job & { clients: { id: string; name: string; legal_name: string | null } | null }
+  const typedJob = job as unknown as Job & { clients: { id: string; name: string; legal_name: string | null; email: string | null } | null }
   const docs = (documents ?? []) as JobDocument[]
   const jobInvoices = (invoices ?? []) as Invoice[]
   const jobLogs = (logs ?? []) as DailyLog[]
@@ -140,6 +141,32 @@ export default async function JobPage({ params }: { params: { id: string } }) {
           userId={user!.id}
           documents={docs}
           actions={{
+            invoice: (
+              <InvoiceDocAction
+                userId={user!.id}
+                job={{
+                  id: typedJob.id,
+                  name: typedJob.name,
+                  hourly_rate: typedJob.hourly_rate,
+                  daily_rate: typedJob.daily_rate,
+                  billing_mode: typedJob.billing_mode,
+                  project_code: typedJob.project_code,
+                  po_number: typedJob.po_number,
+                  currency: typedJob.currency,
+                  tax_rate: typedJob.tax_rate,
+                  clients: typedJob.clients
+                    ? { name: typedJob.clients.name, email: typedJob.clients.email }
+                    : null,
+                }}
+                invoices={jobInvoices.map(i => ({
+                  id: i.id,
+                  seq_number: i.seq_number,
+                  invoice_number: i.invoice_number,
+                  status: i.status,
+                  currency: i.currency,
+                }))}
+              />
+            ),
             accountant_email: (
               <NfRequestAction jobId={typedJob.id} candidates={nfCandidates} sent={nfRequests} />
             ),
