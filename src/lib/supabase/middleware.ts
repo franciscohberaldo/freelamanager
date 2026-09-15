@@ -27,10 +27,11 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl
   const isAuthPage = pathname.startsWith('/login')
-  // Routes with their own auth: cron secret, portal token, API key
+  // Routes with their own auth: cron secret, portal token, API key, webhook signature
   const isPublicPath = isAuthPage
     || pathname.startsWith('/api/auth')
     || pathname.startsWith('/api/cron')
+    || pathname.startsWith('/api/inbound')
     || pathname.startsWith('/api/portal')
     || pathname.startsWith('/api/v1')
     || pathname.startsWith('/api/webhooks/stripe')
