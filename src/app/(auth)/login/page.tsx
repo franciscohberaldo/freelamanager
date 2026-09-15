@@ -201,7 +201,7 @@ export default function LoginPage() {
           <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary text-primary-foreground">
             <BarChart3 className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-bold">Freela Manager</h1>
+          <h1 className="text-3xl font-light tracking-tight">Freela Manager</h1>
           <p className="text-muted-foreground text-sm">Gestão de freelances e finanças</p>
         </div>
         <LoginForm />

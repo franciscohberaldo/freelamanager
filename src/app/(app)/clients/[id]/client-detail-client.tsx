@@ -176,7 +176,7 @@ export function ClientDetailClient({ client, interactions, jobs, invoices, porta
           <Button variant="ghost" size="icon"><ArrowLeft className="w-4 h-4" /></Button>
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{client.name}</h1>
+          <h1 className="text-3xl font-light tracking-tight">{client.name}</h1>
           {client.company && <p className="text-muted-foreground">{client.company}</p>}
         </div>
       </div>

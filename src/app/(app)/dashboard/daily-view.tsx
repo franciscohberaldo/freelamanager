@@ -117,7 +117,7 @@ export function DailyView({
             <Clock className="w-4 h-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatHours(totalHoursToday)}</p>
+            <p className="text-3xl font-light tracking-tight">{formatHours(totalHoursToday)}</p>
             {todayLogs.length > 0 ? (
               <div className="mt-2 space-y-1">
                 {todayLogs.map((log) => (
@@ -138,7 +138,7 @@ export function DailyView({
             <CheckCircle2 className="w-4 h-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
+            <p className="text-3xl font-light tracking-tight">
               {todayEvents.length > 0
                 ? `${doneEvents.length}/${todayEvents.length}`
                 : "0"}
@@ -160,7 +160,7 @@ export function DailyView({
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <p className="text-2xl font-bold">{overdueInvoices.length}</p>
+              <p className="text-3xl font-light tracking-tight">{overdueInvoices.length}</p>
               {overdueInvoices.length > 0 && (
                 <Badge variant="destructive" className="text-xs">Atenção</Badge>
               )}
@@ -181,7 +181,7 @@ export function DailyView({
             <Link href="/notas-fiscais" className="text-xs text-primary hover:underline">Ver todas</Link>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
+            <p className="text-3xl font-light tracking-tight">
               {nfPending.length}
               <span className="text-sm font-normal text-muted-foreground ml-2">
                 {formatCurrency(nfPending.reduce((sum, n) => sum + (n.nf_amount_brl ?? (n.currency === "BRL" ? n.total : 0)), 0))}

@@ -48,7 +48,7 @@ export function NfClient({ rows }: { rows: NfRow[] }) {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Notas fiscais</h1>
+        <h1 className="text-3xl font-light tracking-tight">Notas fiscais</h1>
         <p className="text-muted-foreground text-sm">{visible.length} invoices com NF · {overdue.length} acumuladas há mais de 7 dias</p>
       </div>
 

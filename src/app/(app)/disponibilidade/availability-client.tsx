@@ -140,7 +140,7 @@ export function AvailabilityClient({ availability }: Props) {
     <div className="p-6 max-w-3xl space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">Status de Agenda</h1>
+        <h1 className="text-3xl font-light tracking-tight">Status de Agenda</h1>
         <p className="text-muted-foreground text-sm mt-1">
           Configure sua disponibilidade para novos projetos e clientes.
         </p>

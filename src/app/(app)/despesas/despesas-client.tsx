@@ -453,7 +453,7 @@ export function DespesasClient({ expenses, expensesCount, yearExpenses, currentM
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Despesas</h1>
+          <h1 className="text-3xl font-light tracking-tight">Despesas</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Controle de gastos do negócio</p>
         </div>
         <div className="flex items-center gap-2">

@@ -157,7 +157,7 @@ export function FolgasClient({ timeOff, yearTimeOff, currentMonth }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Folgas e Férias</h1>
+          <h1 className="text-3xl font-light tracking-tight">Folgas e Férias</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             {totalDaysOff} dia{totalDaysOff !== 1 ? "s" : ""} registrado{totalDaysOff !== 1 ? "s" : ""} este ano
           </p>

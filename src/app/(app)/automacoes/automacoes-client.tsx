@@ -100,7 +100,7 @@ export function AutomacoesClient({ initialSettings, jobs, logs }: Props) {
   return (
     <div className="p-6 space-y-6 max-w-3xl">
       <div>
-        <h1 className="text-2xl font-bold">Automações</h1>
+        <h1 className="text-3xl font-light tracking-tight">Automações</h1>
         <p className="text-muted-foreground text-sm mt-0.5">
           Configure e-mails automáticos e ações recorrentes
         </p>

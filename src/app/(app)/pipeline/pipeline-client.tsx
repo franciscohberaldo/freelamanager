@@ -209,7 +209,7 @@ export function PipelineClient({ deals: initialDeals, clients }: Props) {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Pipeline de Vendas</h1>
+          <h1 className="text-3xl font-light tracking-tight">Pipeline de Vendas</h1>
           <p className="text-muted-foreground text-sm">
             {deals.filter(d => !["won","lost"].includes(d.stage)).length} oportunidades em aberto · {formatCurrency(pipelineTotal)} no pipeline
           </p>

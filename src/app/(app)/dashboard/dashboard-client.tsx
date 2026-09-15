@@ -14,7 +14,7 @@ export function DashboardClient({ monthly, daily }: DashboardClientProps) {
     <div className="p-6 space-y-6">
       <Tabs defaultValue="hoje">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <h1 className="text-3xl font-light tracking-tight">Dashboard</h1>
           <TabsList>
             <TabsTrigger value="hoje">Hoje</TabsTrigger>
             <TabsTrigger value="mensal">Mensal</TabsTrigger>

@@ -65,7 +65,7 @@ export function ClientsPageClient({ clients, clientsCount, deals, pipelineClient
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Clientes</h1>
+          <h1 className="text-3xl font-light tracking-tight">Clientes</h1>
           <p className="text-muted-foreground text-sm">{clientsCount} clientes cadastrados</p>
         </div>
         <div className="flex items-center gap-2">

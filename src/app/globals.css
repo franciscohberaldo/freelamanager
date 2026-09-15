@@ -2,60 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * The palette follows DESIGN.md: indigo as the one filled colour, deep navy ink instead of
+ * black for every word, and a cool off-white for the surfaces beneath. Ruby stands in for
+ * red — it is the destructive colour, never a button people press by habit.
+ */
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 210 65% 14.5%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 210 65% 14.5%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --popover-foreground: 210 65% 14.5%;
+    --primary: 247.7 98% 61%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 50% 97.6%;
+    --secondary-foreground: 214.3 35% 23.5%;
+    --muted: 210 50% 97.6%;
+    --muted-foreground: 216.6 17% 47.3%;
+    --accent: 240 84.2% 96%;
+    --accent-foreground: 246 65% 51.8%;
+    --destructive: 341.1 82.6% 52.5%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 212.7 24.4% 91.2%;
+    --input: 212.7 24.4% 91.2%;
+    --ring: 247.7 98% 61%;
+    --radius: 0.75rem;
+    --chart-1: 247.7 98% 61%;
+    --chart-2: 341.1 82.6% 52.5%;
+    --chart-3: 237.9 50% 22%;
+    --chart-4: 33.2 58.2% 38.4%;
+    --chart-5: 304.6 92.2% 69.8%;
   }
 
+  /* The dashboard track flips polarity to the brand's deep navy, not to black. */
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --background: 237.9 50% 12%;
+    --foreground: 210 50% 97.6%;
+    --card: 237.9 50% 16%;
+    --card-foreground: 210 50% 97.6%;
+    --popover: 237.9 50% 16%;
+    --popover-foreground: 210 50% 97.6%;
+    --primary: 243 97.5% 68%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 237.9 40% 22%;
+    --secondary-foreground: 210 50% 97.6%;
+    --muted: 237.9 40% 22%;
+    --muted-foreground: 214 20% 70%;
+    --accent: 237.9 45% 26%;
+    --accent-foreground: 210 50% 97.6%;
+    --destructive: 341.1 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 237.9 35% 26%;
+    --input: 237.9 35% 26%;
+    --ring: 243 97.5% 68%;
+    --chart-1: 243 97.5% 68%;
+    --chart-2: 341.1 82.6% 52.5%;
+    --chart-3: 240 84.2% 85.1%;
+    --chart-4: 33.2 58.2% 55%;
+    --chart-5: 304.6 92.2% 69.8%;
   }
 }
 
@@ -63,7 +69,28 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+  }
+
+  /*
+   * Editorial density: the display tier is set light and tight, the way the reference sets
+   * Sohne 300 with negative tracking. Weight utilities in the markup still win where a
+   * heading has to shout.
+   */
+  h1, h2, h3 {
+    letter-spacing: -0.022em;
+  }
+
+  /*
+   * Money and dates line up column by column. Numerals of the same width are the quiet
+   * financial signal of the whole system, so tables and anything explicitly monospaced or
+   * tabular gets them.
+   */
+  table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
   }
 }

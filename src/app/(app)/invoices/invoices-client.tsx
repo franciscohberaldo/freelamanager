@@ -71,7 +71,7 @@ export function InvoicesClient({ invoices, invoicesCount, paidMap, jobs }: Props
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Invoices</h1>
+          <h1 className="text-3xl font-light tracking-tight">Invoices</h1>
           <p className="text-muted-foreground text-sm">{invoicesCount} invoices gerados</p>
         </div>
         <div className="flex items-center gap-2">

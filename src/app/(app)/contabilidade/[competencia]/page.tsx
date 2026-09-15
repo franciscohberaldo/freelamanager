@@ -43,7 +43,7 @@ export default async function CompetenciaPage({ params }: { params: { competenci
 
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold">Competência {formatCompetencia(competencia, scope)}</h1>
+          <h1 className="text-3xl font-light tracking-tight">Competência {formatCompetencia(competencia, scope)}</h1>
           <p className="text-muted-foreground text-sm">
             {docs.length} {docs.length === 1 ? "documento" : "documentos"} · a guia desta
             competência é emitida em {formatCompetencia(nextMonth(competencia))}

@@ -87,11 +87,11 @@ export default async function PortalPage({ params }: { params: { token: string }
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white rounded-xl border p-5">
             <p className="text-sm text-gray-500">Total pago</p>
-            <p className="text-2xl font-bold text-green-600 mt-1">{formatCurrency(totalPaid)}</p>
+            <p className="text-3xl font-light tracking-tight text-green-600 mt-1">{formatCurrency(totalPaid)}</p>
           </div>
           <div className="bg-white rounded-xl border p-5">
             <p className="text-sm text-gray-500">Aguardando pagamento</p>
-            <p className="text-2xl font-bold text-amber-600 mt-1">{formatCurrency(totalPending)}</p>
+            <p className="text-3xl font-light tracking-tight text-amber-600 mt-1">{formatCurrency(totalPending)}</p>
           </div>
         </div>
 

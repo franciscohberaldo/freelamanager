@@ -182,7 +182,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Relatórios</h1>
+          <h1 className="text-3xl font-light tracking-tight">Relatórios</h1>
           <p className="text-muted-foreground text-sm">Visão anual — {year}</p>
         </div>
         <div className="flex gap-2">

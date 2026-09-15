@@ -38,7 +38,7 @@ export default async function ContabilidadePage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Contabilidade</h1>
+        <h1 className="text-3xl font-light tracking-tight">Contabilidade</h1>
         <p className="text-muted-foreground text-sm">
           {docs.length} documentos em {rows.length} competências · a guia do DAS de um mês é
           emitida no mês seguinte, e fica na linha do mês a que se refere

@@ -242,7 +242,7 @@ export function ProjectsClient({ projects, clients, templates }: Props) {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Projetos</h1>
+          <h1 className="text-3xl font-light tracking-tight">Projetos</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             {projects.length} projeto{projects.length !== 1 ? "s" : ""}
             {templates.length > 0 && ` · ${templates.length} template${templates.length !== 1 ? "s" : ""}`}

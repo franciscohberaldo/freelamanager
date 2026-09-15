@@ -172,7 +172,7 @@ export function MetasClient({ goals, currentMonth, actualHours, actualRevenue, t
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Metas</h1>
+          <h1 className="text-3xl font-light tracking-tight">Metas</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Defina e acompanhe objetivos mensais</p>
         </div>
         <div className="flex items-center border rounded-lg h-9">

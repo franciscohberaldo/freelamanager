@@ -88,7 +88,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
         </div>
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-bold">{typedJob.name}</h1>
+            <h1 className="text-3xl font-light tracking-tight">{typedJob.name}</h1>
             <Badge variant={statusVariant[typedJob.status] ?? "outline"}>
               {JOB_STATUS_LABELS[typedJob.status] ?? typedJob.status}
             </Badge>

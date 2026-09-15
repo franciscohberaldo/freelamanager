@@ -127,7 +127,7 @@ export function MonthlyView({
             <TrendingUp className="w-4 h-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(totalBilledMonth)}</p>
+            <p className="text-3xl font-light tracking-tight">{formatCurrency(totalBilledMonth)}</p>
             <p className="text-xs text-muted-foreground mt-1">{totalHoursBilled}h faturadas</p>
           </CardContent>
         </Card>
@@ -138,7 +138,7 @@ export function MonthlyView({
             <Clock className="w-4 h-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{totalHoursWorked}h</p>
+            <p className="text-3xl font-light tracking-tight">{totalHoursWorked}h</p>
             <p className="text-xs text-muted-foreground mt-1">
               {totalHoursBilled > 0 && totalHoursWorked > 0
                 ? `${((totalHoursBilled / totalHoursWorked) * 100).toFixed(0)}% faturado`
@@ -153,7 +153,7 @@ export function MonthlyView({
             <Wallet className="w-4 h-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-destructive">{formatCurrency(totalExpenses)}</p>
+            <p className="text-3xl font-light tracking-tight text-destructive">{formatCurrency(totalExpenses)}</p>
             <p className={`text-xs mt-1 font-medium ${netRevenue >= 0 ? "text-green-600" : "text-red-500"}`}>
               Líquido: {formatCurrency(netRevenue)}
             </p>
@@ -166,7 +166,7 @@ export function MonthlyView({
             <FileText className="w-4 h-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{pendingInvoices}</p>
+            <p className="text-3xl font-light tracking-tight">{pendingInvoices}</p>
             <p className="text-xs text-muted-foreground mt-1">{activeJobs.length} jobs ativos</p>
           </CardContent>
         </Card>

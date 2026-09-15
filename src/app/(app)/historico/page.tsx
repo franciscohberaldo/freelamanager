@@ -26,7 +26,7 @@ export default async function HistoricoPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Histórico de jobs</h1>
+          <h1 className="text-3xl font-light tracking-tight">Histórico de jobs</h1>
           <p className="text-muted-foreground text-sm">
             {jobs.length} jobs com datas, faturamento e notas fiscais
           </p>

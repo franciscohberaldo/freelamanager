@@ -310,7 +310,7 @@ export function TrackingClient({ logs: initialLogs, jobs, currentMonth }: Props)
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold capitalize">{monthLabel}</h1>
+          <h1 className="text-3xl font-light tracking-tight capitalize">{monthLabel}</h1>
           <p className="text-sm text-muted-foreground">
             {monthTotals.days} dias trabalhados · {formatHours(monthTotals.hours)} · {formatCurrency(monthTotals.value)}
           </p>

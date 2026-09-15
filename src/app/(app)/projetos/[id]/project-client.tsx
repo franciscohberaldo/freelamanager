@@ -308,7 +308,7 @@ export function ProjectClient({ project, tasks: initialTasks }: Props) {
           <div className="flex items-center gap-3">
             <div className="w-4 h-4 rounded-full shrink-0 mt-1" style={{ background: project.color }} />
             <div>
-              <h1 className="text-2xl font-bold">{project.name}</h1>
+              <h1 className="text-3xl font-light tracking-tight">{project.name}</h1>
               <div className="flex items-center gap-3 mt-0.5 text-sm text-muted-foreground">
                 {project.clients && <span>{project.clients.name}</span>}
                 {project.start_date && (
