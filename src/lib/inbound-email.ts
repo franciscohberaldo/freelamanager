@@ -21,6 +21,16 @@ export function isNfAttachment(a: { filename?: string | null; content_type?: str
 }
 
 /**
+ * Where an attachment's bytes live when they are not the job's NF itself: every PDF that
+ * arrives or is sent is kept under the owner's inbox folder, so it can be opened again
+ * after Resend's one-hour download link has expired.
+ */
+export function inboxAttachmentPath(userId: string, resendEmailId: string, name: string): string {
+  const safe = name.replace(/[^\w.-]+/g, "_")
+  return `${userId}/inbox/${resendEmailId}/${safe}`
+}
+
+/**
  * Resend signs webhooks the Svix way: the secret is base64 after the `whsec_` prefix, and
  * what is signed is the id, the timestamp and the body, joined by dots. A header can carry
  * several space-separated signatures, each as `v1,<base64>` — one of them has to match.

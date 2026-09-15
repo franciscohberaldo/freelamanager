@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { requestIdFrom, isNfAttachment, verifySignature } from "@/lib/inbound-email"
+import { requestIdFrom, isNfAttachment, verifySignature, inboxAttachmentPath } from "@/lib/inbound-email"
 import { DOCUMENT_BUCKET, documentPath } from "@/lib/job-documents"
 
 const RESEND_API = "https://api.resend.com"
@@ -87,27 +87,33 @@ export async function POST(request: NextRequest) {
   let filed = false
   let note: string | null = requestId && !nfRequest ? "Pedido não encontrado para este endereço" : null
 
-  const pdf = (email.attachments ?? []).find(isNfAttachment)
-  if (pdf && jobId) {
+  // Every PDF is kept, not only the one filed as the NF: the first on a job-linked message
+  // goes to the job's documents, the rest stay in the owner's inbox folder — Resend's
+  // download link dies in an hour, the copy here does not.
+  const pdfs = (email.attachments ?? []).filter(isNfAttachment)
+  const storedAt = new Map<string, string>()
+  if (pdfs.length > 0 && !jobId) note = "Anexo recebido, mas o pedido não aponta para um job"
+
+  for (const pdf of pdfs) {
     const bytes = await downloadAttachment(email.id, pdf.id)
-    if (!bytes) note = "Não consegui baixar o anexo do Resend"
-    else {
-      const name = pdf.filename ?? "nf.pdf"
-      const path = documentPath(userId, jobId, "nf", name)
-      const { error: upload } = await supabase.storage
-        .from(DOCUMENT_BUCKET)
-        .upload(path, bytes, { upsert: true, contentType: pdf.content_type ?? "application/pdf" })
-      if (upload) note = `Erro ao guardar o anexo: ${upload.message}`
-      else {
-        await supabase.from("job_documents").upsert({
-          user_id: userId, job_id: jobId, kind: "nf",
-          path, file_name: name, mime_type: pdf.content_type ?? "application/pdf", size_bytes: bytes.length,
-        }, { onConflict: "job_id,kind" })
-        filed = true
-      }
+    if (!bytes) { note = "Não consegui baixar o anexo do Resend"; continue }
+    const name = pdf.filename ?? "nf.pdf"
+    const isNf = !filed && !!jobId
+    const path = isNf
+      ? documentPath(userId, jobId!, "nf", name)
+      : inboxAttachmentPath(userId, email.id, `${pdf.id}-${name}`)
+    const { error: upload } = await supabase.storage
+      .from(DOCUMENT_BUCKET)
+      .upload(path, bytes, { upsert: true, contentType: pdf.content_type ?? "application/pdf" })
+    if (upload) { note = `Erro ao guardar o anexo: ${upload.message}`; continue }
+    storedAt.set(pdf.id, path)
+    if (isNf) {
+      await supabase.from("job_documents").upsert({
+        user_id: userId, job_id: jobId!, kind: "nf",
+        path, file_name: name, mime_type: pdf.content_type ?? "application/pdf", size_bytes: bytes.length,
+      }, { onConflict: "job_id,kind" })
+      filed = true
     }
-  } else if (pdf && !jobId) {
-    note = "Anexo recebido, mas o pedido não aponta para um job"
   }
 
   if (filed && nfRequest?.invoice_id) {
@@ -127,7 +133,9 @@ export async function POST(request: NextRequest) {
     to_email: (email.to ?? [])[0] ?? null,
     subject: email.subject,
     body: email.text,
-    attachments: (email.attachments ?? []) as unknown as Record<string, unknown>[],
+    attachments: (email.attachments ?? []).map(a => ({
+      ...a, path: storedAt.get(a.id) ?? null,
+    })) as unknown as Record<string, unknown>[],
     filed, note,
   }, { onConflict: "resend_email_id" })
 

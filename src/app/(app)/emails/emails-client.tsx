@@ -19,6 +19,26 @@ export type EmailAttachment = {
   filename: string | null
   content_type: string | null
   size: number | null
+  url?: string | null
+}
+
+/** An attachment with bytes behind it opens in a new tab; one without stays a label. */
+function AttachmentItem({ a }: { a: EmailAttachment }) {
+  return (
+    <li className="flex items-center gap-2">
+      <Paperclip className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+      {a.url ? (
+        <a href={a.url} target="_blank" rel="noreferrer" className="text-primary hover:underline truncate">
+          {a.filename ?? "anexo"}
+        </a>
+      ) : (
+        <span className="truncate">{a.filename ?? "anexo"}</span>
+      )}
+      {a.size != null && (
+        <span className="text-xs text-muted-foreground shrink-0">({formatSize(a.size)})</span>
+      )}
+    </li>
+  )
 }
 
 export type InboundEmail = {
@@ -335,15 +355,7 @@ export function EmailsClient({ emails }: { emails: InboundEmail[] }) {
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Anexos</p>
                     <ul className="text-sm space-y-1">
-                      {selected.attachments.map((a, i) => (
-                        <li key={a.id ?? i} className="flex items-center gap-2">
-                          <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span>{a.filename ?? "anexo"}</span>
-                          {a.size != null && (
-                            <span className="text-xs text-muted-foreground">({formatSize(a.size)})</span>
-                          )}
-                        </li>
-                      ))}
+                      {selected.attachments.map((a, i) => <AttachmentItem key={a.id ?? i} a={a} />)}
                     </ul>
                   </div>
                 )}
@@ -372,15 +384,7 @@ export function EmailsClient({ emails }: { emails: InboundEmail[] }) {
                         )}
                         {r.attachments.length > 0 && (
                           <ul className="text-sm space-y-0.5">
-                            {r.attachments.map((a, i) => (
-                              <li key={a.id ?? i} className="flex items-center gap-2">
-                                <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
-                                <span>{a.filename ?? "anexo"}</span>
-                                {a.size != null && (
-                                  <span className="text-xs text-muted-foreground">({formatSize(a.size)})</span>
-                                )}
-                              </li>
-                            ))}
+                            {r.attachments.map((a, i) => <AttachmentItem key={a.id ?? i} a={a} />)}
                           </ul>
                         )}
                       </div>

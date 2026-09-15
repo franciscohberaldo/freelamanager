@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 import { createClient } from "@/lib/supabase/server"
-import { replyAddress } from "@/lib/inbound-email"
+import { replyAddress, inboxAttachmentPath } from "@/lib/inbound-email"
+import { DOCUMENT_BUCKET } from "@/lib/job-documents"
 
 /** Resend tops out near 40 MB per message; staying well under keeps room for the text. */
 const MAX_TOTAL_BYTES = 25 * 1024 * 1024
@@ -66,22 +67,35 @@ export async function POST(request: NextRequest) {
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 502 })
 
+  // The bytes travel with the e-mail and are kept here too, so a sent file can be opened
+  // again from the thread. The bucket only takes PDF/PNG/JPG up to 10 MB; anything else is
+  // recorded as metadata, like before.
+  const emailId = sent?.id ?? crypto.randomUUID()
+  const stored = await Promise.all(files.map(async (f, i) => {
+    const path = inboxAttachmentPath(user.id, emailId, `${i}-${f.name}`)
+    const { error: upload } = await supabase.storage
+      .from(DOCUMENT_BUCKET)
+      .upload(path, attachments[i].content, { contentType: f.type || "application/octet-stream" })
+    return {
+      id: crypto.randomUUID(),
+      filename: f.name,
+      content_type: f.type || null,
+      size: f.size,
+      path: upload ? null : path,
+    }
+  }))
+
   const { error: save } = await supabase.from("inbound_emails").insert({
     user_id: user.id,
     nf_request_id: original.nf_request_id,
     invoice_id: original.invoice_id,
     job_id: original.job_id,
-    resend_email_id: sent?.id ?? crypto.randomUUID(),
+    resend_email_id: emailId,
     from_email: from,
     to_email: original.from_email,
     subject,
     body,
-    attachments: files.map(f => ({
-      id: crypto.randomUUID(),
-      filename: f.name,
-      content_type: f.type || null,
-      size: f.size,
-    })),
+    attachments: stored,
     direction: "out",
     in_reply_to: original.id,
   })
