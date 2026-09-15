@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
+import { randomUUID } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 import { buildNfRequest, buildBankBlock } from "@/lib/nf-request"
 import { assertTransition, type NfStatus } from "@/lib/nf-status"
+import { replyAddress } from "@/lib/inbound-email"
 import type { UserSettings } from "@/lib/supabase/types"
 
 const INVOICE_SELECT = "id, seq_number, invoice_number, currency, total, due_date, nf_status, nf_amount_brl, jobs(name, nf_description, po_number, clients(name, legal_name, cnpj, state_registration, address, nf_rules))"
@@ -124,19 +126,25 @@ export async function POST(request: NextRequest) {
   const subject = typeof customSubject === "string" && customSubject.trim() ? customSubject : built.subject
   const body    = typeof customBody === "string" && customBody.trim() ? customBody : built.body
 
+  // The id is drawn before sending so the reply comes back addressed to this very request.
+  const requestId = randomUUID()
+  const replyTo = replyAddress(requestId, process.env.RESEND_INBOUND_DOMAIN)
+
   const resend = new Resend(process.env.RESEND_API_KEY)
   const { data: sent, error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL ?? "invoices@freelamanager.com",
     to: [settings.accountant_email],
+    replyTo: replyTo ?? undefined,
     subject,
     text: body,
   })
 
   const { data: req } = await supabase.from("nf_requests").insert({
+    id: requestId,
     user_id: user.id,
     invoice_id: invoice?.id ?? null,
     job_id: job?.id ?? null,
-    sent_to: settings.accountant_email, subject, body,
+    sent_to: settings.accountant_email, reply_to: replyTo, subject, body,
     resend_id: sent?.id ?? null, status: error ? "failed" : "sent", error: error?.message ?? null,
   }).select("id").single()
 

@@ -331,12 +331,24 @@ type WebhookDeliveryInsert = {
 }
 
 type NfRequestRow = {
-  id: string; user_id: string; invoice_id: string; sent_to: string; reply_to: string | null;
+  id: string; user_id: string; invoice_id: string | null; job_id: string | null; sent_to: string; reply_to: string | null;
   subject: string; body: string; resend_id: string | null; status: 'sent' | 'failed'; error: string | null; created_at: string
 }
 type NfRequestInsert = {
-  user_id: string; invoice_id: string; sent_to: string; reply_to?: string | null; subject: string; body: string;
+  id?: string; user_id: string; invoice_id?: string | null; job_id?: string | null; sent_to: string;
+  reply_to?: string | null; subject: string; body: string;
   resend_id?: string | null; status?: 'sent' | 'failed'; error?: string | null
+}
+
+type InboundEmailRow = {
+  id: string; user_id: string; nf_request_id: string | null; invoice_id: string | null; job_id: string | null;
+  resend_email_id: string; from_email: string; to_email: string | null; subject: string | null; body: string | null;
+  attachments: unknown; filed: boolean; note: string | null; created_at: string
+}
+type InboundEmailInsert = {
+  user_id: string; nf_request_id?: string | null; invoice_id?: string | null; job_id?: string | null;
+  resend_email_id: string; from_email: string; to_email?: string | null; subject?: string | null; body?: string | null;
+  attachments?: unknown; filed?: boolean; note?: string | null
 }
 
 type JobDocumentRow = {
@@ -397,6 +409,7 @@ export type Database = {
       payment_links:        { Row: PaymentLinkRow;        Insert: PaymentLinkInsert;        Update: Partial<PaymentLinkInsert>;        Relationships: [] }
       webhook_deliveries:   { Row: WebhookDeliveryRow;    Insert: WebhookDeliveryInsert;    Update: Partial<WebhookDeliveryInsert>;    Relationships: [] }
       nf_requests:          { Row: NfRequestRow;          Insert: NfRequestInsert;          Update: Partial<NfRequestInsert>;          Relationships: [] }
+      inbound_emails:       { Row: InboundEmailRow;       Insert: InboundEmailInsert;       Update: Partial<InboundEmailInsert>;       Relationships: [] }
       job_documents:        { Row: JobDocumentRow;        Insert: JobDocumentInsert;        Update: Partial<JobDocumentInsert>;        Relationships: [] }
       accounting_documents: { Row: AccountingDocumentRow; Insert: AccountingDocumentInsert; Update: Partial<AccountingDocumentInsert>; Relationships: [] }
     }
