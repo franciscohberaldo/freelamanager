@@ -7,16 +7,27 @@ import type { UserSettings } from "@/lib/supabase/types"
 
 const INVOICE_SELECT = "id, seq_number, invoice_number, currency, total, due_date, nf_status, nf_amount_brl, jobs(name, nf_description, po_number, clients(name, legal_name, cnpj, state_registration, address, nf_rules))"
 
+/** What the tomador's block of the e-mail is written from. */
+type ClientFiscal = {
+  name: string; legal_name: string | null; cnpj: string | null
+  state_registration: string | null; address: string | null; nf_rules: string | null
+}
+
 type InvoiceRow = {
   id: string; seq_number: string | null; invoice_number: string; currency: string; total: number
   due_date: string | null; nf_status: string; nf_amount_brl: number | null
   jobs: {
     name: string; nf_description: string | null; po_number: string | null
-    clients: {
-      name: string; legal_name: string | null; cnpj: string | null
-      state_registration: string | null; address: string | null; nf_rules: string | null
-    } | null
+    clients: ClientFiscal | null
   } | null
+}
+
+const JOB_SELECT = "id, name, nf_description, po_number, contract_value, currency, end_date, clients(name, legal_name, cnpj, state_registration, address, nf_rules)"
+
+type JobRow = {
+  id: string; name: string; nf_description: string | null; po_number: string | null
+  contract_value: number | null; currency: string; end_date: string | null
+  clients: ClientFiscal | null
 }
 
 async function loadInvoice(invoiceId: string, userId: string) {
@@ -26,6 +37,34 @@ async function loadInvoice(invoiceId: string, userId: string) {
     supabase.from("user_settings").select("*").eq("user_id", userId).single(),
   ])
   return { supabase, invoice: invoice as unknown as InvoiceRow | null, settings: settings as UserSettings | null }
+}
+
+async function loadJob(jobId: string, userId: string) {
+  const supabase = await createClient()
+  const [{ data: job }, { data: settings }] = await Promise.all([
+    supabase.from("jobs").select(JOB_SELECT).eq("id", jobId).eq("user_id", userId).single(),
+    supabase.from("user_settings").select("*").eq("user_id", userId).single(),
+  ])
+  return { supabase, job: job as unknown as JobRow | null, settings: settings as UserSettings | null }
+}
+
+/** A job pays for its own request: the closed price and the end date stand in for an invoice. */
+function buildFromJob(job: JobRow) {
+  const client = job.clients
+  const amountBrl = job.currency === "BRL" ? (job.contract_value ?? 0) : 0
+  const built = buildNfRequest({
+    clientName: client?.name ?? job.name,
+    legalName: client?.legal_name ?? null,
+    address: client?.address ?? null,
+    cnpj: client?.cnpj ?? null,
+    stateRegistration: client?.state_registration ?? null,
+    nfDescription: job.nf_description ?? null,
+    poNumber: job.po_number ?? null,
+    amountBrl,
+    dueDate: job.end_date,
+    nfRules: client?.nf_rules ?? null,
+  })
+  return { ...built, amountBrl }
 }
 
 function buildFromInvoice(invoice: InvoiceRow) {
@@ -49,22 +88,36 @@ function buildFromInvoice(invoice: InvoiceRow) {
 
 /** Send the request to the accountant, log it in nf_requests and move the invoice to "requested". */
 export async function POST(request: NextRequest) {
-  const { invoiceId, subject: customSubject, body: customBody } = await request.json().catch(() => ({}))
-  if (!invoiceId) return NextResponse.json({ error: "invoiceId obrigatório" }, { status: 400 })
+  const { invoiceId, jobId, subject: customSubject, body: customBody } = await request.json().catch(() => ({}))
+  if (!invoiceId && !jobId) return NextResponse.json({ error: "invoiceId ou jobId obrigatório" }, { status: 400 })
 
   const authClient = await createClient()
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
-  const { supabase, invoice, settings } = await loadInvoice(invoiceId, user.id)
-  if (!invoice) return NextResponse.json({ error: "Invoice não encontrado" }, { status: 404 })
+  const loaded = invoiceId
+    ? await loadInvoice(invoiceId, user.id)
+    : await loadJob(jobId, user.id)
+  const invoice = "invoice" in loaded ? loaded.invoice : null
+  const job = "job" in loaded ? loaded.job : null
+  const { supabase, settings } = loaded
+  if (invoiceId && !invoice) return NextResponse.json({ error: "Invoice não encontrado" }, { status: 404 })
+  if (jobId && !job) return NextResponse.json({ error: "Job não encontrado" }, { status: 404 })
   if (!settings?.accountant_email) return NextResponse.json({ error: "Cadastre o e-mail do contador em Configurações" }, { status: 400 })
 
-  try { assertTransition(invoice.nf_status as NfStatus, "requested") }
-  catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 409 }) }
+  if (invoice) {
+    try { assertTransition(invoice.nf_status as NfStatus, "requested") }
+    catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 409 }) }
+  }
 
-  const built = buildFromInvoice(invoice)
-  if (!built.amountBrl) return NextResponse.json({ error: "Valor em reais da NF não definido" }, { status: 400 })
+  const built = invoice ? buildFromInvoice(invoice) : buildFromJob(job!)
+  if (!built.amountBrl) {
+    return NextResponse.json({
+      error: invoice
+        ? "Valor em reais da NF não definido"
+        : "Defina o valor do contrato do job, em reais, para pedir a NF",
+    }, { status: 400 })
+  }
 
   const subject = typeof customSubject === "string" && customSubject.trim() ? customSubject : built.subject
   const body    = typeof customBody === "string" && customBody.trim() ? customBody : built.body
@@ -78,28 +131,43 @@ export async function POST(request: NextRequest) {
   })
 
   const { data: req } = await supabase.from("nf_requests").insert({
-    user_id: user.id, invoice_id: invoice.id, sent_to: settings.accountant_email, subject, body,
+    user_id: user.id,
+    invoice_id: invoice?.id ?? null,
+    job_id: job?.id ?? null,
+    sent_to: settings.accountant_email, subject, body,
     resend_id: sent?.id ?? null, status: error ? "failed" : "sent", error: error?.message ?? null,
   }).select("id").single()
 
   if (error) return NextResponse.json({ error: error.message, requestId: req?.id }, { status: 502 })
 
-  await supabase.from("invoices").update({ nf_status: "requested", nf_requested_at: new Date().toISOString() }).eq("id", invoice.id)
+  // Only an invoice carries the NF's lifecycle; a request made from the job just goes out.
+  if (invoice) {
+    await supabase.from("invoices")
+      .update({ nf_status: "requested", nf_requested_at: new Date().toISOString() })
+      .eq("id", invoice.id)
+  }
   return NextResponse.json({ ok: true, requestId: req?.id })
 }
 
 /** Preview the e-mail without sending. */
 export async function GET(request: NextRequest) {
   const invoiceId = request.nextUrl.searchParams.get("invoiceId")
-  if (!invoiceId) return NextResponse.json({ error: "invoiceId obrigatório" }, { status: 400 })
+  const jobId = request.nextUrl.searchParams.get("jobId")
+  if (!invoiceId && !jobId) return NextResponse.json({ error: "invoiceId ou jobId obrigatório" }, { status: 400 })
 
   const authClient = await createClient()
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
-  const { invoice, settings } = await loadInvoice(invoiceId, user.id)
-  if (!invoice) return NextResponse.json({ error: "Invoice não encontrado" }, { status: 404 })
+  if (invoiceId) {
+    const { invoice, settings } = await loadInvoice(invoiceId, user.id)
+    if (!invoice) return NextResponse.json({ error: "Invoice não encontrado" }, { status: 404 })
+    const { subject, body } = buildFromInvoice(invoice)
+    return NextResponse.json({ subject, body, to: settings?.accountant_email ?? null })
+  }
 
-  const { subject, body } = buildFromInvoice(invoice)
+  const { job, settings } = await loadJob(jobId!, user.id)
+  if (!job) return NextResponse.json({ error: "Job não encontrado" }, { status: 404 })
+  const { subject, body } = buildFromJob(job)
   return NextResponse.json({ subject, body, to: settings?.accountant_email ?? null })
 }

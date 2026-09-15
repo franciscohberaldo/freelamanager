@@ -129,7 +129,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
           documents={docs}
           actions={{
             accountant_email: (
-              <NfRequestAction candidates={nfCandidates} hasInvoices={jobInvoices.length > 0} />
+              <NfRequestAction jobId={typedJob.id} candidates={nfCandidates} />
             ),
           }}
         />

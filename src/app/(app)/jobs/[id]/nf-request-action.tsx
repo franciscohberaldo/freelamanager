@@ -12,35 +12,37 @@ import { Send } from "lucide-react"
 export type NfCandidate = { id: string; label: string }
 
 /**
- * The NF is asked for one invoice — it needs the amount and the due date — so this sits in
- * the job's "Email pro contador" slot and points at the invoices waiting for one.
+ * The button in the job's "Email pro contador" slot. The request is normally about an
+ * invoice, which carries the amount and the due date; when no invoice of this job is
+ * waiting on its NF, it is made from the job — its closed price and its end date.
  */
 export function NfRequestAction({
-  candidates, hasInvoices,
+  jobId, candidates,
 }: {
+  jobId: string
   candidates: NfCandidate[]
-  hasInvoices: boolean
 }) {
   const [openFor, setOpenFor] = useState<string | null>(null)
+  const [fromJob, setFromJob] = useState(false)
 
-  if (candidates.length === 0) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        {hasInvoices
-          ? "A NF destas invoices já foi pedida ou emitida."
-          : "O pedido sai de uma invoice — crie uma para pedir a NF."}
-      </p>
-    )
-  }
-
-  const dialog = openFor && (
-    <NfRequestDialog invoiceId={openFor} open onClose={() => setOpenFor(null)} />
+  const dialog = (openFor || fromJob) && (
+    <NfRequestDialog
+      invoiceId={openFor ?? undefined}
+      jobId={fromJob ? jobId : undefined}
+      open
+      onClose={() => { setOpenFor(null); setFromJob(false) }}
+    />
   )
 
-  if (candidates.length === 1) {
+  // With no invoice waiting on its NF, the job answers for the amount and the date itself.
+  if (candidates.length <= 1) {
+    const single = candidates[0]
     return (
       <>
-        <Button variant="outline" size="sm" onClick={() => setOpenFor(candidates[0].id)}>
+        <Button
+          variant="outline" size="sm"
+          onClick={() => single ? setOpenFor(single.id) : setFromJob(true)}
+        >
           <Send className="w-3 h-3" />
           Pedir NF ao contador
         </Button>
