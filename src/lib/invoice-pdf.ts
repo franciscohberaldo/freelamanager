@@ -44,7 +44,11 @@ export function formatHeaderDate(date: string | Date): string {
  * so the city is the last piece that has letters and no digits.
  */
 export function cityOf(fiscalAddress: string | null | undefined): string {
-  const parts = (fiscalAddress ?? "").split(",").map(p => p.trim()).filter(Boolean)
+  const raw = fiscalAddress ?? ""
+  // Addresses written in the model's own style carry "City: Sao Paulo" inline.
+  const inline = raw.match(/city:\s*([^,]+)/i)
+  if (inline) return inline[1].trim().toUpperCase()
+  const parts = raw.split(",").map(p => p.trim()).filter(Boolean)
   const city = [...parts].reverse().find(p => /[a-zA-ZÀ-ú]/.test(p) && !/\d/.test(p))
   return (city ?? "São Paulo").toUpperCase()
 }
@@ -81,6 +85,9 @@ export interface InvoicePDFBankDetails {
   bank_iban?: string | null
   bank_address?: string | null
   pix_key?: string | null
+  br_bank_name?: string | null
+  br_bank_agency?: string | null
+  br_bank_account?: string | null
 }
 
 export interface InvoicePDFParams {
@@ -157,39 +164,14 @@ export function resolveItemQuantity(
   return { quantity: item.hours_billed, unit: "hour" }
 }
 
-/** Bank rows to print: wire details for foreign currency, PIX for BRL. Empty fields are skipped. */
-export function paymentDetailRows(
-  settings: InvoicePDFBankDetails | null | undefined,
-  currency: string,
-  lang: InvoiceLang,
-): Array<[string, string]> {
-  if (!settings) return []
-  const t = invoiceT[lang] ?? invoiceT.pt
-  const rows: Array<[string, string | null | undefined]> = currency === "BRL"
-    ? [
-        [t.beneficiary, settings.bank_beneficiary],
-        [t.bankName,    settings.bank_name],
-        [t.pixKey,      settings.pix_key],
-      ]
-    : [
-        [t.beneficiary,   settings.bank_beneficiary],
-        [t.bankName,      settings.bank_name],
-        [t.accountType,   settings.bank_account_type],
-        [t.accountNumber, settings.bank_account_number],
-        [t.routing,       settings.bank_routing],
-        [t.swift,         settings.bank_swift],
-        [t.iban,          settings.bank_iban],
-        [t.bankAddress,   settings.bank_address],
-      ]
-  return rows.filter((r): r is [string, string] => !!r[1] && r[1].trim().length > 0)
-}
-
+const has = (v: string | null | undefined): v is string => !!v && v.trim().length > 0
 
 /**
- * The invoice, drawn to the model in MaterialCliente_2 (260914_Buck Invoice 02): Jost on
- * white, the monogram at the top left and the city-date stamp at the top right; labels in
- * black capitals and figures in a softer grey; the client in the middle, the issuer's
- * contact on the right; items over a rule; payment instructions anchored at the foot.
+ * The invoice, drawn to the model in MaterialCliente_2 (260914_Buck Invoice 02, revised):
+ * Jost on white; the city-date stamp at the top left and the monogram at the top right; the
+ * client stacked under BILLED TO, the issuer's contact under RECIPIENT INFO; items over a
+ * rule; and two payment sections at the foot — international wire and Brazilian Pix — so
+ * the same invoice serves a bank anywhere.
  *
  * Positions come from `invoice-layout`, which carries the model's own coordinates.
  */
@@ -199,7 +181,6 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   const cur = (v: number) => formatModelCurrency(v, invoice.currency)
 
   const billingMode = job?.billing_mode ?? "hourly"
-  const isBRL = invoice.currency === "BRL"
 
   const doc = new jsPDF({ unit: "mm", format: "a4" })
   registerJost(doc)
@@ -223,42 +204,61 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   const heading = (text: string, px: number, py: number) =>
     say(text.toUpperCase(), px, py, { style: "heavy" })
 
-  // ── the mark and the date ────────────────────────────────────────────────────
+  /** A field label in the payment blocks: heavy, but in the model's own title case. */
+  const field = (text: string, px: number, py: number) =>
+    say(text, px, py, { style: "heavy" })
+
+  /** A payment section title, underlined like the model's. */
+  const sectionTitle = (text: string, py: number) => {
+    const upper = text.toUpperCase()
+    heading(upper, X.label, py)
+    doc.setFont(JOST, "heavy")
+    doc.setFontSize(BODY_PT)
+    const w = doc.getTextWidth(upper)
+    doc.setDrawColor(INK.label[0], INK.label[1], INK.label[2])
+    doc.setLineWidth(0.3)
+    doc.line(X.label, py + 0.9, X.label + w, py + 0.9)
+  }
+
+  // ── the date and the mark ────────────────────────────────────────────────────
+  say(`${cityOf(settings?.fiscal_address)}, ${formatHeaderDate(invoice.period_end)}`, X.label, Y.date, { style: "heavy" })
   if (settings?.logo_url) {
     const logo = await fetchImageBase64(settings.logo_url)
     if (logo) {
       try {
-        doc.addImage(logo, "PNG", X.logo, LOGO_TOP, LOGO_W, LOGO_H)
+        doc.addImage(logo, "PNG", X.edge - LOGO_W, LOGO_TOP, LOGO_W, LOGO_H)
       } catch {
         // a logo that will not decode is not worth losing the invoice over
       }
     }
   }
-  say(`${cityOf(settings?.fiscal_address)}, ${formatHeaderDate(invoice.period_end)}`, X.edge, Y.date, { style: "heavy", align: "right" })
 
   // ── who and when ───────────────────────────────────────────────────────────
   heading(`${t.billTo}:`, X.label, Y.header)
   heading(t.recipientInfo, X.right, Y.header)
 
-  // the client, in the middle column
+  // the client, stacked under BILLED TO
   const clientName = client?.billing_entity || client?.legal_name || client?.name || ""
   const clientLines = [
     clientName,
     ...(client?.billing_address || client?.address || "").split(/\s*[\n]\s*/).filter(Boolean),
     client?.email ?? "",
   ].filter(Boolean)
-  say(clientLines[0] ?? "", X.mid, Y.header)
-  const clientRows = [Y.line2, Y.line3, Y.line4]
-  clientLines.slice(1, 4).forEach((line, i) => say(line, X.mid, clientRows[i]))
+  clientLines.slice(0, 4).forEach((line, i) => say(line, X.label, Y.header + ROW * (i + 1)))
 
   // the issuer, on the right: name, then how to reach them, then where they are
-  say(settings?.legal_name || settings?.company_name || "", X.right, Y.line2)
-  say(settings?.invoice_contact_email ? `Email: ${settings.invoice_contact_email}` : "", X.right, Y.line3)
-  say(settings?.invoice_contact_phone ? `${t.tel}: ${settings.invoice_contact_phone}` : "", X.right, Y.line4)
+  const recipientLines = [
+    settings?.legal_name || settings?.company_name || "",
+    settings?.invoice_contact_email ?? "",
+    settings?.invoice_contact_phone ?? "",
+  ].filter(Boolean)
+  recipientLines.forEach((line, i) => say(line, X.right, Y.header + ROW * (i + 1)))
   const fiscal = (settings?.fiscal_address ?? "").trim()
   if (fiscal) {
-    const wrapped = doc.splitTextToSize(`${t.streetAddress}: ${fiscal}`, X.edge - X.right) as string[]
-    wrapped.slice(0, 3).forEach((line, i) => say(line, X.right, [Y.line5, Y.purchase, Y.service][i]))
+    const wrapped = doc.splitTextToSize(fiscal, X.edge - X.right) as string[]
+    const start = recipientLines.length + 1
+    wrapped.slice(0, 5 - recipientLines.length).forEach((line, i) =>
+      say(line, X.right, Y.header + ROW * (start + i)))
   }
 
   // ── what was ordered ───────────────────────────────────────────────────────
@@ -266,7 +266,7 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   say(invoice.po_number ?? job?.project_code ?? "", X.mid, Y.purchase)
 
   heading(`${t.serviceOrdered}:`, X.label, Y.service)
-  say(job?.name ?? "", X.mid, Y.service)
+  say(job?.name ?? "", X.label, Y.serviceValue)
 
   // ── the lines ──────────────────────────────────────────────────────────────
   let y = Y.itemsStart
@@ -296,34 +296,43 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   say(cur(invoice.total), X.itemAmount, totalY, { style: "bold", size: TOTAL_PT, tone: INK.figure })
 
   // ── how to pay ─────────────────────────────────────────────────────────────
-  // The payment block is anchored low on the page; a long list of items pushes it to its
-  // own page rather than letting the two collide.
-  let base = Y.payment
-  if (totalY > Y.payment - 20) {
+  // Both sections print whenever their data exists: the same invoice serves a Brazilian
+  // bank and an international one. The block is anchored low on the page; a long list of
+  // items pushes it to its own page rather than letting the two collide.
+  const hasInternational = [
+    settings?.intermediary_bank_name, settings?.intermediary_bank_swift,
+    settings?.intermediary_bank_aba, settings?.intermediary_bank_account,
+    settings?.bank_swift, settings?.bank_iban, settings?.bank_beneficiary,
+    settings?.bank_name,
+  ].some(has)
+  const hasBrazilian = [
+    settings?.pix_key, settings?.br_bank_name, settings?.br_bank_agency, settings?.br_bank_account,
+  ].some(has)
+
+  let base = Y.paymentTitle
+  if ((hasInternational || hasBrazilian) && totalY > Y.paymentTitle - 20) {
     doc.addPage()
     base = 30
   }
-  const at = (anchor: number) => base + (anchor - Y.payment)
+  const at = (anchor: number) => base + (anchor - Y.paymentTitle)
 
-  heading(t.paymentInstructions, X.label, at(Y.payment))
-  say(isBRL ? t.pixOnly : t.wireOnly, X.bank, at(Y.payment), { style: "italic" })
+  if (hasInternational) {
+    sectionTitle(t.internationalPayment, at(Y.paymentTitle))
 
-  if (isBRL) {
-    for (const [i, [label, value]] of paymentDetailRows(settings, invoice.currency, lang).entries()) {
-      say(`${label}: ${value}`, X.bank, at([Y.intermediary, Y.aba, Y.account, Y.bankName][i] ?? Y.bankName))
-    }
-  } else {
-    heading(`${t.intermediaryBank}:`, X.label, at(Y.intermediary))
+    heading(t.paymentInstructions, X.label, at(Y.payment))
+    say(t.wireOnly, X.bank, at(Y.payment), { style: "italic" })
+
+    field(`${t.intermediaryBank}:`, X.label, at(Y.intermediary))
     say(settings?.intermediary_bank_swift ? `SWIFT: ${settings.intermediary_bank_swift}` : "", X.bankWide, at(Y.intermediary))
     say(settings?.intermediary_bank_aba ? `ABA: ${settings.intermediary_bank_aba}` : "", X.bank, at(Y.aba))
     say(settings?.intermediary_bank_account ? `${t.account}: ${settings.intermediary_bank_account}` : "", X.bank, at(Y.account))
     say(settings?.intermediary_bank_name ?? "", X.bank, at(Y.bankName))
 
-    heading(`${t.destinationBank}:`, X.label, at(Y.destination))
+    field(`${t.destinationBank}:`, X.label, at(Y.destination))
     say(settings?.bank_swift ? `SWIFT: ${settings.bank_swift}` : "", X.bank, at(Y.destination))
     say(settings?.bank_name ? `${t.beneficiaryBank}: ${settings.bank_name}` : "", X.bank, at(Y.beneficiaryBank))
 
-    heading(`${t.beneficiaryField}:`, X.label, at(Y.beneficiary))
+    field(`${t.beneficiaryField}:`, X.label, at(Y.beneficiary))
     say(settings?.bank_beneficiary ? `${t.beneficiaryInBrazil}: ${settings.bank_beneficiary}` : "", X.bank, at(Y.beneficiary))
     say(settings?.bank_iban ? `IBAN: ${settings.bank_iban}` : "", X.bank, at(Y.iban))
 
@@ -336,15 +345,33 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
         : settings?.bank_address ?? null,
     ].filter(Boolean) as string[]
     if (extras.length) {
-      heading(`${t.additionalInfo}:`, X.label, at(Y.additional))
+      field(`${t.additionalInfo}:`, X.label, at(Y.additional))
       extras.slice(0, 2).forEach((line, i) =>
         say(line, i === 0 ? X.bankWide : X.bank, at([Y.additional, Y.additional2][i])))
     }
   }
 
+  if (hasBrazilian) {
+    sectionTitle(t.brazilianPayment, at(Y.brTitle))
+    if (has(settings?.pix_key)) {
+      field("Pix", X.label, at(Y.pix))
+      say(settings!.pix_key!, X.bank, at(Y.pix))
+    }
+    const brParts = [
+      settings?.br_bank_name,
+      has(settings?.br_bank_agency) ? `${t.agency} ${settings!.br_bank_agency}` : null,
+      has(settings?.br_bank_account) ? `${t.checkingAccount} ${settings!.br_bank_account}` : null,
+    ].filter(Boolean) as string[]
+    if (brParts.length) {
+      field(t.bankBranchAccount, X.label, at(Y.brBank))
+      say(brParts.join(", "), X.bank, at(Y.brBank))
+    }
+  }
+
   if (invoice.notes) {
+    const anchor = hasBrazilian ? Y.brBank : hasInternational ? Y.additional2 : Y.paymentTitle
     const lines = doc.splitTextToSize(`${t.notes}: ${invoice.notes}`, X.edge - X.label) as string[]
-    say(lines.join("\n"), X.label, at(Y.additional2) + ROW * 2, { tone: INK.figure })
+    say(lines.join("\n"), X.label, at(anchor) + ROW * 2, { tone: INK.figure })
   }
 
   return doc.output("arraybuffer")

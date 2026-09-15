@@ -19,15 +19,18 @@ describe("invoice layout", () => {
   it("runs the document down the page in the order it reads", () => {
     expect(Y.date).toBeLessThan(Y.header)
     expect(Y.header).toBeLessThan(Y.service)
-    expect(Y.service).toBeLessThan(Y.itemsStart)
+    expect(Y.service).toBeLessThan(Y.serviceValue)
+    expect(Y.serviceValue).toBeLessThan(Y.itemsStart)
     expect(Y.itemsStart).toBeLessThan(Y.rule)
     expect(Y.rule).toBeLessThan(Y.total)
-    expect(Y.total).toBeLessThan(Y.payment)
+    expect(Y.total).toBeLessThan(Y.paymentTitle)
+    expect(Y.paymentTitle).toBeLessThan(Y.payment)
     expect(Y.payment).toBeLessThan(Y.additional2)
+    expect(Y.additional2).toBeLessThan(Y.brTitle)
+    expect(Y.brTitle).toBeLessThan(Y.brBank)
   })
 
   it("orders the columns left to right", () => {
-    expect(X.logo).toBeLessThan(X.label)
     expect(X.label).toBeLessThan(X.itemDesc)
     expect(X.itemDesc).toBeLessThan(X.mid)
     expect(X.mid).toBeLessThan(X.bank)
