@@ -2,13 +2,17 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn, formatDate } from "@/lib/utils"
-import { AlertCircle, CheckCircle2, Inbox, Paperclip, Search } from "lucide-react"
+import { AlertCircle, CheckCircle2, Inbox, Loader2, Paperclip, Search, Send } from "lucide-react"
 
 export type EmailAttachment = {
   id: string
@@ -30,6 +34,8 @@ export type InboundEmail = {
   filed: boolean
   note: string | null
   created_at: string
+  direction: "in" | "out"
+  in_reply_to: string | null
   jobs: { name: string } | null
   invoices: { seq_number: string | null; invoice_number: number } | null
 }
@@ -59,14 +65,69 @@ function formatWhen(iso: string): string {
     : format(date, "dd/MM/yy 'às' HH:mm", { locale: ptBR })
 }
 
+function ReplyBox({ email, onSent }: { email: InboundEmail; onSent: () => void }) {
+  const [body, setBody] = useState("")
+  const [sending, setSending] = useState(false)
+
+  async function send() {
+    if (!body.trim() || sending) return
+    setSending(true)
+    try {
+      const res = await fetch("/api/inbound/nf/reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: email.id, body }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(data.error ?? "Não consegui enviar a resposta")
+        return
+      }
+      toast.success(`Resposta enviada para ${email.from_email}`)
+      setBody("")
+      onSent()
+    } catch {
+      toast.error("Falha de rede ao enviar a resposta")
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="space-y-2 border-t pt-4">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        Responder para {email.from_email}
+      </p>
+      <Textarea
+        value={body}
+        onChange={e => setBody(e.target.value)}
+        placeholder="Escreva sua resposta..."
+        rows={4}
+        disabled={sending}
+      />
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          Sai de nf@nf.chico.cx e a conversa continua nesta thread.
+        </p>
+        <Button onClick={send} disabled={!body.trim() || sending} size="sm">
+          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          {sending ? "Enviando..." : "Enviar resposta"}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export function EmailsClient({ emails }: { emails: InboundEmail[] }) {
+  const router = useRouter()
   const [filter, setFilter] = useState<Filter>("all")
   const [query, setQuery] = useState("")
-  const [selectedId, setSelectedId] = useState<string | null>(emails[0]?.id ?? null)
+  const received = useMemo(() => emails.filter(e => e.direction === "in"), [emails])
+  const [selectedId, setSelectedId] = useState<string | null>(received[0]?.id ?? null)
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return emails
+    return received
       .filter(e => {
         if (filter === "filed") return e.filed
         if (filter === "unmatched") return !e.nf_request_id
@@ -79,11 +140,19 @@ export function EmailsClient({ emails }: { emails: InboundEmail[] }) {
         e.from_email.toLowerCase().includes(q) ||
         e.body?.toLowerCase().includes(q)
       )
-  }, [emails, filter, query])
+  }, [received, filter, query])
 
   const selected = visible.find(e => e.id === selectedId) ?? visible[0] ?? null
-  const filedCount = emails.filter(e => e.filed).length
-  const unmatchedCount = emails.filter(e => !e.nf_request_id).length
+  const thread = useMemo(
+    () => selected
+      ? emails
+          .filter(e => e.direction === "out" && e.in_reply_to === selected.id)
+          .sort((a, b) => a.created_at.localeCompare(b.created_at))
+      : [],
+    [emails, selected],
+  )
+  const filedCount = received.filter(e => e.filed).length
+  const unmatchedCount = received.filter(e => !e.nf_request_id).length
 
   return (
     <div className="flex-1 flex flex-col gap-4 min-h-0">
@@ -110,7 +179,7 @@ export function EmailsClient({ emails }: { emails: InboundEmail[] }) {
         </span>
       </div>
 
-      {emails.length === 0 ? (
+      {received.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 border rounded-md py-24 text-muted-foreground">
           <Inbox className="w-10 h-10" />
           <p className="text-sm">Nenhum e-mail recebido ainda.</p>
@@ -237,6 +306,24 @@ export function EmailsClient({ emails }: { emails: InboundEmail[] }) {
                     <p className="text-sm text-muted-foreground italic">Sem conteúdo de texto.</p>
                   )}
                 </div>
+
+                {thread.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Respostas enviadas
+                    </p>
+                    {thread.map(r => (
+                      <div key={r.id} className="rounded-md border bg-muted/30 p-3 space-y-1">
+                        <p className="text-xs text-muted-foreground">
+                          Você · {formatDate(r.created_at, "dd/MM/yyyy 'às' HH:mm")}
+                        </p>
+                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{r.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <ReplyBox email={selected} onSent={() => router.refresh()} />
               </div>
             )}
           </div>

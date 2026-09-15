@@ -343,12 +343,14 @@ type NfRequestInsert = {
 type InboundEmailRow = {
   id: string; user_id: string; nf_request_id: string | null; invoice_id: string | null; job_id: string | null;
   resend_email_id: string; from_email: string; to_email: string | null; subject: string | null; body: string | null;
-  attachments: unknown; filed: boolean; note: string | null; created_at: string
+  attachments: unknown; filed: boolean; note: string | null; created_at: string;
+  direction: 'in' | 'out'; in_reply_to: string | null
 }
 type InboundEmailInsert = {
   user_id: string; nf_request_id?: string | null; invoice_id?: string | null; job_id?: string | null;
   resend_email_id: string; from_email: string; to_email?: string | null; subject?: string | null; body?: string | null;
-  attachments?: unknown; filed?: boolean; note?: string | null
+  attachments?: unknown; filed?: boolean; note?: string | null;
+  direction?: 'in' | 'out'; in_reply_to?: string | null
 }
 
 type JobDocumentRow = {
