@@ -32,6 +32,8 @@ export type HistoryJob = Job & {
   invoices: (HistoryInvoice & { id?: string })[]
   /** Requests already sent to the accountant, newest first. */
   nf_requests?: { created_at: string; status: string }[]
+  /** The accountant's replies, newest first. */
+  nf_replies?: { created_at: string }[]
 }
 
 const ORDER_STORAGE_KEY = "historico:column-order"
@@ -86,34 +88,40 @@ function Clamped({ title, children }: { title: string; children: React.ReactNode
 
 /**
  * The e-mail to the accountant, one click away from the job row. A request that went out
- * reads "Enviado" with its date — the dialog's own success toast is the approval message —
- * and can be sent again; a job never asked shows the button that opens the request dialog.
+ * reads "Enviado" with its date, and once the accountant writes back through the inbound
+ * webhook the cell turns into "Respondido" with the reply's date — the freshest state wins.
  * The row's own click opens the job, so the cell stops every click from bubbling up.
  */
 function AccountantEmailCell({ job }: { job: HistoryJob }) {
   const [open, setOpen] = useState(false)
   const sent = (job.nf_requests ?? []).find(r => r.status !== "failed")
+  const replied = (job.nf_replies ?? [])[0]
 
   return (
     <div onClick={e => e.stopPropagation()} className="flex items-center gap-1.5">
-      {sent ? (
-        <>
-          <span className="space-y-0.5">
-            <Badge variant="success" className="whitespace-nowrap">Enviado</Badge>
-            <span className="block text-xs text-muted-foreground">{formatDate(sent.created_at)}</span>
-          </span>
-          <Button
-            variant="ghost" size="sm" className="px-1.5"
-            title="Enviar novamente"
-            onClick={() => setOpen(true)}
-          >
-            <Mail className="w-3.5 h-3.5" />
-          </Button>
-        </>
+      {replied ? (
+        <span className="space-y-0.5">
+          <Badge variant="success" className="whitespace-nowrap">Respondido</Badge>
+          <span className="block text-xs text-muted-foreground">{formatDate(replied.created_at)}</span>
+        </span>
+      ) : sent ? (
+        <span className="space-y-0.5">
+          <Badge variant="warning" className="whitespace-nowrap">Enviado</Badge>
+          <span className="block text-xs text-muted-foreground">{formatDate(sent.created_at)}</span>
+        </span>
       ) : (
         <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
           <Mail className="w-3.5 h-3.5" />
           Enviar
+        </Button>
+      )}
+      {(sent || replied) && (
+        <Button
+          variant="ghost" size="sm" className="px-1.5"
+          title="Enviar novamente"
+          onClick={() => setOpen(true)}
+        >
+          <Mail className="w-3.5 h-3.5" />
         </Button>
       )}
       <NfRequestDialog jobId={job.id} open={open} onClose={() => setOpen(false)} />

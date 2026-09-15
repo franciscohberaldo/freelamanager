@@ -23,8 +23,17 @@ export default async function HistoricoPage() {
   // A request points either at the job or at one of its invoices; both end up on the job.
   const { data: requests } = await supabase
     .from("nf_requests")
-    .select("job_id, invoice_id, created_at, status")
+    .select("id, job_id, invoice_id, created_at, status")
     .eq("user_id", user!.id)
+    .order("created_at", { ascending: false })
+
+  // The accountant's answers come back through the inbound webhook; each one lands on the
+  // job directly or through the request it replied to.
+  const { data: replies } = await supabase
+    .from("inbound_emails")
+    .select("job_id, nf_request_id, created_at")
+    .eq("user_id", user!.id)
+    .eq("direction", "in")
     .order("created_at", { ascending: false })
 
   const rows = (history ?? []) as unknown as HistoryJob[]
@@ -34,13 +43,26 @@ export default async function HistoricoPage() {
   }
 
   const sentByJob = new Map<string, { created_at: string; status: string }[]>()
+  const jobOfRequest = new Map<string, string>()
   for (const r of requests ?? []) {
     const jobId = r.job_id ?? (r.invoice_id ? jobOfInvoice.get(r.invoice_id) : null)
     if (!jobId) continue
+    jobOfRequest.set(r.id, jobId)
     sentByJob.set(jobId, [...(sentByJob.get(jobId) ?? []), { created_at: r.created_at, status: r.status }])
   }
 
-  const jobs = rows.map(job => ({ ...job, nf_requests: sentByJob.get(job.id) ?? [] }))
+  const repliesByJob = new Map<string, { created_at: string }[]>()
+  for (const e of replies ?? []) {
+    const jobId = e.job_id ?? (e.nf_request_id ? jobOfRequest.get(e.nf_request_id) : null)
+    if (!jobId) continue
+    repliesByJob.set(jobId, [...(repliesByJob.get(jobId) ?? []), { created_at: e.created_at }])
+  }
+
+  const jobs = rows.map(job => ({
+    ...job,
+    nf_requests: sentByJob.get(job.id) ?? [],
+    nf_replies: repliesByJob.get(job.id) ?? [],
+  }))
 
   return (
     <div className="p-6 space-y-6">
