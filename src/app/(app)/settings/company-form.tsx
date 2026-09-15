@@ -35,6 +35,13 @@ interface UserSettings {
   intermediary_bank_aba: string | null
   intermediary_bank_account: string | null
   intermediary_bank_address: string | null
+  br_bank_name: string | null
+  br_bank_agency: string | null
+  br_bank_account: string | null
+  fx_bank_name: string | null
+  fx_bank_agency: string | null
+  fx_bank_account: string | null
+  fx_bank_swift: string | null
 }
 
 const BANK_FIELDS: Array<{ key: keyof UserSettings; label: string; placeholder: string; group: "wire" | "pix" }> = [
@@ -42,11 +49,22 @@ const BANK_FIELDS: Array<{ key: keyof UserSettings; label: string; placeholder: 
   { key: "bank_name",           label: "Banco",                        placeholder: "Banco Inter / Wise / Nomad", group: "wire" },
   { key: "bank_account_type",   label: "Tipo de conta",                placeholder: "Checking",                   group: "wire" },
   { key: "bank_account_number", label: "Número da conta",              placeholder: "Account #",                  group: "wire" },
-  { key: "bank_routing",        label: "Agência / Routing / ABA",      placeholder: "0001 · Routing #",           group: "wire" },
+  { key: "bank_routing",        label: "Routing / ABA",                placeholder: "Routing #",                  group: "wire" },
   { key: "bank_swift",          label: "SWIFT / BIC",                  placeholder: "Opcional",                   group: "wire" },
   { key: "bank_iban",           label: "IBAN",                         placeholder: "Opcional",                   group: "wire" },
   { key: "bank_address",        label: "Endereço do banco",            placeholder: "Opcional",                   group: "wire" },
+  { key: "br_bank_name",        label: "Banco",                        placeholder: "Banco Inter",                group: "pix" },
+  { key: "br_bank_agency",      label: "Agência",                      placeholder: "0001",                       group: "pix" },
+  { key: "br_bank_account",     label: "Conta",                        placeholder: "24188764-0",                 group: "pix" },
   { key: "pix_key",             label: "Chave PIX",                    placeholder: "CPF, e-mail, telefone ou aleatória", group: "pix" },
+]
+
+/** The bank that closes the exchange on money wired from abroad and credits the reais. */
+const FX_FIELDS: Array<{ key: keyof UserSettings; label: string; placeholder: string }> = [
+  { key: "fx_bank_name",    label: "Banco de câmbio",  placeholder: "Banco Inter" },
+  { key: "fx_bank_agency",  label: "Agência",          placeholder: "0001" },
+  { key: "fx_bank_account", label: "Conta",            placeholder: "24188764-0" },
+  { key: "fx_bank_swift",   label: "SWIFT",            placeholder: "BINTBRSP" },
 ]
 
 const FISCAL_FIELDS: Array<{ key: keyof UserSettings; label: string; placeholder: string }> = [
@@ -102,6 +120,13 @@ export function CompanyForm({ initialSettings }: { initialSettings: UserSettings
     intermediary_bank_aba:      initialSettings?.intermediary_bank_aba     ?? "",
     intermediary_bank_account:  initialSettings?.intermediary_bank_account ?? "",
     intermediary_bank_address:  initialSettings?.intermediary_bank_address ?? "",
+    br_bank_name:               initialSettings?.br_bank_name              ?? "",
+    br_bank_agency:             initialSettings?.br_bank_agency            ?? "",
+    br_bank_account:            initialSettings?.br_bank_account           ?? "",
+    fx_bank_name:               initialSettings?.fx_bank_name              ?? "",
+    fx_bank_agency:             initialSettings?.fx_bank_agency            ?? "",
+    fx_bank_account:            initialSettings?.fx_bank_account           ?? "",
+    fx_bank_swift:              initialSettings?.fx_bank_swift             ?? "",
   })
 
   function set<K extends keyof UserSettings>(k: K, v: UserSettings[K]) {
@@ -120,7 +145,7 @@ export function CompanyForm({ initialSettings }: { initialSettings: UserSettings
       invoice_color: form.invoice_color,
       hour_rounding: form.hour_rounding,
       ...Object.fromEntries(BANK_FIELDS.map(f => [f.key, (form[f.key] as string | null)?.trim() || null])),
-      ...Object.fromEntries([...FISCAL_FIELDS, ...INTERMEDIARY_FIELDS].map(f => [f.key, (form[f.key] as string | null)?.trim() || null])),
+      ...Object.fromEntries([...FISCAL_FIELDS, ...INTERMEDIARY_FIELDS, ...FX_FIELDS].map(f => [f.key, (form[f.key] as string | null)?.trim() || null])),
       next_invoice_seq: Math.max(1, Number(form.next_invoice_seq) || 102),
     }, { onConflict: "user_id" })
 
@@ -254,6 +279,15 @@ export function CompanyForm({ initialSettings }: { initialSettings: UserSettings
             </div>
           ))}
         </div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recebimento de câmbio (entra na NF internacional)</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {FX_FIELDS.map(f => (
+            <div key={f.key} className="space-y-1">
+              <Label className="text-xs">{f.label}</Label>
+              <Input value={(form[f.key] as string | null) ?? ""} onChange={e => set(f.key, e.target.value)} placeholder={f.placeholder} autoComplete="off" />
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="space-y-3 pt-2 border-t">
@@ -261,7 +295,8 @@ export function CompanyForm({ initialSettings }: { initialSettings: UserSettings
           <p className="text-sm font-medium">Dados bancários para o invoice</p>
           <p className="text-xs text-muted-foreground">
             Impressos no bloco &quot;Payment details&quot; do PDF. Invoices em USD/EUR mostram os dados de wire; em BRL, a chave PIX. Campos vazios não aparecem.
-            São também os dados que o pedido de NF ao contador inclui, quando você marca &quot;Incluir dados bancários&quot;.
+            São também os dados que o pedido de NF ao contador inclui, quando você marca &quot;Incluir dados bancários&quot;:
+            a NF de um tomador no Brasil leva a conta daqui; a de um tomador no exterior leva o recebimento lá fora, o banco intermediário e o banco de câmbio.
           </p>
         </div>
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Internacional (wire)</p>
@@ -278,7 +313,7 @@ export function CompanyForm({ initialSettings }: { initialSettings: UserSettings
             </div>
           ))}
         </div>
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Brasil (PIX)</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Brasil (conta e PIX)</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {BANK_FIELDS.filter(f => f.group === "pix").map(f => (
             <div key={f.key} className="space-y-1">

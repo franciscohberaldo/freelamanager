@@ -158,6 +158,9 @@ type UserSettingsRow = {
   accountant_name: string | null; accountant_email: string | null; next_invoice_seq: number;
   intermediary_bank_name: string | null; intermediary_bank_swift: string | null; intermediary_bank_aba: string | null;
   intermediary_bank_account: string | null; intermediary_bank_address: string | null;
+  br_bank_name: string | null; br_bank_agency: string | null; br_bank_account: string | null;
+  fx_bank_name: string | null; fx_bank_agency: string | null; fx_bank_account: string | null;
+  fx_bank_swift: string | null;
   created_at: string; updated_at: string
 }
 type UserSettingsInsert = {
@@ -169,7 +172,10 @@ type UserSettingsInsert = {
   legal_name?: string | null; municipal_registration?: string | null; fiscal_address?: string | null;
   accountant_name?: string | null; accountant_email?: string | null; next_invoice_seq?: number;
   intermediary_bank_name?: string | null; intermediary_bank_swift?: string | null; intermediary_bank_aba?: string | null;
-  intermediary_bank_account?: string | null; intermediary_bank_address?: string | null
+  intermediary_bank_account?: string | null; intermediary_bank_address?: string | null;
+  br_bank_name?: string | null; br_bank_agency?: string | null; br_bank_account?: string | null;
+  fx_bank_name?: string | null; fx_bank_agency?: string | null; fx_bank_account?: string | null;
+  fx_bank_swift?: string | null
 }
 
 type ExpenseRow = {

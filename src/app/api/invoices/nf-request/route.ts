@@ -151,15 +151,42 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ ok: true, requestId: req?.id })
 }
 
-/** The account the accountant may be asked to print on the note. */
-const bankBlockOf = (settings: UserSettings | null) => buildBankBlock({
-  beneficiary: settings?.bank_beneficiary ?? null,
-  bankName: settings?.bank_name ?? null,
-  agency: settings?.bank_routing ?? null,
-  account: settings?.bank_account_number ?? null,
-  accountType: settings?.bank_account_type ?? null,
-  pixKey: settings?.pix_key ?? null,
-})
+/**
+ * The account the accountant may be asked to print. The currency says where the tomador
+ * is: one billed in reais pays here, one billed in dollars or euros wires from abroad.
+ */
+const bankBlockOf = (settings: UserSettings | null, currency: string) => buildBankBlock({
+  domestic: {
+    beneficiary: settings?.bank_beneficiary ?? null,
+    bankName: settings?.br_bank_name ?? null,
+    agency: settings?.br_bank_agency ?? null,
+    account: settings?.br_bank_account ?? null,
+    pixKey: settings?.pix_key ?? null,
+  },
+  wire: {
+    beneficiary: settings?.bank_beneficiary ?? null,
+    bankName: settings?.bank_name ?? null,
+    accountType: settings?.bank_account_type ?? null,
+    account: settings?.bank_account_number ?? null,
+    routing: settings?.bank_routing ?? null,
+    swift: settings?.bank_swift ?? null,
+    iban: settings?.bank_iban ?? null,
+    address: settings?.bank_address ?? null,
+  },
+  intermediary: {
+    bankName: settings?.intermediary_bank_name ?? null,
+    swift: settings?.intermediary_bank_swift ?? null,
+    aba: settings?.intermediary_bank_aba ?? null,
+    account: settings?.intermediary_bank_account ?? null,
+    address: settings?.intermediary_bank_address ?? null,
+  },
+  fx: {
+    bankName: settings?.fx_bank_name ?? null,
+    agency: settings?.fx_bank_agency ?? null,
+    account: settings?.fx_bank_account ?? null,
+    swift: settings?.fx_bank_swift ?? null,
+  },
+}, { abroad: currency !== "BRL" })
 
 /** Preview the e-mail without sending. */
 export async function GET(request: NextRequest) {
@@ -176,7 +203,7 @@ export async function GET(request: NextRequest) {
     if (!invoice) return NextResponse.json({ error: "Invoice não encontrado" }, { status: 404 })
     const { subject, body } = buildFromInvoice(invoice)
     return NextResponse.json({
-      subject, body, to: settings?.accountant_email ?? null, bankBlock: bankBlockOf(settings),
+      subject, body, to: settings?.accountant_email ?? null, bankBlock: bankBlockOf(settings, invoice.currency),
     })
   }
 
@@ -184,6 +211,6 @@ export async function GET(request: NextRequest) {
   if (!job) return NextResponse.json({ error: "Job não encontrado" }, { status: 404 })
   const { subject, body } = buildFromJob(job)
   return NextResponse.json({
-    subject, body, to: settings?.accountant_email ?? null, bankBlock: bankBlockOf(settings),
+    subject, body, to: settings?.accountant_email ?? null, bankBlock: bankBlockOf(settings, job.currency),
   })
 }

@@ -44,26 +44,68 @@ export function buildNfRequest(i: NfRequestInput): { subject: string; body: stri
 }
 
 export type BankDetails = {
-  beneficiary: string | null
-  bankName: string | null
-  /** Agência, kept under the routing field the international invoice already uses. */
-  agency: string | null
-  account: string | null
-  accountType: string | null
-  pixKey: string | null
+  /** The account a Brazilian tomador pays into. */
+  domestic: { beneficiary: string | null; bankName: string | null; agency: string | null; account: string | null; pixKey: string | null }
+  /** The account abroad that receives the wire. */
+  wire: {
+    beneficiary: string | null; bankName: string | null; accountType: string | null
+    account: string | null; routing: string | null; swift: string | null
+    iban: string | null; address: string | null
+  }
+  /** The bank the wire passes through on its way there. */
+  intermediary: { bankName: string | null; swift: string | null; aba: string | null; account: string | null; address: string | null }
+  /** The bank that closes the exchange and credits the reais. */
+  fx: { bankName: string | null; agency: string | null; account: string | null; swift: string | null }
+}
+
+const section = (title: string, pairs: [string, string | null | undefined][]) => {
+  const lines = pairs.filter(([, v]) => v?.trim()).map(([k, v]) => `${k}: ${v!.trim()}`)
+  return lines.length ? [title, ...lines] : []
 }
 
 /**
- * The block that goes into the note when the client pays by transfer. Optional: many NFs
- * carry no account at all, so the sender decides per request.
+ * The account the note should print. A tomador in Brazil pays here and needs one block; a
+ * foreign one wires abroad, so the note carries the receiving account, the intermediary it
+ * passes through, and the bank that closes the exchange. Blocks with nothing filled in are
+ * left out, and a request with no account at all gets none.
  */
-export function buildBankBlock(b: BankDetails): string | null {
-  const lines: string[] = []
-  if (b.beneficiary) lines.push(`Beneficiário: ${b.beneficiary}`)
-  if (b.bankName) lines.push(`Banco: ${b.bankName}`)
-  if (b.agency) lines.push(`Agência: ${b.agency}`)
-  if (b.account) lines.push(`Conta${b.accountType ? ` (${b.accountType})` : ""}: ${b.account}`)
-  if (b.pixKey) lines.push(`PIX: ${b.pixKey}`)
-  if (!lines.length) return null
-  return ["Dados bancários:", ...lines].join("\n")
+export function buildBankBlock(b: BankDetails, { abroad }: { abroad: boolean }): string | null {
+  const blocks = abroad
+    ? [
+        section("Dados bancários (recebimento no exterior):", [
+          ["Beneficiário", b.wire.beneficiary],
+          ["Banco", b.wire.bankName],
+          ["Tipo de conta", b.wire.accountType],
+          ["Conta", b.wire.account],
+          ["Routing / ABA", b.wire.routing],
+          ["SWIFT / BIC", b.wire.swift],
+          ["IBAN", b.wire.iban],
+          ["Endereço do banco", b.wire.address],
+        ]),
+        section("Banco intermediário:", [
+          ["Banco", b.intermediary.bankName],
+          ["SWIFT", b.intermediary.swift],
+          ["ABA / routing", b.intermediary.aba],
+          ["Conta", b.intermediary.account],
+          ["Endereço", b.intermediary.address],
+        ]),
+        section("Banco de recebimento de câmbio:", [
+          ["Banco", b.fx.bankName],
+          ["Agência", b.fx.agency],
+          ["Conta", b.fx.account],
+          ["SWIFT", b.fx.swift],
+        ]),
+      ]
+    : [
+        section("Dados bancários:", [
+          ["Beneficiário", b.domestic.beneficiary],
+          ["Banco", b.domestic.bankName],
+          ["Agência", b.domestic.agency],
+          ["Conta", b.domestic.account],
+          ["PIX", b.domestic.pixKey],
+        ]),
+      ]
+
+  const written = blocks.filter(lines => lines.length).map(lines => lines.join("\n"))
+  return written.length ? written.join("\n\n") : null
 }

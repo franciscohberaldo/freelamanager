@@ -60,26 +60,58 @@ describe("buildNfRequest", () => {
   })
 })
 
-describe("buildBankBlock", () => {
-  const bank = {
-    beneficiary: "Francisco H. Beraldo", bankName: "Banco Inter", agency: "0001",
-    account: "24188764-0", accountType: "Corrente", pixKey: "11241505000164",
-  }
+const bank = {
+  domestic: { beneficiary: "Estúdio Judite Ltda", bankName: "Banco Inter", agency: "0001", account: "24188764-0", pixKey: "11241505000164" },
+  wire: {
+    beneficiary: "Francisco H. Beraldo", bankName: "Nomad", accountType: "Checking",
+    account: "8912345678", routing: "084009519", swift: "TRWIUS35", iban: null,
+    address: "108 W 13th St, Wilmington, DE",
+  },
+  intermediary: { bankName: "JP Morgan Chase N.A.", swift: "CHASUS33", aba: "021000021", account: "360556937", address: "270 Park Avenue, New York" },
+  fx: { bankName: "Banco Inter", agency: "0001", account: "24188764-0", swift: "BINTBRSP" },
+}
 
-  it("lists what the note has to print", () => {
-    expect(buildBankBlock(bank)).toBe([
+describe("buildBankBlock", () => {
+  it("gives a tomador in Brazil the account here, and nothing else", () => {
+    const block = buildBankBlock(bank, { abroad: false })
+    expect(block).toBe([
       "Dados bancários:",
-      "Beneficiário: Francisco H. Beraldo",
+      "Beneficiário: Estúdio Judite Ltda",
       "Banco: Banco Inter",
       "Agência: 0001",
-      "Conta (Corrente): 24188764-0",
+      "Conta: 24188764-0",
       "PIX: 11241505000164",
     ].join("\n"))
+    expect(block).not.toContain("intermediário")
+  })
+
+  it("gives a tomador abroad the wire, the intermediary and the exchange bank", () => {
+    const block = buildBankBlock(bank, { abroad: true })!
+    expect(block).toContain("Dados bancários (recebimento no exterior):")
+    expect(block).toContain("SWIFT / BIC: TRWIUS35")
+    expect(block).toContain("Banco intermediário:")
+    expect(block).toContain("ABA / routing: 021000021")
+    expect(block).toContain("Banco de recebimento de câmbio:")
+    expect(block).toContain("SWIFT: BINTBRSP")
+    expect(block).not.toContain("PIX")
+  })
+
+  it("leaves out a block nobody filled in", () => {
+    const noIntermediary = {
+      ...bank,
+      intermediary: { bankName: null, swift: null, aba: null, account: null, address: null },
+    }
+    expect(buildBankBlock(noIntermediary, { abroad: true })).not.toContain("Banco intermediário")
   })
 
   it("is nothing at all when no account is registered", () => {
-    expect(buildBankBlock({
-      beneficiary: null, bankName: null, agency: null, account: null, accountType: null, pixKey: null,
-    })).toBeNull()
+    const empty = {
+      domestic: { beneficiary: null, bankName: null, agency: null, account: null, pixKey: null },
+      wire: { beneficiary: null, bankName: null, accountType: null, account: null, routing: null, swift: null, iban: null, address: null },
+      intermediary: { bankName: null, swift: null, aba: null, account: null, address: null },
+      fx: { bankName: null, agency: null, account: null, swift: null },
+    }
+    expect(buildBankBlock(empty, { abroad: false })).toBeNull()
+    expect(buildBankBlock(empty, { abroad: true })).toBeNull()
   })
 })
