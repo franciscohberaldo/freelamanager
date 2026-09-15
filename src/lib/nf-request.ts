@@ -28,6 +28,37 @@ export function shortCompany(name: string | null): string | null {
   return short || null
 }
 
+const UF_NAMES: Record<string, string> = {
+  AC: "Acre", AL: "Alagoas", AP: "Amapá", AM: "Amazonas", BA: "Bahia", CE: "Ceará",
+  DF: "Distrito Federal", ES: "Espírito Santo", GO: "Goiás", MA: "Maranhão",
+  MT: "Mato Grosso", MS: "Mato Grosso do Sul", MG: "Minas Gerais", PA: "Pará",
+  PB: "Paraíba", PR: "Paraná", PE: "Pernambuco", PI: "Piauí", RJ: "Rio de Janeiro",
+  RN: "Rio Grande do Norte", RS: "Rio Grande do Sul", RO: "Rondônia", RR: "Roraima",
+  SC: "Santa Catarina", SP: "São Paulo", SE: "Sergipe", TO: "Tocantins",
+}
+
+/**
+ * The address the way a note prints it: the street on one line, the bairro on the next,
+ * then the CEP, and last the city with its state and country. Stored addresses come from
+ * the CNPJ lookup as one line joined by " - ", which is what gets taken apart here; one
+ * typed by hand with line breaks is already in the right shape and is left alone.
+ */
+export function addressLines(address: string | null): string[] {
+  const written = address?.trim()
+  if (!written) return []
+  if (written.includes("\n")) return written.split("\n").map(l => l.trim()).filter(Boolean)
+
+  const parts = written.split(" - ").map(p => p.trim()).filter(Boolean)
+  const last = parts[parts.length - 1]
+  const cityUf = last?.match(/^(.+?)[/-]([A-Za-z]{2})$/)
+  if (cityUf) {
+    const [, city, uf] = cityUf
+    parts[parts.length - 1] = [city.trim(), UF_NAMES[uf.toUpperCase()], uf.toUpperCase(), "Brasil"]
+      .filter(Boolean).join(", ")
+  }
+  return parts
+}
+
 const dmy = (iso: string) => { const [y, m, d] = iso.slice(0, 10).split("-"); return `${d}/${m}/${y}` }
 
 /**
@@ -39,7 +70,7 @@ export function buildNfRequest(i: NfRequestInput): { subject: string; body: stri
   const lines: string[] = []
 
   lines.push(i.legalName ?? i.clientName)
-  if (i.address) lines.push(i.address)
+  lines.push(...addressLines(i.address))
   if (i.cnpj) lines.push(`CNPJ nº ${i.cnpj}`)
   // most tomadores of a service are exempt, and that is what the note must say
   lines.push(`IE: ${i.stateRegistration?.trim() || "Isenta"}`)

@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest"
-import { buildNfRequest, buildBankBlock, shortCompany } from "@/lib/nf-request"
+import { buildNfRequest, buildBankBlock, shortCompany, addressLines } from "@/lib/nf-request"
 
 const base = {
   companyName: "Estudio Judite Ltda",
   clientName: "R/GA",
   legalName: "R/GA Media Group Publicidade Ltda",
-  address: "Av. Manuel Bandeira, 360\nCEP: 05317-020 – Vila Leopoldina – São Paulo",
+  address: "Av. Manuel Bandeira, 360 - Vila Leopoldina - CEP: 05317-020 - Sao Paulo/SP",
   cnpj: "39.937.180/0001-78",
   stateRegistration: null,
   nfDescription: "Serviços de Motion Design",
@@ -22,7 +22,9 @@ describe("buildNfRequest", () => {
     expect(body).toBe([
       "R/GA Media Group Publicidade Ltda",
       "Av. Manuel Bandeira, 360",
-      "CEP: 05317-020 – Vila Leopoldina – São Paulo",
+      "Vila Leopoldina",
+      "CEP: 05317-020",
+      "Sao Paulo, São Paulo, SP, Brasil",
       "CNPJ nº 39.937.180/0001-78",
       "IE: Isenta",
       "",
@@ -75,6 +77,29 @@ const bank = {
   intermediary: { bankName: "JP Morgan Chase N.A.", swift: "CHASUS33", aba: "021000021", account: "360556937", address: "270 Park Avenue, New York" },
   fx: { bankName: "Banco Inter", agency: "0001", account: "24188764-0", swift: "BINTBRSP" },
 }
+
+describe("addressLines", () => {
+  it("gives the note one line each: rua, bairro, CEP, cidade", () => {
+    expect(addressLines("Jose Antonio Coelho, 510, CASA 06 - Vila Mariana - CEP: 04011-061 - Sao Paulo/SP")).toEqual([
+      "Jose Antonio Coelho, 510, CASA 06",
+      "Vila Mariana",
+      "CEP: 04011-061",
+      "Sao Paulo, São Paulo, SP, Brasil",
+    ])
+  })
+
+  it("leaves an address typed across lines as it was written", () => {
+    expect(addressLines("Rua A, 1\nBairro B\nCEP: 00000-000")).toEqual(["Rua A, 1", "Bairro B", "CEP: 00000-000"])
+  })
+
+  it("keeps a city whose state it does not know", () => {
+    expect(addressLines("Calle 1 - Centro - Buenos Aires")).toEqual(["Calle 1", "Centro", "Buenos Aires"])
+  })
+
+  it("is nothing when the client has no address", () => {
+    expect(addressLines(null)).toEqual([])
+  })
+})
 
 describe("shortCompany", () => {
   it("drops the legal suffix nobody says out loud", () => {
