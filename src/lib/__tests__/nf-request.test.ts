@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest"
-import { buildNfRequest, buildBankBlock } from "@/lib/nf-request"
+import { buildNfRequest, buildBankBlock, shortCompany } from "@/lib/nf-request"
 
 const base = {
+  companyName: "Estudio Judite Ltda",
   clientName: "R/GA",
   legalName: "R/GA Media Group Publicidade Ltda",
   address: "Av. Manuel Bandeira, 360\nCEP: 05317-020 – Vila Leopoldina – São Paulo",
@@ -17,7 +18,7 @@ const base = {
 describe("buildNfRequest", () => {
   it("is the e-mail the accountant already reads", () => {
     const { subject, body } = buildNfRequest(base)
-    expect(subject).toBe("Emissão de NF")
+    expect(subject).toBe("[Estudio Judite] Emissão de Nota Fiscal")
     expect(body).toBe([
       "R/GA Media Group Publicidade Ltda",
       "Av. Manuel Bandeira, 360",
@@ -42,6 +43,10 @@ describe("buildNfRequest", () => {
   it("adds the client's rules at the end", () => {
     expect(buildNfRequest({ ...base, nfRules: "Não mencionar nomes de jobs." }).body)
       .toContain("Observações:\nNão mencionar nomes de jobs.")
+  })
+
+  it("falls back to a plain subject with no company name", () => {
+    expect(buildNfRequest({ ...base, companyName: null }).subject).toBe("Emissão de Nota Fiscal")
   })
 
   it("states the due date once", () => {
@@ -70,6 +75,21 @@ const bank = {
   intermediary: { bankName: "JP Morgan Chase N.A.", swift: "CHASUS33", aba: "021000021", account: "360556937", address: "270 Park Avenue, New York" },
   fx: { bankName: "Banco Inter", agency: "0001", account: "24188764-0", swift: "BINTBRSP" },
 }
+
+describe("shortCompany", () => {
+  it("drops the legal suffix nobody says out loud", () => {
+    expect(shortCompany("Estudio Judite Ltda")).toBe("Estudio Judite")
+    expect(shortCompany("ESTUDIO JUDITE EIRELI")).toBe("ESTUDIO JUDITE")
+    expect(shortCompany("Judite S.A.")).toBe("Judite")
+  })
+  it("keeps a name that is only a name", () => {
+    expect(shortCompany("Estudio Judite")).toBe("Estudio Judite")
+  })
+  it("is nothing when there is no name", () => {
+    expect(shortCompany(null)).toBeNull()
+    expect(shortCompany("  ")).toBeNull()
+  })
+})
 
 describe("buildBankBlock", () => {
   it("gives a tomador in Brazil the account here, and nothing else", () => {

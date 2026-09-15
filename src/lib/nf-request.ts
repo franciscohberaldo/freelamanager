@@ -1,4 +1,6 @@
 export type NfRequestInput = {
+  /** Whose studio is asking — it heads the subject, so the accountant sorts by sender. */
+  companyName: string | null
   clientName: string
   legalName: string | null
   /** Printed as it is stored, line breaks and all, so it reads like an address. */
@@ -14,6 +16,17 @@ export type NfRequestInput = {
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v).replace(/\u00a0/g, " ")
+
+/**
+ * The name as people say it, not as the contract writes it: a subject line does not need
+ * "Ltda" or "EIRELI" to be recognised.
+ */
+export function shortCompany(name: string | null): string | null {
+  const short = (name ?? "")
+    .replace(/[\s,.-]+(ltda|eireli|epp|mei|me|s\/?\.?a\.?|sa)\.?$/i, "")
+    .trim()
+  return short || null
+}
 
 const dmy = (iso: string) => { const [y, m, d] = iso.slice(0, 10).split("-"); return `${d}/${m}/${y}` }
 
@@ -40,7 +53,10 @@ export function buildNfRequest(i: NfRequestInput): { subject: string; body: stri
 
   if (i.nfRules?.trim()) lines.push("", "Observações:", i.nfRules.trim())
 
-  return { subject: "Emissão de NF", body: lines.join("\n") }
+  const company = shortCompany(i.companyName)
+  const subject = company ? `[${company}] Emissão de Nota Fiscal` : "Emissão de Nota Fiscal"
+
+  return { subject, body: lines.join("\n") }
 }
 
 export type BankDetails = {
