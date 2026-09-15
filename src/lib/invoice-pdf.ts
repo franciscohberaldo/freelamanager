@@ -21,10 +21,12 @@ const CURRENCY_SIGNS: Record<string, string> = { USD: "US$", BRL: "R$", EUR: "â‚
 export function formatModelCurrency(value: number, currency: string): string {
   const sign = CURRENCY_SIGNS[currency] ?? `${currency} `
   const grouping = currency === "BRL" ? "pt-BR" : "en-US"
-  const decimals = Number.isInteger(value) ? 0 : 2
+  // numeric columns may arrive as strings depending on the driver
+  const n = typeof value === "number" ? value : Number(value)
+  const decimals = Number.isInteger(n) ? 0 : 2
   const num = new Intl.NumberFormat(grouping, {
     minimumFractionDigits: decimals, maximumFractionDigits: 2,
-  }).format(value)
+  }).format(n)
   return `${sign} ${num}`
 }
 
@@ -237,13 +239,16 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   heading(`${t.billTo}:`, X.label, Y.header)
   heading(t.recipientInfo, X.right, Y.header)
 
-  // the client, stacked under BILLED TO
+  // the client, stacked under BILLED TO â€” long lines wrap so they never cross into the
+  // recipient's column
+  const clientWidth = X.right - X.label - 8
   const clientName = client?.billing_entity || client?.legal_name || client?.name || ""
-  const clientLines = [
+  const clientRaw = [
     clientName,
     ...(client?.billing_address || client?.address || "").split(/\s*[\n]\s*/).filter(Boolean),
     client?.email ?? "",
   ].filter(Boolean)
+  const clientLines = clientRaw.flatMap(line => doc.splitTextToSize(line, clientWidth) as string[])
   clientLines.slice(0, 4).forEach((line, i) => say(line, X.label, Y.header + ROW * (i + 1)))
 
   // the issuer, on the right: name, then how to reach them, then where they are
