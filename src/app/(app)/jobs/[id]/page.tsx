@@ -144,6 +144,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
               <NfRequestAction jobId={typedJob.id} candidates={nfCandidates} sent={nfRequests} />
             ),
           }}
+          done={{ accountant_email: nfRequests.some(r => r.status !== "failed") }}
         />
       </section>
 

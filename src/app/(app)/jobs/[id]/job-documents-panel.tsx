@@ -20,9 +20,11 @@ interface Props {
   documents: JobDocument[]
   /** What a kind can do besides holding a file — asking the accountant for the NF, say. */
   actions?: Partial<Record<DocumentKind, React.ReactNode>>
+  /** Kinds settled by something other than a file, which count as done all the same. */
+  done?: Partial<Record<DocumentKind, boolean>>
 }
 
-export function JobDocumentsPanel({ jobId, userId, documents, actions }: Props) {
+export function JobDocumentsPanel({ jobId, userId, documents, actions, done }: Props) {
   const [busy, setBusy] = useState<DocumentKind | null>(null)
   const router = useRouter()
   const supabase = createClient()
@@ -81,13 +83,15 @@ export function JobDocumentsPanel({ jobId, userId, documents, actions }: Props) 
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid gap-3">
       {DOCUMENT_KINDS.map(kind => {
         const doc = byKind.get(kind)
         const loading = busy === kind
+        const settled = !!doc || !!done?.[kind]
 
         return (
-          <Card key={kind} className={doc ? "" : "border-dashed"}>
+          // A finished step is outlined in green; an empty one keeps its dashed outline.
+          <Card key={kind} className={settled ? "border-emerald-600/60" : "border-dashed"}>
             <CardContent className="py-4 px-5 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
