@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
-import { buildNfRequest } from "@/lib/nf-request"
+import { buildNfRequest, buildBankBlock } from "@/lib/nf-request"
 import { assertTransition, type NfStatus } from "@/lib/nf-status"
 import type { UserSettings } from "@/lib/supabase/types"
 
@@ -151,6 +151,16 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ ok: true, requestId: req?.id })
 }
 
+/** The account the accountant may be asked to print on the note. */
+const bankBlockOf = (settings: UserSettings | null) => buildBankBlock({
+  beneficiary: settings?.bank_beneficiary ?? null,
+  bankName: settings?.bank_name ?? null,
+  agency: settings?.bank_routing ?? null,
+  account: settings?.bank_account_number ?? null,
+  accountType: settings?.bank_account_type ?? null,
+  pixKey: settings?.pix_key ?? null,
+})
+
 /** Preview the e-mail without sending. */
 export async function GET(request: NextRequest) {
   const invoiceId = request.nextUrl.searchParams.get("invoiceId")
@@ -165,11 +175,15 @@ export async function GET(request: NextRequest) {
     const { invoice, settings } = await loadInvoice(invoiceId, user.id)
     if (!invoice) return NextResponse.json({ error: "Invoice não encontrado" }, { status: 404 })
     const { subject, body } = buildFromInvoice(invoice)
-    return NextResponse.json({ subject, body, to: settings?.accountant_email ?? null })
+    return NextResponse.json({
+      subject, body, to: settings?.accountant_email ?? null, bankBlock: bankBlockOf(settings),
+    })
   }
 
   const { job, settings } = await loadJob(jobId!, user.id)
   if (!job) return NextResponse.json({ error: "Job não encontrado" }, { status: 404 })
   const { subject, body } = buildFromJob(job)
-  return NextResponse.json({ subject, body, to: settings?.accountant_email ?? null })
+  return NextResponse.json({
+    subject, body, to: settings?.accountant_email ?? null, bankBlock: bankBlockOf(settings),
+  })
 }

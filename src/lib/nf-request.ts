@@ -34,11 +34,36 @@ export function buildNfRequest(i: NfRequestInput): { subject: string; body: stri
   lines.push("", `Valor: ${brl(i.amountBrl)}`)
   if (i.dueDate) lines.push(`Vencimento: ${dmy(i.dueDate)}`)
 
+  // the due date is stated once, above; repeating it under Descrição only read as a slip
   lines.push("", "Descrição:", i.nfDescription?.trim() || "(preencher)")
   if (i.poNumber) lines.push(`"Número de PO: ${i.poNumber}"`)
-  if (i.dueDate) lines.push(`Data de vencimento: ${dmy(i.dueDate)}`)
 
   if (i.nfRules?.trim()) lines.push("", "Observações:", i.nfRules.trim())
 
   return { subject: "Emissão de NF", body: lines.join("\n") }
+}
+
+export type BankDetails = {
+  beneficiary: string | null
+  bankName: string | null
+  /** Agência, kept under the routing field the international invoice already uses. */
+  agency: string | null
+  account: string | null
+  accountType: string | null
+  pixKey: string | null
+}
+
+/**
+ * The block that goes into the note when the client pays by transfer. Optional: many NFs
+ * carry no account at all, so the sender decides per request.
+ */
+export function buildBankBlock(b: BankDetails): string | null {
+  const lines: string[] = []
+  if (b.beneficiary) lines.push(`Beneficiário: ${b.beneficiary}`)
+  if (b.bankName) lines.push(`Banco: ${b.bankName}`)
+  if (b.agency) lines.push(`Agência: ${b.agency}`)
+  if (b.account) lines.push(`Conta${b.accountType ? ` (${b.accountType})` : ""}: ${b.account}`)
+  if (b.pixKey) lines.push(`PIX: ${b.pixKey}`)
+  if (!lines.length) return null
+  return ["Dados bancários:", ...lines].join("\n")
 }

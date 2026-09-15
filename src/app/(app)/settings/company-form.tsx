@@ -42,7 +42,7 @@ const BANK_FIELDS: Array<{ key: keyof UserSettings; label: string; placeholder: 
   { key: "bank_name",           label: "Banco",                        placeholder: "Banco Inter / Wise / Nomad", group: "wire" },
   { key: "bank_account_type",   label: "Tipo de conta",                placeholder: "Checking",                   group: "wire" },
   { key: "bank_account_number", label: "Número da conta",              placeholder: "Account #",                  group: "wire" },
-  { key: "bank_routing",        label: "Routing / ABA",                placeholder: "Routing #",                  group: "wire" },
+  { key: "bank_routing",        label: "Agência / Routing / ABA",      placeholder: "0001 · Routing #",           group: "wire" },
   { key: "bank_swift",          label: "SWIFT / BIC",                  placeholder: "Opcional",                   group: "wire" },
   { key: "bank_iban",           label: "IBAN",                         placeholder: "Opcional",                   group: "wire" },
   { key: "bank_address",        label: "Endereço do banco",            placeholder: "Opcional",                   group: "wire" },
@@ -261,6 +261,7 @@ export function CompanyForm({ initialSettings }: { initialSettings: UserSettings
           <p className="text-sm font-medium">Dados bancários para o invoice</p>
           <p className="text-xs text-muted-foreground">
             Impressos no bloco &quot;Payment details&quot; do PDF. Invoices em USD/EUR mostram os dados de wire; em BRL, a chave PIX. Campos vazios não aparecem.
+            São também os dados que o pedido de NF ao contador inclui, quando você marca &quot;Incluir dados bancários&quot;.
           </p>
         </div>
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Internacional (wire)</p>

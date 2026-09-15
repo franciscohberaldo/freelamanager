@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Switch } from "@/components/ui/switch"
+import Link from "next/link"
 import { Loader2, Send } from "lucide-react"
 
 /** Asks for the NF of one invoice, or — when the job has none — of the job itself. */
@@ -24,16 +26,31 @@ export function NfRequestDialog({ invoiceId, jobId, open, onClose }: {
   const [to, setTo] = useState<string | null>(null)
   const [subject, setSubject] = useState("")
   const [body, setBody] = useState("")
+  const [bankBlock, setBankBlock] = useState<string | null>(null)
+  const [withBank, setWithBank] = useState(false)
 
   useEffect(() => {
     if (!open) return
     setLoading(true)
     fetch(`/api/invoices/nf-request?${target}`)
       .then(r => r.json())
-      .then(d => { if (d.error) toast.error(d.error); else { setTo(d.to); setSubject(d.subject); setBody(d.body) } })
+      .then(d => {
+        if (d.error) { toast.error(d.error); return }
+        setTo(d.to); setSubject(d.subject); setBody(d.body)
+        setBankBlock(d.bankBlock ?? null); setWithBank(false)
+      })
       .catch(() => toast.error("Erro ao montar o pedido"))
       .finally(() => setLoading(false))
   }, [open, target])
+
+  /** The block is appended to whatever has been typed, and taken back out untouched. */
+  function toggleBank(on: boolean) {
+    if (!bankBlock) return
+    setWithBank(on)
+    setBody(b => on
+      ? [b.trimEnd(), bankBlock].join("\n\n")
+      : b.replace(bankBlock, "").trimEnd())
+  }
 
   async function send() {
     setSending(true)
@@ -66,6 +83,22 @@ export function NfRequestDialog({ invoiceId, jobId, open, onClose }: {
             <div className="space-y-1">
               <Label>Mensagem</Label>
               <Textarea rows={16} className="font-mono text-xs" value={body} onChange={e => setBody(e.target.value)} />
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="nf-bank"
+                checked={withBank}
+                disabled={!bankBlock}
+                onCheckedChange={toggleBank}
+              />
+              <Label htmlFor="nf-bank" className="text-sm font-normal">
+                Incluir dados bancários no corpo da NF
+              </Label>
+              {!bankBlock && (
+                <span className="text-xs text-muted-foreground">
+                  Cadastre a conta em <Link href="/settings" className="underline">Configurações</Link>.
+                </span>
+              )}
             </div>
           </div>
         )}

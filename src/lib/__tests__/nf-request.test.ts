@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { buildNfRequest } from "@/lib/nf-request"
+import { buildNfRequest, buildBankBlock } from "@/lib/nf-request"
 
 const base = {
   clientName: "R/GA",
@@ -31,7 +31,6 @@ describe("buildNfRequest", () => {
       "Descrição:",
       "Serviços de Motion Design",
       `"Número de PO: 3001630"`,
-      "Data de vencimento: 30/05/2026",
     ].join("\n"))
   })
 
@@ -45,6 +44,10 @@ describe("buildNfRequest", () => {
       .toContain("Observações:\nNão mencionar nomes de jobs.")
   })
 
+  it("states the due date once", () => {
+    expect(buildNfRequest(base).body.match(/encimento/g) ?? []).toHaveLength(1)
+  })
+
   it("leaves out what the job has not filled in", () => {
     const { body } = buildNfRequest({
       ...base, legalName: null, address: null, cnpj: null, poNumber: null,
@@ -54,5 +57,29 @@ describe("buildNfRequest", () => {
     expect(body).toContain("Descrição:\n(preencher)")
     expect(body).not.toContain("Vencimento")
     expect(body).not.toContain("PO")
+  })
+})
+
+describe("buildBankBlock", () => {
+  const bank = {
+    beneficiary: "Francisco H. Beraldo", bankName: "Banco Inter", agency: "0001",
+    account: "24188764-0", accountType: "Corrente", pixKey: "11241505000164",
+  }
+
+  it("lists what the note has to print", () => {
+    expect(buildBankBlock(bank)).toBe([
+      "Dados bancários:",
+      "Beneficiário: Francisco H. Beraldo",
+      "Banco: Banco Inter",
+      "Agência: 0001",
+      "Conta (Corrente): 24188764-0",
+      "PIX: 11241505000164",
+    ].join("\n"))
+  })
+
+  it("is nothing at all when no account is registered", () => {
+    expect(buildBankBlock({
+      beneficiary: null, bankName: null, agency: null, account: null, accountType: null, pixKey: null,
+    })).toBeNull()
   })
 })
