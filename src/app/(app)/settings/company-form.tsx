@@ -1,20 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2 } from "lucide-react"
+import { Loader2, Upload, Trash2 } from "lucide-react"
+import {
+  validateThumbnail, thumbnailPath, pathFromPublicUrl, THUMBNAIL_BUCKET,
+} from "@/lib/job-thumbnail"
 
-interface UserSettings {
+export interface CompanySettings {
   company_name: string | null
   cnpj_cpf: string | null
   logo_url: string | null
   invoice_color: string
-  hour_rounding: string
   bank_beneficiary: string | null
   bank_name: string | null
   bank_account_type: string | null
@@ -44,93 +46,110 @@ interface UserSettings {
   fx_bank_swift: string | null
 }
 
-const BANK_FIELDS: Array<{ key: keyof UserSettings; label: string; placeholder: string; group: "wire" | "pix" }> = [
-  { key: "bank_beneficiary",    label: "Beneficiário (nome na conta)", placeholder: "Francisco H. Beraldo",      group: "wire" },
-  { key: "bank_name",           label: "Banco",                        placeholder: "Banco Inter / Wise / Nomad", group: "wire" },
-  { key: "bank_account_type",   label: "Tipo de conta",                placeholder: "Checking",                   group: "wire" },
-  { key: "bank_account_number", label: "Número da conta",              placeholder: "Account #",                  group: "wire" },
-  { key: "bank_routing",        label: "Routing / ABA",                placeholder: "Routing #",                  group: "wire" },
-  { key: "bank_swift",          label: "SWIFT / BIC",                  placeholder: "Opcional",                   group: "wire" },
-  { key: "bank_iban",           label: "IBAN",                         placeholder: "Opcional",                   group: "wire" },
-  { key: "bank_address",        label: "Endereço do banco",            placeholder: "Opcional",                   group: "wire" },
-  { key: "br_bank_name",        label: "Banco",                        placeholder: "Banco Inter",                group: "pix" },
-  { key: "br_bank_agency",      label: "Agência",                      placeholder: "0001",                       group: "pix" },
-  { key: "br_bank_account",     label: "Conta",                        placeholder: "24188764-0",                 group: "pix" },
-  { key: "pix_key",             label: "Chave PIX",                    placeholder: "CPF, e-mail, telefone ou aleatória", group: "pix" },
+type Field = { key: keyof CompanySettings; label: string; placeholder: string; wide?: boolean }
+
+/** The account a tomador in Brazil pays into — what a national NF prints. */
+const BR_FIELDS: Field[] = [
+  { key: "br_bank_name",    label: "Banco",     placeholder: "Banco Inter" },
+  { key: "br_bank_agency",  label: "Agência",   placeholder: "0001" },
+  { key: "br_bank_account", label: "Conta",     placeholder: "24188764-0" },
+  { key: "pix_key",         label: "Chave PIX", placeholder: "CPF, e-mail, telefone ou aleatória" },
 ]
 
-/** The bank that closes the exchange on money wired from abroad and credits the reais. */
-const FX_FIELDS: Array<{ key: keyof UserSettings; label: string; placeholder: string }> = [
-  { key: "fx_bank_name",    label: "Banco de câmbio",  placeholder: "Banco Inter" },
-  { key: "fx_bank_agency",  label: "Agência",          placeholder: "0001" },
-  { key: "fx_bank_account", label: "Conta",            placeholder: "24188764-0" },
-  { key: "fx_bank_swift",   label: "SWIFT",            placeholder: "BINTBRSP" },
+/** The account abroad that receives the wire. */
+const WIRE_FIELDS: Field[] = [
+  { key: "bank_beneficiary",    label: "Beneficiário (nome na conta)", placeholder: "Francisco H. Beraldo" },
+  { key: "bank_name",           label: "Banco",                        placeholder: "Banco Inter / Wise / Nomad" },
+  { key: "bank_account_type",   label: "Tipo de conta",                placeholder: "Checking" },
+  { key: "bank_account_number", label: "Número da conta",              placeholder: "Account #" },
+  { key: "bank_routing",        label: "Routing / ABA",                placeholder: "Routing #" },
+  { key: "bank_swift",          label: "SWIFT / BIC",                  placeholder: "Opcional" },
+  { key: "bank_iban",           label: "IBAN",                         placeholder: "Opcional" },
+  { key: "bank_address",        label: "Endereço do banco",            placeholder: "Opcional", wide: true },
 ]
 
-const FISCAL_FIELDS: Array<{ key: keyof UserSettings; label: string; placeholder: string }> = [
-  { key: "legal_name",             label: "Razão social",           placeholder: "Estúdio Judite Ltda" },
+/** The bank the wire passes through on its way there. */
+const INTERMEDIARY_FIELDS: Field[] = [
+  { key: "intermediary_bank_name",    label: "Banco intermediário",       placeholder: "JP Morgan Chase N.A." },
+  { key: "intermediary_bank_swift",   label: "SWIFT do intermediário",    placeholder: "CHASUS33" },
+  { key: "intermediary_bank_aba",     label: "ABA / routing",             placeholder: "021000021" },
+  { key: "intermediary_bank_account", label: "Conta no intermediário",    placeholder: "360556937" },
+  { key: "intermediary_bank_address", label: "Endereço do intermediário", placeholder: "270 Park Avenue, New York", wide: true },
+]
+
+/** The bank that closes the exchange and credits the reais. */
+const FX_FIELDS: Field[] = [
+  { key: "fx_bank_name",    label: "Banco de câmbio", placeholder: "Banco Inter" },
+  { key: "fx_bank_agency",  label: "Agência",         placeholder: "0001" },
+  { key: "fx_bank_account", label: "Conta",           placeholder: "24188764-0" },
+  { key: "fx_bank_swift",   label: "SWIFT",           placeholder: "BINTBRSP" },
+]
+
+const FISCAL_FIELDS: Field[] = [
+  { key: "legal_name",             label: "Razão social",              placeholder: "Estúdio Judite Ltda" },
   { key: "municipal_registration", label: "Inscrição municipal (CCM)", placeholder: "64377270" },
-  { key: "fiscal_address",         label: "Endereço fiscal",        placeholder: "Rua, número, complemento, bairro, cidade, UF, CEP" },
-  { key: "accountant_name",        label: "Contador (nome)",        placeholder: "Nome do contador" },
-  { key: "accountant_email",       label: "Contador (e-mail)",      placeholder: "contador@escritorio.com.br" },
+  { key: "fiscal_address",         label: "Endereço fiscal",           placeholder: "Rua, número, bairro, cidade, UF, CEP", wide: true },
+  { key: "accountant_name",        label: "Contador (nome)",           placeholder: "Nome do contador" },
+  { key: "accountant_email",       label: "Contador (e-mail)",         placeholder: "contador@escritorio.com.br" },
 ]
-const INTERMEDIARY_FIELDS: Array<{ key: keyof UserSettings; label: string; placeholder: string }> = [
-  { key: "intermediary_bank_name",    label: "Banco intermediário",      placeholder: "JP Morgan Chase N.A." },
-  { key: "intermediary_bank_swift",   label: "SWIFT do intermediário",   placeholder: "CHASUS33" },
-  { key: "intermediary_bank_aba",     label: "ABA / routing",            placeholder: "021000021" },
-  { key: "intermediary_bank_account", label: "Conta no intermediário",   placeholder: "360556937" },
-  { key: "intermediary_bank_address", label: "Endereço do intermediário", placeholder: "270 Park Avenue, New York, NY 10017, US" },
-]
+
+const TEXT_FIELDS = [...BR_FIELDS, ...WIRE_FIELDS, ...INTERMEDIARY_FIELDS, ...FX_FIELDS, ...FISCAL_FIELDS]
 
 const PRESET_COLORS = [
-  { label: "Azul",    value: "#1e40af" },
-  { label: "Violeta", value: "#7c3aed" },
-  { label: "Verde",   value: "#16a34a" },
-  { label: "Vermelho",value: "#dc2626" },
-  { label: "Laranja", value: "#ea580c" },
-  { label: "Cinza",   value: "#374151" },
+  { label: "Azul",     value: "#1e40af" },
+  { label: "Violeta",  value: "#7c3aed" },
+  { label: "Verde",    value: "#16a34a" },
+  { label: "Vermelho", value: "#dc2626" },
+  { label: "Laranja",  value: "#ea580c" },
+  { label: "Cinza",    value: "#374151" },
 ]
 
-export function CompanyForm({ initialSettings }: { initialSettings: UserSettings | null }) {
+const asForm = (initial: CompanySettings | null): CompanySettings => ({
+  company_name:  initial?.company_name  ?? "",
+  cnpj_cpf:      initial?.cnpj_cpf      ?? "",
+  logo_url:      initial?.logo_url      ?? "",
+  invoice_color: initial?.invoice_color ?? "#1e40af",
+  next_invoice_seq: initial?.next_invoice_seq ?? 102,
+  ...Object.fromEntries(TEXT_FIELDS.map(f => [f.key, (initial?.[f.key] as string | null) ?? ""])),
+} as CompanySettings)
+
+export function CompanyForm({ initialSettings }: { initialSettings: CompanySettings | null }) {
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState<UserSettings>({
-    company_name:  initialSettings?.company_name  ?? "",
-    cnpj_cpf:      initialSettings?.cnpj_cpf      ?? "",
-    logo_url:      initialSettings?.logo_url      ?? "",
-    invoice_color: initialSettings?.invoice_color ?? "#1e40af",
-    hour_rounding: initialSettings?.hour_rounding ?? "none",
-    bank_beneficiary:    initialSettings?.bank_beneficiary    ?? "",
-    bank_name:           initialSettings?.bank_name           ?? "",
-    bank_account_type:   initialSettings?.bank_account_type   ?? "",
-    bank_account_number: initialSettings?.bank_account_number ?? "",
-    bank_routing:        initialSettings?.bank_routing        ?? "",
-    bank_swift:          initialSettings?.bank_swift          ?? "",
-    bank_iban:           initialSettings?.bank_iban           ?? "",
-    bank_address:        initialSettings?.bank_address        ?? "",
-    pix_key:             initialSettings?.pix_key             ?? "",
-    legal_name:                initialSettings?.legal_name                ?? "",
-    municipal_registration:    initialSettings?.municipal_registration    ?? "",
-    fiscal_address:             initialSettings?.fiscal_address            ?? "",
-    accountant_name:            initialSettings?.accountant_name           ?? "",
-    accountant_email:           initialSettings?.accountant_email          ?? "",
-    next_invoice_seq:           initialSettings?.next_invoice_seq          ?? 102,
-    intermediary_bank_name:     initialSettings?.intermediary_bank_name    ?? "",
-    intermediary_bank_swift:    initialSettings?.intermediary_bank_swift   ?? "",
-    intermediary_bank_aba:      initialSettings?.intermediary_bank_aba     ?? "",
-    intermediary_bank_account:  initialSettings?.intermediary_bank_account ?? "",
-    intermediary_bank_address:  initialSettings?.intermediary_bank_address ?? "",
-    br_bank_name:               initialSettings?.br_bank_name              ?? "",
-    br_bank_agency:             initialSettings?.br_bank_agency            ?? "",
-    br_bank_account:            initialSettings?.br_bank_account           ?? "",
-    fx_bank_name:               initialSettings?.fx_bank_name              ?? "",
-    fx_bank_agency:             initialSettings?.fx_bank_agency            ?? "",
-    fx_bank_account:            initialSettings?.fx_bank_account           ?? "",
-    fx_bank_swift:              initialSettings?.fx_bank_swift             ?? "",
-  })
+  const [uploading, setUploading] = useState(false)
+  const saved = useMemo(() => asForm(initialSettings), [initialSettings])
+  const [form, setForm] = useState<CompanySettings>(saved)
 
-  function set<K extends keyof UserSettings>(k: K, v: UserSettings[K]) {
+  // What the save bar watches: anything typed that the server has not been told about.
+  const dirty = useMemo(
+    () => (Object.keys(saved) as (keyof CompanySettings)[])
+      .some(k => String(form[k] ?? "") !== String(saved[k] ?? "")),
+    [form, saved],
+  )
+
+  function set<K extends keyof CompanySettings>(k: K, v: CompanySettings[K]) {
     setForm(f => ({ ...f, [k]: v }))
+  }
+
+  /** The logo goes to the public bucket the job thumbnails already use, under your own id. */
+  async function onPickLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ""                       // let the same file be picked again after a failure
+    if (!file) return
+    const check = validateThumbnail(file)
+    if (!check.ok) { toast.error(check.error); return }
+
+    setUploading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const path = thumbnailPath(user!.id, file.name, `logo-${crypto.randomUUID()}`)
+    const { error } = await supabase.storage.from(THUMBNAIL_BUCKET).upload(path, file, { upsert: false })
+    if (error) { toast.error("Erro ao enviar o logo"); setUploading(false); return }
+
+    const previous = pathFromPublicUrl(form.logo_url)
+    const { data: pub } = supabase.storage.from(THUMBNAIL_BUCKET).getPublicUrl(path)
+    set("logo_url", pub.publicUrl)
+    if (previous) await supabase.storage.from(THUMBNAIL_BUCKET).remove([previous])
+    setUploading(false)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -143,196 +162,195 @@ export function CompanyForm({ initialSettings }: { initialSettings: UserSettings
       cnpj_cpf:      form.cnpj_cpf      || null,
       logo_url:      form.logo_url      || null,
       invoice_color: form.invoice_color,
-      hour_rounding: form.hour_rounding,
-      ...Object.fromEntries(BANK_FIELDS.map(f => [f.key, (form[f.key] as string | null)?.trim() || null])),
-      ...Object.fromEntries([...FISCAL_FIELDS, ...INTERMEDIARY_FIELDS, ...FX_FIELDS].map(f => [f.key, (form[f.key] as string | null)?.trim() || null])),
       next_invoice_seq: Math.max(1, Number(form.next_invoice_seq) || 102),
+      ...Object.fromEntries(TEXT_FIELDS.map(f => [f.key, (form[f.key] as string | null)?.trim() || null])),
     }, { onConflict: "user_id" })
 
-    if (error) toast.error("Erro ao salvar configurações")
-    else toast.success("Configurações salvas!")
     setLoading(false)
+    if (error) { toast.error("Erro ao salvar configurações"); return }
+    toast.success("Configurações salvas!")
+    // The saved copy this form compares against lives in the server component above it.
+    window.location.reload()
   }
 
+  const text = (f: Field) => (
+    <div key={f.key} className={`space-y-1 ${f.wide ? "sm:col-span-2" : ""}`}>
+      <Label htmlFor={f.key} className="text-xs">{f.label}</Label>
+      <Input
+        id={f.key}
+        value={(form[f.key] as string | null) ?? ""}
+        onChange={e => set(f.key, e.target.value)}
+        placeholder={f.placeholder}
+        autoComplete="off"
+      />
+    </div>
+  )
+
+  const group = (title: string, hint: string, fields: Field[]) => (
+    <div className="space-y-3">
+      <div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
+        <p className="text-xs text-muted-foreground">{hint}</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{fields.map(text)}</div>
+    </div>
+  )
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="space-y-2">
-        <Label>Nome da empresa / freelancer</Label>
-        <Input
-          value={form.company_name ?? ""}
-          onChange={e => set("company_name", e.target.value)}
-          placeholder="Ex: João Silva Dev"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label>CNPJ / CPF</Label>
-        <Input
-          value={form.cnpj_cpf ?? ""}
-          onChange={e => set("cnpj_cpf", e.target.value)}
-          placeholder="00.000.000/0001-00 ou 000.000.000-00"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label>URL do logo</Label>
-        <Input
-          value={form.logo_url ?? ""}
-          onChange={e => set("logo_url", e.target.value)}
-          placeholder="https://exemplo.com/logo.png"
-          type="url"
-        />
-        {form.logo_url && (
-          <div className="mt-2 p-2 border rounded-md inline-block bg-muted/30">
-            <img
-              src={form.logo_url}
-              alt="Logo preview"
-              className="h-10 max-w-[200px] object-contain"
-            />
-          </div>
-        )}
-        <p className="text-xs text-muted-foreground">
-          Aparece no topo dos invoices em PDF. Use um link público (imgur, GitHub, CDN).
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Cor do invoice</Label>
-        <div className="flex items-center gap-2 flex-wrap">
-          {PRESET_COLORS.map(c => (
-            <button
-              key={c.value}
-              type="button"
-              title={c.label}
-              onClick={() => set("invoice_color", c.value)}
-              className={[
-                "w-8 h-8 rounded-full border-2 transition-all",
-                form.invoice_color === c.value
-                  ? "border-foreground scale-110 shadow-md"
-                  : "border-transparent hover:scale-105",
-              ].join(" ")}
-              style={{ background: c.value }}
-            />
-          ))}
-          <div className="relative">
-            <input
-              type="color"
-              value={form.invoice_color}
-              onChange={e => set("invoice_color", e.target.value)}
-              className="w-8 h-8 rounded-full border cursor-pointer opacity-0 absolute inset-0"
-              title="Cor personalizada"
-            />
-            <div
-              className="w-8 h-8 rounded-full border-2 border-dashed border-muted-foreground/50 flex items-center justify-center text-muted-foreground text-xs pointer-events-none"
-              title="Cor personalizada"
-            >+</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 mt-1">
-          <div className="w-4 h-4 rounded border" style={{ background: form.invoice_color }} />
-          <span className="text-xs text-muted-foreground font-mono">{form.invoice_color}</span>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Arredondamento de horas</Label>
-        <Select value={form.hour_rounding} onValueChange={v => set("hour_rounding", v)}>
-          <SelectTrigger className="w-64">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Sem arredondamento</SelectItem>
-            <SelectItem value="0.25">Arredondar para 15 min</SelectItem>
-            <SelectItem value="0.5">Arredondar para 30 min</SelectItem>
-            <SelectItem value="1">Arredondar para 1 hora</SelectItem>
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-muted-foreground">
-          Aplicado automaticamente às horas trabalhadas ao salvar um registro.
-        </p>
-      </div>
-
-      <div className="space-y-3 pt-2 border-t">
-        <div>
-          <p className="text-sm font-medium">Dados fiscais e contador</p>
-          <p className="text-xs text-muted-foreground">Usados no PDF da invoice e no pedido de NF ao contador.</p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {FISCAL_FIELDS.map(f => (
-            <div key={f.key} className={`space-y-1 ${f.key === "fiscal_address" ? "sm:col-span-2" : ""}`}>
-              <Label className="text-xs">{f.label}</Label>
-              <Input value={(form[f.key] as string | null) ?? ""} onChange={e => set(f.key, e.target.value)} placeholder={f.placeholder} autoComplete="off" />
-            </div>
-          ))}
-          <div className="space-y-1">
-            <Label className="text-xs">Próxima invoice (sequência própria)</Label>
-            <Input type="number" min={1} value={form.next_invoice_seq} onChange={e => set("next_invoice_seq", parseInt(e.target.value) || 1)} />
-            <p className="text-xs text-muted-foreground">Será usada na próxima invoice criada, com 4 dígitos (ex. 0102).</p>
-          </div>
-        </div>
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Banco intermediário (wire em moeda estrangeira)</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {INTERMEDIARY_FIELDS.map(f => (
-            <div key={f.key} className="space-y-1">
-              <Label className="text-xs">{f.label}</Label>
-              <Input value={(form[f.key] as string | null) ?? ""} onChange={e => set(f.key, e.target.value)} placeholder={f.placeholder} autoComplete="off" />
-            </div>
-          ))}
-        </div>
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recebimento de câmbio (entra na NF internacional)</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {FX_FIELDS.map(f => (
-            <div key={f.key} className="space-y-1">
-              <Label className="text-xs">{f.label}</Label>
-              <Input value={(form[f.key] as string | null) ?? ""} onChange={e => set(f.key, e.target.value)} placeholder={f.placeholder} autoComplete="off" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-3 pt-2 border-t">
-        <div>
-          <p className="text-sm font-medium">Dados bancários para o invoice</p>
-          <p className="text-xs text-muted-foreground">
-            Impressos no bloco &quot;Payment details&quot; do PDF. Invoices em USD/EUR mostram os dados de wire; em BRL, a chave PIX. Campos vazios não aparecem.
-            São também os dados que o pedido de NF ao contador inclui, quando você marca &quot;Incluir dados bancários&quot;:
-            a NF de um tomador no Brasil leva a conta daqui; a de um tomador no exterior leva o recebimento lá fora, o banco intermediário e o banco de câmbio.
-          </p>
-        </div>
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Internacional (wire)</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {BANK_FIELDS.filter(f => f.group === "wire").map(f => (
-            <div key={f.key} className="space-y-1">
-              <Label className="text-xs">{f.label}</Label>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <Card id="empresa" className="scroll-mt-24">
+        <CardHeader>
+          <CardTitle className="text-base">Empresa</CardTitle>
+          <CardDescription>Como você aparece no PDF da invoice.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="company_name" className="text-xs">Nome da empresa / freelancer</Label>
               <Input
-                value={(form[f.key] as string | null) ?? ""}
-                onChange={e => set(f.key, e.target.value)}
-                placeholder={f.placeholder}
-                autoComplete="off"
+                id="company_name"
+                value={form.company_name ?? ""}
+                onChange={e => set("company_name", e.target.value)}
+                placeholder="Ex: Estudio Judite"
+              />
+              <p className="text-xs text-muted-foreground">Encabeça o assunto do pedido de NF.</p>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="cnpj_cpf" className="text-xs">CNPJ / CPF</Label>
+              <Input
+                id="cnpj_cpf"
+                value={form.cnpj_cpf ?? ""}
+                onChange={e => set("cnpj_cpf", e.target.value)}
+                placeholder="00.000.000/0001-00"
               />
             </div>
-          ))}
-        </div>
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Brasil (conta e PIX)</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {BANK_FIELDS.filter(f => f.group === "pix").map(f => (
-            <div key={f.key} className="space-y-1">
-              <Label className="text-xs">{f.label}</Label>
-              <Input
-                value={(form[f.key] as string | null) ?? ""}
-                onChange={e => set(f.key, e.target.value)}
-                placeholder={f.placeholder}
-                autoComplete="off"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      <Button type="submit" disabled={loading}>
-        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-        Salvar configurações
-      </Button>
+          <div className="space-y-2">
+            <Label className="text-xs">Logo</Label>
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="w-28 h-14 rounded border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+                {form.logo_url
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={form.logo_url} alt="" className="max-h-full max-w-full object-contain" />
+                  : <span className="text-xs text-muted-foreground">sem logo</span>}
+              </div>
+              <Button type="button" variant="outline" size="sm" disabled={uploading} asChild>
+                <label className="cursor-pointer">
+                  {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                  {form.logo_url ? "Trocar" : "Enviar imagem"}
+                  <input type="file" className="hidden" accept="image/*" disabled={uploading} onChange={onPickLogo} />
+                </label>
+              </Button>
+              {form.logo_url && (
+                <Button
+                  type="button" variant="ghost" size="sm"
+                  onClick={() => set("logo_url", "")}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Remover
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">PNG ou JPG até 5 MB. Aparece no topo do PDF.</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">Cor do invoice</Label>
+            <div className="flex items-center gap-2 flex-wrap">
+              {PRESET_COLORS.map(c => (
+                <button
+                  key={c.value}
+                  type="button"
+                  aria-label={`Cor ${c.label}`}
+                  aria-pressed={form.invoice_color === c.value}
+                  onClick={() => set("invoice_color", c.value)}
+                  className={[
+                    "w-8 h-8 rounded-full border-2 transition-all",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                    form.invoice_color === c.value
+                      ? "border-foreground scale-110 shadow-md"
+                      : "border-transparent hover:scale-105",
+                  ].join(" ")}
+                  style={{ background: c.value }}
+                />
+              ))}
+              {/* The native picker stays, invisible over a swatch that shows its focus ring. */}
+              <div className="relative w-8 h-8">
+                <input
+                  type="color"
+                  aria-label="Cor personalizada"
+                  value={form.invoice_color}
+                  onChange={e => set("invoice_color", e.target.value)}
+                  className="peer absolute inset-0 w-8 h-8 rounded-full opacity-0 cursor-pointer"
+                />
+                <div
+                  aria-hidden
+                  className="w-8 h-8 rounded-full border-2 border-dashed border-muted-foreground/50 flex items-center justify-center text-muted-foreground text-xs pointer-events-none peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2"
+                >+</div>
+              </div>
+              <span className="text-xs text-muted-foreground font-mono ml-1">{form.invoice_color}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card id="fiscal" className="scroll-mt-24">
+        <CardHeader>
+          <CardTitle className="text-base">Fiscal e contador</CardTitle>
+          <CardDescription>Usados no PDF da invoice e no pedido de NF ao contador.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {FISCAL_FIELDS.map(text)}
+            <div className="space-y-1">
+              <Label htmlFor="next_invoice_seq" className="text-xs">Próxima invoice (sequência própria)</Label>
+              <Input
+                id="next_invoice_seq"
+                type="number" min={1}
+                value={form.next_invoice_seq}
+                onChange={e => set("next_invoice_seq", parseInt(e.target.value) || 1)}
+              />
+              <p className="text-xs text-muted-foreground">Usada na próxima invoice, com 4 dígitos (ex. 0102).</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card id="bancos" className="scroll-mt-24">
+        <CardHeader>
+          <CardTitle className="text-base">Bancos</CardTitle>
+          <CardDescription>
+            A NF de um tomador no Brasil imprime a conta daqui; a de um tomador no exterior imprime
+            o recebimento lá fora, o intermediário e o câmbio. Campo vazio não aparece.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {group("Recebimento no Brasil", "A conta que um cliente brasileiro paga, e o PIX do PDF.", BR_FIELDS)}
+          <div className="pt-5 border-t space-y-6">
+            {group("Recebimento no exterior (wire)", "A conta que recebe a transferência em dólar ou euro.", WIRE_FIELDS)}
+            {group("Banco intermediário", "Por onde o wire passa antes de chegar.", INTERMEDIARY_FIELDS)}
+            {group("Recebimento de câmbio", "Onde o câmbio é fechado e os reais entram.", FX_FIELDS)}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Follows you down the page: the bank fields sit a long way from any button. */}
+      {dirty && (
+        <div className="sticky bottom-4 z-20 px-4 py-3 rounded-md border bg-background/95 backdrop-blur shadow-lg flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-sm text-muted-foreground">Alterações não salvas</p>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setForm(saved)}>
+              Descartar
+            </Button>
+            <Button type="submit" size="sm" disabled={loading}>
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              Salvar
+            </Button>
+          </div>
+        </div>
+      )}
     </form>
   )
 }

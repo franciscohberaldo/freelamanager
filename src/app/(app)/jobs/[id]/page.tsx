@@ -8,7 +8,7 @@ import { formatCurrency, formatDate, formatHours, JOB_STATUS_LABELS } from "@/li
 import { workHoursInLocal } from "@/lib/timezone"
 import { JobForm } from "../job-form"
 import { JobDocumentsPanel } from "./job-documents-panel"
-import { SectionNav } from "./section-nav"
+import { SectionNav } from "@/components/section-nav"
 import { NfRequestAction } from "./nf-request-action"
 import { DOCUMENT_KINDS } from "@/lib/job-documents"
 import { rateOf, rateLabel } from "@/lib/billing-mode"

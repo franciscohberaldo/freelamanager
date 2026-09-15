@@ -1,11 +1,74 @@
 import { createClient } from "@/lib/supabase/server"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { SettingsForm } from "./settings-form"
-import { CompanyForm } from "./company-form"
+import { SectionNav } from "@/components/section-nav"
+import { CompanyForm, type CompanySettings } from "./company-form"
+import { PreferencesCard } from "./preferences-card"
+import { AccountCard } from "./account-card"
 import { ExportButton } from "./export-button"
 import { ApiKeysPanel } from "./api-keys-panel"
 import { WebhooksPanel } from "./webhooks-panel"
-import { TimerSettings } from "./timer-settings"
+
+/**
+ * Whether a service is actually wired up, read from the environment instead of told to the
+ * reader as a fixed sentence — the page used to say "configure RESEND_API_KEY" to someone
+ * who had configured it an hour earlier.
+ */
+function integrations(accountantEmail: string | null) {
+  const inboundDomain = process.env.RESEND_INBOUND_DOMAIN
+  return [
+    {
+      name: "Supabase",
+      what: "Banco de dados e login",
+      on: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      detail: null as string | null,
+    },
+    {
+      name: "Resend",
+      what: "Envio da invoice e do pedido de NF",
+      on: !!process.env.RESEND_API_KEY,
+      detail: process.env.RESEND_FROM_EMAIL
+        ? `Enviando como ${process.env.RESEND_FROM_EMAIL}`
+        : "Falta RESEND_FROM_EMAIL",
+    },
+    {
+      name: "Resend Inbound",
+      what: "Leitura da resposta do contador",
+      on: !!inboundDomain && !!process.env.RESEND_WEBHOOK_SECRET,
+      detail: inboundDomain
+        ? `Recebendo em ${inboundDomain}${process.env.RESEND_WEBHOOK_SECRET ? "" : " · falta o segredo do webhook"}`
+        : "Falta RESEND_INBOUND_DOMAIN",
+    },
+    {
+      name: "Contador",
+      what: "Para quem o pedido de NF vai",
+      on: !!accountantEmail,
+      detail: accountantEmail ?? "Preencha em Fiscal e contador",
+    },
+    {
+      name: "Claude",
+      what: "Descrição automática de invoices",
+      on: !!process.env.ANTHROPIC_API_KEY,
+      detail: null,
+    },
+    {
+      name: "Stripe",
+      what: "Link de pagamento",
+      on: !!process.env.STRIPE_SECRET_KEY,
+      detail: null,
+    },
+  ]
+}
+
+const SECTIONS = [
+  { id: "empresa", label: "Empresa" },
+  { id: "fiscal", label: "Fiscal" },
+  { id: "bancos", label: "Bancos" },
+  { id: "preferencias", label: "Preferências" },
+  { id: "conta", label: "Conta" },
+  { id: "dev", label: "Desenvolvedor" },
+  { id: "dados", label: "Dados" },
+]
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -19,48 +82,24 @@ export default async function SettingsPage() {
       .eq("user_id", user!.id).order("created_at", { ascending: false }),
   ])
 
+  const services = integrations(settings?.accountant_email ?? null)
+
   return (
-    <div className="p-6 space-y-6 max-w-2xl">
+    <div className="p-6 space-y-6 max-w-4xl">
       <div>
         <h1 className="text-2xl font-bold">Configurações</h1>
-        <p className="text-muted-foreground text-sm">Preferências da conta e do sistema</p>
+        <p className="text-muted-foreground text-sm">Sua empresa, seus bancos e o que o sistema faz por você</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Perfil da empresa</CardTitle>
-          <CardDescription>
-            Dados exibidos nos invoices em PDF, dados fiscais, contador e dados bancários
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <CompanyForm initialSettings={settings ?? null} />
-        </CardContent>
-      </Card>
+      <SectionNav sections={SECTIONS} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Conta</CardTitle>
-          <CardDescription>Informações da sua conta Supabase</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm"><span className="text-muted-foreground">E-mail:</span> {user?.email}</p>
-          <p className="text-sm mt-1"><span className="text-muted-foreground">ID:</span> <span className="font-mono text-xs">{user?.id}</span></p>
-        </CardContent>
-      </Card>
+      <CompanyForm initialSettings={(settings ?? null) as CompanySettings | null} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Alterar senha</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SettingsForm />
-        </CardContent>
-      </Card>
+      <PreferencesCard hourRounding={settings?.hour_rounding ?? "none"} />
 
-      <TimerSettings />
+      <AccountCard email={user?.email ?? null} userId={user?.id ?? null} />
 
-      <Card>
+      <Card id="dev" className="scroll-mt-24">
         <CardHeader>
           <CardTitle className="text-base">API Keys</CardTitle>
           <CardDescription>
@@ -85,32 +124,30 @@ export default async function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Integrações</CardTitle>
-          <CardDescription>Serviços externos conectados ao sistema</CardDescription>
+          <CardDescription>O que está ligado de verdade neste ambiente.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex justify-between items-center text-sm">
-            <span>Supabase (banco de dados)</span>
-            <span className="text-green-500 font-medium">✓ Conectado</span>
-          </div>
-          <div className="flex justify-between items-center text-sm">
-            <span>Resend (envio de e-mail)</span>
-            <span className="text-muted-foreground text-xs">Configure RESEND_API_KEY no .env</span>
-          </div>
-          <div className="flex justify-between items-center text-sm">
-            <span>Claude AI (descrição de invoices)</span>
-            <span className="text-muted-foreground text-xs">Configure ANTHROPIC_API_KEY no .env</span>
-          </div>
-          <div className="flex justify-between items-center text-sm">
-            <span>Stripe (link de pagamento)</span>
-            <span className="text-muted-foreground text-xs">Configure STRIPE_SECRET_KEY no .env</span>
-          </div>
+        <CardContent className="divide-y">
+          {services.map(s => (
+            <div key={s.name} className="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{s.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {s.what}
+                  {s.detail && <> · {s.detail}</>}
+                </p>
+              </div>
+              <Badge variant={s.on ? "success" : "outline"} className="shrink-0">
+                {s.on ? "Conectado" : "Não configurado"}
+              </Badge>
+            </div>
+          ))}
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="dados" className="scroll-mt-24">
         <CardHeader>
           <CardTitle className="text-base">Backup de dados</CardTitle>
-          <CardDescription>Exporte todos os seus dados como JSON para backup ou migração</CardDescription>
+          <CardDescription>Exporte tudo como JSON, para backup ou migração.</CardDescription>
         </CardHeader>
         <CardContent>
           <ExportButton />
