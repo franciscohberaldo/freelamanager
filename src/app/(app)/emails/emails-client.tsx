@@ -199,7 +199,7 @@ function ReplyBox({ email, onSent }: { email: InboundEmail; onSent: () => void }
   }
 
   return (
-    <div className="space-y-2 border-t pt-4">
+    <div className="space-y-2 rounded-md border bg-accent/30 p-4">
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
         Responder para {email.from_email}
       </p>
@@ -421,6 +421,31 @@ export function EmailsClient({ emails, jobs }: { emails: InboundEmail[]; jobs: {
                   </div>
                 )}
 
+                <ReplyBox email={selected} onSent={() => router.refresh()} />
+
+                {thread.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Respostas enviadas
+                    </p>
+                    {thread.map(r => (
+                      <div key={r.id} className="rounded-md border bg-muted/30 p-3 space-y-1">
+                        <p className="text-xs text-muted-foreground">
+                          Você · {formatDate(r.created_at, "dd/MM/yyyy 'às' HH:mm")}
+                        </p>
+                        {r.body && (
+                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{r.body}</p>
+                        )}
+                        {r.attachments.length > 0 && (
+                          <ul className="text-sm space-y-0.5">
+                            {r.attachments.map((a, i) => <AttachmentItem key={a.id ?? i} a={a} />)}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {selected.attachments.length > 0 && (
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Anexos</p>
@@ -451,31 +476,6 @@ export function EmailsClient({ emails, jobs }: { emails: InboundEmail[]; jobs: {
                     <p className="text-sm text-muted-foreground italic">Sem conteúdo de texto.</p>
                   )}
                 </div>
-
-                {thread.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Respostas enviadas
-                    </p>
-                    {thread.map(r => (
-                      <div key={r.id} className="rounded-md border bg-muted/30 p-3 space-y-1">
-                        <p className="text-xs text-muted-foreground">
-                          Você · {formatDate(r.created_at, "dd/MM/yyyy 'às' HH:mm")}
-                        </p>
-                        {r.body && (
-                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{r.body}</p>
-                        )}
-                        {r.attachments.length > 0 && (
-                          <ul className="text-sm space-y-0.5">
-                            {r.attachments.map((a, i) => <AttachmentItem key={a.id ?? i} a={a} />)}
-                          </ul>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <ReplyBox email={selected} onSent={() => router.refresh()} />
 
                 <FileAsNfDialog
                   email={selected}
