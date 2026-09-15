@@ -9,7 +9,7 @@ import { workHoursInLocal } from "@/lib/timezone"
 import { JobForm } from "../job-form"
 import { JobDocumentsPanel } from "./job-documents-panel"
 import { SectionNav } from "@/components/section-nav"
-import { NfRequestAction } from "./nf-request-action"
+import { NfRequestAction, type SentRequest } from "./nf-request-action"
 import { DOCUMENT_KINDS } from "@/lib/job-documents"
 import { rateOf, rateLabel } from "@/lib/billing-mode"
 import { canTransition, type NfStatus } from "@/lib/nf-status"
@@ -60,6 +60,18 @@ export default async function JobPage({ params }: { params: { id: string } }) {
 
   const loggedHours = jobLogs.reduce((sum, l) => sum + (l.hours_billed ?? 0), 0)
   const loggedValue = jobLogs.reduce((sum, l) => sum + (l.total_value ?? 0), 0)
+
+  // Every request about this job: the ones made from it, and the ones about its invoices.
+  const invoiceIds = jobInvoices.map(i => i.id)
+  const requestSelect = "id, created_at, sent_to, subject, body, status, error"
+  const [{ data: byJob }, { data: byInvoice }] = await Promise.all([
+    supabase.from("nf_requests").select(requestSelect).eq("job_id", params.id),
+    invoiceIds.length
+      ? supabase.from("nf_requests").select(requestSelect).in("invoice_id", invoiceIds)
+      : Promise.resolve({ data: [] as SentRequest[] }),
+  ])
+  const nfRequests = [...(byJob ?? []), ...(byInvoice ?? [])]
+    .sort((a, b) => b.created_at.localeCompare(a.created_at)) as SentRequest[]
 
   // only an invoice still waiting on its NF can be sent to the accountant
   const nfCandidates = jobInvoices
@@ -129,7 +141,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
           documents={docs}
           actions={{
             accountant_email: (
-              <NfRequestAction jobId={typedJob.id} candidates={nfCandidates} />
+              <NfRequestAction jobId={typedJob.id} candidates={nfCandidates} sent={nfRequests} />
             ),
           }}
         />

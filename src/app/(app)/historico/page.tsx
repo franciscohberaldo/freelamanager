@@ -16,11 +16,31 @@ export default async function HistoricoPage() {
 
   const { data: history } = await supabase
     .from("jobs")
-    .select("*, clients(name, legal_name), job_documents(kind), invoices(seq_number, invoice_number, nf_number, total, currency, status, nf_status, period_start, period_end, nf_issued_at)")
+    .select("*, clients(name, legal_name), job_documents(kind), invoices(id, seq_number, invoice_number, nf_number, total, currency, status, nf_status, period_start, period_end, nf_issued_at)")
     .eq("user_id", user!.id)
     .order("created_at", { ascending: false })
 
-  const jobs = (history ?? []) as unknown as HistoryJob[]
+  // A request points either at the job or at one of its invoices; both end up on the job.
+  const { data: requests } = await supabase
+    .from("nf_requests")
+    .select("job_id, invoice_id, created_at, status")
+    .eq("user_id", user!.id)
+    .order("created_at", { ascending: false })
+
+  const rows = (history ?? []) as unknown as HistoryJob[]
+  const jobOfInvoice = new Map<string, string>()
+  for (const job of rows) {
+    for (const inv of job.invoices ?? []) if (inv.id) jobOfInvoice.set(inv.id, job.id)
+  }
+
+  const sentByJob = new Map<string, { created_at: string; status: string }[]>()
+  for (const r of requests ?? []) {
+    const jobId = r.job_id ?? (r.invoice_id ? jobOfInvoice.get(r.invoice_id) : null)
+    if (!jobId) continue
+    sentByJob.set(jobId, [...(sentByJob.get(jobId) ?? []), { created_at: r.created_at, status: r.status }])
+  }
+
+  const jobs = rows.map(job => ({ ...job, nf_requests: sentByJob.get(job.id) ?? [] }))
 
   return (
     <div className="p-6 space-y-6">

@@ -28,7 +28,9 @@ import type { Job } from "@/lib/supabase/types"
 export type HistoryJob = Job & {
   clients: { name: string; legal_name: string | null } | null
   job_documents: { kind: DocumentKind }[]
-  invoices: HistoryInvoice[]
+  invoices: (HistoryInvoice & { id?: string })[]
+  /** Requests already sent to the accountant, newest first. */
+  nf_requests?: { created_at: string; status: string }[]
 }
 
 const ORDER_STORAGE_KEY = "historico:column-order"
@@ -203,10 +205,22 @@ const DOCUMENT_COLUMNS: Column[] = DOCUMENT_KINDS.map(kind => ({
   label: DOCUMENT_SHORT_LABELS[kind],
   icon: Paperclip,
   align: "center" as const,
-  title: `Documento anexado: ${DOCUMENT_LABELS[kind]}`,
-  cell: ({ job }: Row) => (job.job_documents ?? []).some(d => d.kind === kind)
-    ? <AttachedCheck />
-    : <NotAttached />,
+  title: kind === "accountant_email"
+    ? "Pedido de NF enviado ao contador, ou o e-mail anexado à mão"
+    : `Documento anexado: ${DOCUMENT_LABELS[kind]}`,
+  cell: ({ job }: Row) => {
+    const attached = (job.job_documents ?? []).some(d => d.kind === kind)
+    // The accountant's slot is ticked by the request the system sent, not only by a file.
+    const sent = kind === "accountant_email"
+      ? (job.nf_requests ?? []).find(r => r.status !== "failed")
+      : undefined
+    if (!attached && !sent) return <NotAttached />
+    return (
+      <AttachedCheck
+        title={sent ? `Pedido enviado em ${formatDate(sent.created_at)}` : undefined}
+      />
+    )
+  },
 }))
 
 const COLUMNS = [...BASE_COLUMNS, ...DOCUMENT_COLUMNS]
