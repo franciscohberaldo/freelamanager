@@ -18,7 +18,33 @@ export type ReceivedEmail = {
   received_for: string[] | null
   subject: string | null
   text: string | null
+  html: string | null
   attachments: { id: string; filename: string | null; content_type: string | null; size: number | null }[] | null
+}
+
+/** Forwards often arrive with no plain-text part; the HTML one stands in, stripped. */
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|tr|li|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+}
+
+/** The body worth showing: the plain-text part, or the HTML one stripped. */
+export function bodyOf(email: { text: string | null; html: string | null }): string | null {
+  if (email.text?.trim()) return email.text
+  if (email.html?.trim()) return htmlToText(email.html)
+  return null
 }
 
 const auth = () => ({ Authorization: `Bearer ${process.env.RESEND_API_KEY}` })
@@ -113,7 +139,7 @@ export async function processReceivedEmail(emailId: string): Promise<{ ok: boole
     from_email: email.from,
     to_email: (email.to ?? [])[0] ?? null,
     subject: email.subject,
-    body: email.text,
+    body: bodyOf(email),
     attachments: (email.attachments ?? []).map(a => ({
       ...a, path: storedAt.get(a.id) ?? null,
     })) as unknown as Record<string, unknown>[],
@@ -138,14 +164,18 @@ export async function pollNewEmails(limit = 50): Promise<{ listed: number; impor
   const supabase = createAdminClient()
   const { data: known } = await supabase
     .from("inbound_emails")
-    .select("resend_email_id")
+    .select("resend_email_id, body, attachments")
     .in("resend_email_id", ids)
-  const knownIds = new Set((known ?? []).map(k => k.resend_email_id))
+  // A row kept with neither body nor attachments was fetched before Resend finished
+  // processing the message; it deserves a second pass rather than a lifetime of empty.
+  const complete = new Set((known ?? [])
+    .filter(k => (k.body && k.body.trim()) || (Array.isArray(k.attachments) && k.attachments.length > 0))
+    .map(k => k.resend_email_id))
 
   let imported = 0
   const errors: string[] = []
   for (const id of ids) {
-    if (knownIds.has(id)) continue
+    if (complete.has(id)) continue
     const result = await processReceivedEmail(id)
     if (result.ok) imported++
     else errors.push(`${id}: ${result.error}`)
