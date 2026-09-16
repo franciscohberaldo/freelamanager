@@ -238,7 +238,6 @@ const BASE_COLUMNS: Column[] = [
     ),
   },
   { key: "invoices", label: "Invoices", cell: ({ summary }) => <span className="font-mono">{summary.invoiceLabel}</span> },
-  { key: "nfs", label: "NFs", cell: ({ summary }) => <span className="font-mono">{summary.nfLabel}</span> },
   {
     key: "contador", label: "Contador", nowrap: true,
     title: "E-mail de pedido de NF enviado ao contador",
