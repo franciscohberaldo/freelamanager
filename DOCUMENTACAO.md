@@ -1055,6 +1055,7 @@ Utilitários em `scripts/` (rodar com `node scripts/<nome>.mjs`) usados para mig
 | `backfill-nf-series.mjs` | Preenche `nf_series` nula em invoices com NF, derivando de `nf_issued_at ?? period_start` (antes de 2020 → `paulinia`). Idempotente, suporta `--dry` |
 | `import-orphan-docs.mjs` | Arquiva PDFs que ficaram sem par |
 | `rebuild-history-jobs.mjs` | Reconstrói jobs do histórico |
+| `split-multi-invoice-jobs.mjs` | Separa jobs com várias invoices em um job por invoice (nome `Cliente — MM/AAAA`, valor da invoice vira `contract_value`). Só toca jobs sem documentos/projetos/agenda/logs/itens; suporta `--dry` |
 | `backfill-job-brands.mjs` | Preenche marcas/thumbnails de jobs |
 | `normalize-names.mjs` | Normaliza capitalização de nomes |
 | `setup-payment-and-logo.mjs` | Configura dados bancários e logo |
