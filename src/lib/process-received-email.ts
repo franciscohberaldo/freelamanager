@@ -35,9 +35,10 @@ async function fileAccountingDocument(
 
   const label = ACCOUNTING_LABELS[kind]
   const comp = formatCompetencia(hit.competencia, hit.scope)
+  const competenciaDate = `${hit.competencia}-01` // the column is a date; the month is its 1st
 
   const { data: existing } = await supabase.from("accounting_documents").select("id")
-    .eq("user_id", userId).eq("competencia", hit.competencia).eq("kind", kind).eq("file_name", name)
+    .eq("user_id", userId).eq("competencia", competenciaDate).eq("kind", kind).eq("file_name", name)
     .limit(1)
   if (existing?.length) return `${label} ${comp} já estava arquivado`
 
@@ -48,11 +49,12 @@ async function fileAccountingDocument(
     .upload(path, bytes, { contentType: "application/pdf" })
   if (upload) return `Erro ao arquivar ${label}: ${upload.message}`
 
-  await supabase.from("accounting_documents").insert({
-    user_id: userId, competencia: hit.competencia, scope: hit.scope, kind,
+  const { error: insert } = await supabase.from("accounting_documents").insert({
+    user_id: userId, competencia: competenciaDate, scope: hit.scope, kind,
     path, file_name: name, mime_type: "application/pdf",
     size_bytes: bytes.length, amount: info.amount,
   })
+  if (insert) return `Erro ao registrar ${label}: ${insert.message}`
 
   let reminder = ""
   if (info.dueDate && PAYABLE_KINDS.has(kind)) {
