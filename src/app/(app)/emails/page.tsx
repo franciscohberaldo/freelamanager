@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { DOCUMENT_BUCKET } from "@/lib/job-documents"
 import { EmailsClient, type InboundEmail, type EmailAttachment } from "./emails-client"
+import { RefreshEmailsButton } from "./refresh-button"
 
 /** The links expire in an hour; opening the page again mints fresh ones. */
 const SIGNED_URL_TTL_SECONDS = 3600
@@ -47,11 +48,14 @@ export default async function EmailsPage() {
 
   return (
     <div className="p-6 space-y-6 h-full flex flex-col">
-      <div>
-        <h1 className="text-3xl font-light tracking-tight">Caixa de entrada</h1>
-        <p className="text-muted-foreground text-sm">
-          {emails.length} e-mails recebidos em nf@nf.chico.cx
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-light tracking-tight">Caixa de entrada</h1>
+          <p className="text-muted-foreground text-sm">
+            {emails.length} e-mails recebidos em nf@nf.chico.cx
+          </p>
+        </div>
+        <RefreshEmailsButton />
       </div>
 
       <EmailsClient emails={emails} jobs={jobs ?? []} />
