@@ -7,10 +7,69 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { requestIdFrom, isNfAttachment, inboxAttachmentPath } from "@/lib/inbound-email"
 import { DOCUMENT_BUCKET, documentPath } from "@/lib/job-documents"
 import { nfseLinkFrom, downloadNfsePdf } from "@/lib/nfse-prefeitura"
+import {
+  ACCOUNTING_BUCKET, ACCOUNTING_LABELS, accountingPath,
+  competenciaFromName, formatCompetencia, kindFromName, type AccountingKind,
+} from "@/lib/accounting-documents"
+import { billingInfoFromPdf } from "@/lib/billing-pdf"
+import { randomUUID } from "crypto"
 
 const RESEND_API = "https://api.resend.com"
 
 type AdminClient = ReturnType<typeof createAdminClient>
+
+/** Kinds that ask for money: they deserve a reminder on the due date. */
+const PAYABLE_KINDS: ReadonlySet<AccountingKind> = new Set(["fee_receipt", "das_guide", "dasn_guide", "tfe"])
+
+/**
+ * A PDF that is not a job's NF may still be the company's own paperwork — the accountant's
+ * fee receipt, a DAS guide. The file name says what it is and which month it belongs to;
+ * the PDF itself says how much and until when. Payable ones also land on the agenda.
+ */
+async function fileAccountingDocument(
+  supabase: AdminClient, userId: string, name: string, bytes: Buffer,
+): Promise<string | null> {
+  const kind = kindFromName(name)
+  const hit = competenciaFromName(name)
+  if (!kind || !hit) return null
+
+  const label = ACCOUNTING_LABELS[kind]
+  const comp = formatCompetencia(hit.competencia, hit.scope)
+
+  const { data: existing } = await supabase.from("accounting_documents").select("id")
+    .eq("user_id", userId).eq("competencia", hit.competencia).eq("kind", kind).eq("file_name", name)
+    .limit(1)
+  if (existing?.length) return `${label} ${comp} já estava arquivado`
+
+  const info = await billingInfoFromPdf(bytes)
+  const path = accountingPath(userId, hit.competencia, kind, randomUUID(), name)
+  const { error: upload } = await supabase.storage
+    .from(ACCOUNTING_BUCKET)
+    .upload(path, bytes, { contentType: "application/pdf" })
+  if (upload) return `Erro ao arquivar ${label}: ${upload.message}`
+
+  await supabase.from("accounting_documents").insert({
+    user_id: userId, competencia: hit.competencia, scope: hit.scope, kind,
+    path, file_name: name, mime_type: "application/pdf",
+    size_bytes: bytes.length, amount: info.amount,
+  })
+
+  let reminder = ""
+  if (info.dueDate && PAYABLE_KINDS.has(kind)) {
+    const title = `Pagar ${label.toLowerCase()} ${comp}`
+    const { data: dup } = await supabase.from("agenda_events").select("id")
+      .eq("user_id", userId).eq("title", title).eq("event_date", info.dueDate).limit(1)
+    if (!dup?.length) {
+      await supabase.from("agenda_events").insert({
+        user_id: userId, title, type: "payment", event_date: info.dueDate,
+        description: `Vencimento extraído de "${name}".`,
+        priority: "high", budget: info.amount,
+      })
+      reminder = ` — lembrete criado para ${info.dueDate.split("-").reverse().join("/")}`
+    }
+  }
+  return `${label} arquivado em ${comp}${reminder}`
+}
 
 export type ReceivedEmail = {
   id: string
@@ -158,6 +217,10 @@ export async function processReceivedEmail(emailId: string): Promise<{ ok: boole
         path, file_name: name, mime_type: pdf.content_type ?? "application/pdf", size_bytes: bytes.length,
       }, { onConflict: "job_id,kind" })
       filed = true
+    } else {
+      // Not a job's NF — maybe the company's own paperwork (honorários, DAS, extrato).
+      const accounting = await fileAccountingDocument(supabase, userId, name, bytes)
+      if (accounting) note = accounting
     }
   }
 
