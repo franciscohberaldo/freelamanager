@@ -59,9 +59,9 @@ describe("summarizeJob", () => {
     expect(s.invoiceLabel).toBe("0100 SP, #7 SP")
   })
 
-  it("labels old invoices with the Paulínia code, derived from the period", () => {
+  it("labels old invoices without the NFP prefix, with the Paulínia code derived from the period", () => {
     const s = summarizeJob([inv({ seq_number: "NFP056", period_start: "2016-02-24" })])
-    expect(s.invoiceLabel).toBe("NFP056 PLN")
+    expect(s.invoiceLabel).toBe("0056 PLN")
   })
 
   it("labels NFs with the series code and shows an em dash when there is none", () => {
@@ -78,9 +78,9 @@ describe("summarizeJob", () => {
     expect(summarizeJob([inv({ nf_number: "412" })]).nfLabel).toBe("0412 SP")
   })
 
-  it("counts invoices instead of listing them past three", () => {
+  it("lists every invoice, one entry per NF, never collapsing into a count", () => {
     const s = summarizeJob([1, 2, 3, 4].map(n => inv({ seq_number: `010${n}` })))
-    expect(s.invoiceLabel).toBe("4 invoices")
+    expect(s.invoiceLabel).toBe("0101 SP, 0102 SP, 0103 SP, 0104 SP")
   })
 
   it("collapses more than three NFs into a padded range with the series code", () => {

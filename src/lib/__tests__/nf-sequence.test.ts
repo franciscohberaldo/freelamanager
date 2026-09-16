@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { findGaps, findDuplicates, padSeq } from "@/lib/nf-sequence"
+import { findGaps, findDuplicates, padSeq, formatSeqNumber } from "@/lib/nf-sequence"
 
 describe("findGaps", () => {
   it("returns ranges of missing numbers", () => {
@@ -28,5 +28,19 @@ describe("padSeq", () => {
   it("pads to 4 digits", () => {
     expect(padSeq(102)).toBe("0102")
     expect(padSeq(12345)).toBe("12345")
+  })
+})
+
+describe("formatSeqNumber", () => {
+  it("strips the legacy NFP prefix and pads the digits", () => {
+    expect(formatSeqNumber("NFP116")).toBe("0116")
+    expect(formatSeqNumber("NFP056")).toBe("0056")
+  })
+  it("keeps a plain sequence as it is", () => {
+    expect(formatSeqNumber("0102")).toBe("0102")
+  })
+  it("falls back to the invoice number when there is no sequence", () => {
+    expect(formatSeqNumber(null, "7")).toBe("#7")
+    expect(formatSeqNumber(undefined, undefined)).toBe("—")
   })
 })

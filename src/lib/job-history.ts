@@ -1,6 +1,6 @@
 import type { Invoice } from "@/lib/supabase/types"
 import { formatNfNumber, effectiveNfSeries, NF_SERIES_CODES } from "@/lib/nf-status"
-import { padSeq } from "@/lib/nf-sequence"
+import { padSeq, formatSeqNumber } from "@/lib/nf-sequence"
 
 export type HistoryInvoice = Pick<
   Invoice,
@@ -115,7 +115,7 @@ export function summarizeJob(
     : "receivable"
 
   const seqLabels = invoices.map(i => {
-    const label = i.seq_number ?? `#${i.invoice_number}`
+    const label = formatSeqNumber(i.seq_number, i.invoice_number)
     const code = NF_SERIES_CODES[effectiveNfSeries(i.nf_series, i.nf_issued_at ?? i.period_start)]
     return `${label} ${code}`
   })
@@ -130,7 +130,8 @@ export function summarizeJob(
     nfTo: maxOf(nfDates),
     billing,
     nfPending: invoices.some(i => i.nf_status === "pending" || i.nf_status === "requested"),
-    invoiceLabel: invoices.length > 3 ? `${invoices.length} invoices` : compactNumbers(seqLabels),
+    // Every invoice listed, one entry per NF — never collapsed into a count.
+    invoiceLabel: seqLabels.join(", "),
     nfLabel: compactNfLabels(invoices),
   }
 }
