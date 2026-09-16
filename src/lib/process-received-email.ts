@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { requestIdFrom, isNfAttachment, inboxAttachmentPath } from "@/lib/inbound-email"
 import { DOCUMENT_BUCKET, documentPath } from "@/lib/job-documents"
 import { nfseLinkFrom, downloadNfsePdf } from "@/lib/nfse-prefeitura"
+import { jobDraftFromPdf, type JobDraft } from "@/lib/job-from-pdf"
 import {
   ACCOUNTING_BUCKET, ACCOUNTING_LABELS, accountingPath,
   competenciaFromName, formatCompetencia, kindFromName, type AccountingKind,
@@ -132,6 +133,47 @@ async function downloadAttachment(emailId: string, attachmentId: string): Promis
 }
 
 /**
+ * A PDF that is neither a job's NF nor accounting paperwork may be new work arriving. The
+ * job starts as a proposal — the owner reviews it before it becomes active.
+ */
+async function createJobFromDraft(
+  supabase: AdminClient, userId: string, draft: JobDraft, email: { from: string; subject: string | null },
+): Promise<string | null> {
+  if (!draft.clientName) return null
+
+  let clientId: string | null = null
+  const { data: found } = await supabase.from("clients").select("id")
+    .eq("user_id", userId).ilike("name", draft.clientName).limit(1)
+  if (found?.length) {
+    clientId = found[0].id
+  } else {
+    const { data: created } = await supabase.from("clients")
+      .insert({ user_id: userId, name: draft.clientName })
+      .select("id").single()
+    clientId = created?.id ?? null
+  }
+  if (!clientId) return null
+
+  const { data: job } = await supabase.from("jobs").insert({
+    user_id: userId,
+    client_id: clientId,
+    name: draft.jobName ?? draft.clientName,
+    description: draft.description,
+    hourly_rate: 0, daily_rate: 0,
+    currency: draft.currency ?? "BRL",
+    status: "proposal",
+    contract_value: draft.amount,
+    billing_mode: draft.amount ? "fixed" : "daily",
+    start_date: draft.startDate, end_date: draft.endDate,
+    po_number: draft.poNumber,
+    is_recurring: false, tax_rate: 0,
+    notes: `Criado automaticamente a partir do e-mail "${email.subject ?? "sem assunto"}" de ${email.from}. Revise os dados.`,
+  }).select("id").single()
+
+  return job?.id ?? null
+}
+
+/**
  * A forwarded city-hall notice carries no request tag, so the nota is matched to the
  * oldest request still waiting for it — the accountant emits them in the order asked.
  */
@@ -183,6 +225,12 @@ export async function processReceivedEmail(emailId: string): Promise<{ ok: boole
   const userId = nfRequest?.user_id ?? anyUser?.user_id
   if (!userId) return { ok: true, filed: false }
 
+  // A reprocessed row keeps its link; without this guard a second pass would spawn a
+  // duplicate job from the same PDF.
+  const { data: existingRow } = await supabase.from("inbound_emails").select("job_id")
+    .eq("resend_email_id", emailId).maybeSingle()
+  const alreadyLinkedJobId = existingRow?.job_id ?? null
+
   const jobId = nfRequest?.job_id
     ?? (nfRequest?.invoice_id
       ? (await supabase.from("invoices").select("job_id").eq("id", nfRequest.invoice_id).maybeSingle()).data?.job_id
@@ -198,6 +246,7 @@ export async function processReceivedEmail(emailId: string): Promise<{ ok: boole
   // download link dies in an hour, the copy here does not.
   const pdfs = (email.attachments ?? []).filter(isNfAttachment)
   const storedAt = new Map<string, string>()
+  let createdJobId: string | null = null
   if (pdfs.length > 0 && !jobId) note = "Anexo recebido, mas o pedido não aponta para um job"
 
   for (const pdf of pdfs) {
@@ -222,7 +271,31 @@ export async function processReceivedEmail(emailId: string): Promise<{ ok: boole
     } else {
       // Not a job's NF — maybe the company's own paperwork (honorários, DAS, extrato).
       const accounting = await fileAccountingDocument(supabase, userId, name, bytes)
-      if (accounting) note = accounting
+      if (accounting) { note = accounting; continue }
+
+      // Not paperwork either — maybe new work arriving (ordem de serviço, contrato).
+      if (!linkedJobId && !createdJobId && !alreadyLinkedJobId) {
+        const draft = await jobDraftFromPdf(bytes, name, email.from)
+        if (draft?.isWork) {
+          const newJobId = await createJobFromDraft(supabase, userId, draft, email)
+          if (newJobId) {
+            createdJobId = newJobId
+            linkedJobId = linkedJobId ?? newJobId
+            // The PDF that announced the work becomes the job's contract document.
+            const cpath = documentPath(userId, newJobId, "contract", name)
+            const { error: cup } = await supabase.storage
+              .from(DOCUMENT_BUCKET)
+              .upload(cpath, bytes, { upsert: true, contentType: "application/pdf" })
+            if (!cup) {
+              await supabase.from("job_documents").upsert({
+                user_id: userId, job_id: newJobId, kind: "contract",
+                path: cpath, file_name: name, mime_type: "application/pdf", size_bytes: bytes.length,
+              }, { onConflict: "job_id,kind" })
+            }
+            note = `Job criado a partir deste e-mail: ${draft.jobName ?? draft.clientName ?? name}`
+          }
+        }
+      }
     }
   }
 
