@@ -129,13 +129,27 @@ export type InboundEmail = {
   invoices: { seq_number: string | null; invoice_number: number } | null
 }
 
-type Filter = "all" | "filed" | "unmatched" | "attachments"
+/**
+ * Folders are virtual: the e-mail's job link (made automatically on arrival) is what puts
+ * it in a job's folder. The inbox keeps only what still needs a human.
+ */
+type FolderId = "inbox" | "all" | "accounting" | `job:${string}`
 
-const FILTER_LABELS: Record<Filter, string> = {
-  all: "Todos",
-  filed: "NF arquivada",
-  unmatched: "Sem vínculo",
-  attachments: "Com anexo",
+/** An e-mail needs action while nothing was done with it: no job, no filing, no system note. */
+function isHandled(e: InboundEmail): boolean {
+  return e.filed || !!e.job_id || /arquivad|criado/i.test(e.note ?? "")
+}
+
+function isAccounting(e: InboundEmail): boolean {
+  return !e.job_id && /arquivad/i.test(e.note ?? "")
+}
+
+/** A stable color per job name, so the same job always wears the same dot. */
+const DOT_PALETTE = ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#14b8a6", "#f97316"]
+function dotColor(name: string): string {
+  let h = 7
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0
+  return DOT_PALETTE[h % DOT_PALETTE.length]
 }
 
 function formatSize(bytes: number | null): string {
@@ -259,28 +273,49 @@ function ReplyBox({ email, onSent }: { email: InboundEmail; onSent: () => void }
 
 export function EmailsClient({ emails, jobs }: { emails: InboundEmail[]; jobs: { id: string; name: string }[] }) {
   const router = useRouter()
-  const [filter, setFilter] = useState<Filter>("all")
+  const [folder, setFolder] = useState<FolderId>("inbox")
   const [query, setQuery] = useState("")
   const received = useMemo(() => emails.filter(e => e.direction === "in"), [emails])
-  const [selectedId, setSelectedId] = useState<string | null>(received[0]?.id ?? null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [filing, setFiling] = useState<EmailAttachment | null>(null)
+
+  // The sidebar: inbox triage first, then one folder per job that has mail, then the
+  // accounting folder for what was filed as the company's paperwork.
+  const folders = useMemo(() => {
+    const inboxCount = received.filter(e => !isHandled(e)).length
+    const accountingCount = received.filter(isAccounting).length
+    const byJob = new Map<string, { name: string; count: number }>()
+    for (const e of received) {
+      if (!e.job_id) continue
+      const cur = byJob.get(e.job_id)
+      const name = e.jobs?.name ?? "Job"
+      byJob.set(e.job_id, { name, count: (cur?.count ?? 0) + 1 })
+    }
+    const jobFolders = [...byJob.entries()]
+      .map(([id, v]) => ({ id: `job:${id}` as FolderId, ...v }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+    return { inboxCount, accountingCount, jobFolders }
+  }, [received])
+
+  const inFolder = useMemo(() => {
+    if (folder === "inbox") return (e: InboundEmail) => !isHandled(e)
+    if (folder === "all") return () => true
+    if (folder === "accounting") return isAccounting
+    const jobId = folder.slice(4)
+    return (e: InboundEmail) => e.job_id === jobId
+  }, [folder])
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
     return received
-      .filter(e => {
-        if (filter === "filed") return e.filed
-        if (filter === "unmatched") return !e.nf_request_id
-        if (filter === "attachments") return e.attachments.length > 0
-        return true
-      })
+      .filter(inFolder)
       .filter(e =>
         !q ||
         e.subject?.toLowerCase().includes(q) ||
         e.from_email.toLowerCase().includes(q) ||
         e.body?.toLowerCase().includes(q)
       )
-  }, [received, filter, query])
+  }, [received, inFolder, query])
 
   const selected = visible.find(e => e.id === selectedId) ?? visible[0] ?? null
   const thread = useMemo(
@@ -291,8 +326,30 @@ export function EmailsClient({ emails, jobs }: { emails: InboundEmail[]; jobs: {
       : [],
     [emails, selected],
   )
-  const filedCount = received.filter(e => e.filed).length
-  const unmatchedCount = received.filter(e => !e.nf_request_id).length
+
+  const folderLabel = (id: FolderId): string => {
+    if (id === "inbox") return "Caixa de entrada"
+    if (id === "all") return "Todos"
+    if (id === "accounting") return "Contabilidade"
+    return folders.jobFolders.find(f => f.id === id)?.name ?? "Job"
+  }
+
+  const folderButton = (id: FolderId, label: string, count: number, dot?: string) => (
+    <button
+      key={id}
+      onClick={() => { setFolder(id); setSelectedId(null) }}
+      className={cn(
+        "w-full flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-left transition-colors",
+        folder === id ? "bg-accent font-medium" : "hover:bg-accent/50 text-muted-foreground"
+      )}
+    >
+      {dot
+        ? <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: dot }} />
+        : <Inbox className="w-3.5 h-3.5 shrink-0" />}
+      <span className="truncate flex-1">{label}</span>
+      <span className="text-xs text-muted-foreground shrink-0">{count}</span>
+    </button>
+  )
 
   return (
     <div className="flex-1 flex flex-col gap-4 min-h-0">
@@ -306,16 +363,24 @@ export function EmailsClient({ emails, jobs }: { emails: InboundEmail[]; jobs: {
             className="pl-8"
           />
         </div>
-        <Select value={filter} onValueChange={v => setFilter(v as Filter)}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {(Object.keys(FILTER_LABELS) as Filter[]).map(f => (
-              <SelectItem key={f} value={f}>{FILTER_LABELS[f]}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* On small screens the folder sidebar collapses into this select */}
+        <div className="lg:hidden">
+          <Select value={folder} onValueChange={v => { setFolder(v as FolderId); setSelectedId(null) }}>
+            <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="inbox">Caixa de entrada ({folders.inboxCount})</SelectItem>
+              <SelectItem value="all">Todos ({received.length})</SelectItem>
+              {folders.jobFolders.map(f => (
+                <SelectItem key={f.id} value={f.id}>{f.name} ({f.count})</SelectItem>
+              ))}
+              {folders.accountingCount > 0 && (
+                <SelectItem value="accounting">Contabilidade ({folders.accountingCount})</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
         <span className="text-xs text-muted-foreground ml-auto">
-          {filedCount} com NF arquivada · {unmatchedCount} sem vínculo
+          {folderLabel(folder)} · {visible.length} e-mail{visible.length === 1 ? "" : "s"}
         </span>
       </div>
 
@@ -328,7 +393,28 @@ export function EmailsClient({ emails, jobs }: { emails: InboundEmail[]; jobs: {
           </p>
         </div>
       ) : (
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-4 min-h-0">
+        <div className="flex-1 flex gap-4 min-h-0">
+          {/* Job folders, built from the links the processing already made */}
+          <aside className="hidden lg:flex w-60 shrink-0 flex-col border rounded-md p-2 max-h-[70vh] overflow-y-auto">
+            {folderButton("inbox", "Caixa de entrada", folders.inboxCount)}
+            {folderButton("all", "Todos", received.length)}
+            {folders.jobFolders.length > 0 && (
+              <p className="px-2.5 pt-3 pb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Jobs
+              </p>
+            )}
+            {folders.jobFolders.map(f => folderButton(f.id, f.name, f.count, dotColor(f.name)))}
+            {folders.accountingCount > 0 && (
+              <>
+                <p className="px-2.5 pt-3 pb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Empresa
+                </p>
+                {folderButton("accounting", "Contabilidade", folders.accountingCount)}
+              </>
+            )}
+          </aside>
+
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-[minmax(320px,380px)_1fr] gap-4 min-h-0">
           {/* List */}
           <div className="border rounded-md overflow-y-auto divide-y max-h-[70vh]">
             {visible.map(e => (
@@ -349,8 +435,17 @@ export function EmailsClient({ emails, jobs }: { emails: InboundEmail[]; jobs: {
                   {e.filed && (
                     <Badge variant="success" className="text-[10px]">NF arquivada</Badge>
                   )}
-                  {!e.nf_request_id && (
-                    <Badge variant="outline" className="text-[10px]">Sem vínculo</Badge>
+                  {e.job_id && e.jobs && (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: dotColor(e.jobs.name) }} />
+                      {e.jobs.name}
+                    </span>
+                  )}
+                  {isAccounting(e) && (
+                    <Badge variant="secondary" className="text-[10px]">Cobrança arquivada</Badge>
+                  )}
+                  {!isHandled(e) && (
+                    <Badge variant="outline" className="text-[10px]">Precisa de ação</Badge>
                   )}
                   {e.attachments.length > 0 && (
                     <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -363,7 +458,9 @@ export function EmailsClient({ emails, jobs }: { emails: InboundEmail[]; jobs: {
             ))}
             {visible.length === 0 && (
               <p className="p-6 text-sm text-muted-foreground text-center">
-                Nenhum e-mail corresponde ao filtro.
+                {folder === "inbox" && !query
+                  ? "Caixa de entrada zerada — tudo processado. 🎉"
+                  : "Nenhum e-mail nesta pasta."}
               </p>
             )}
           </div>
@@ -488,6 +585,7 @@ export function EmailsClient({ emails, jobs }: { emails: InboundEmail[]; jobs: {
               </div>
             )}
           </div>
+        </div>
         </div>
       )}
     </div>
