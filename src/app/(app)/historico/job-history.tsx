@@ -71,6 +71,8 @@ type Column = {
   title?: string
   /** Marks a column as being about an attached file rather than a value. */
   icon?: React.ElementType
+  /** Centered header with no icons (grip, sort arrow, paperclip); sorting still works on click. */
+  plainHeader?: boolean
   cell: (row: Row) => React.ReactNode
 }
 
@@ -237,9 +239,9 @@ const BASE_COLUMNS: Column[] = [
       </>
     ),
   },
-  { key: "invoices", label: "Invoices", sortKey: "seq", cell: ({ summary }) => <span className="font-mono">{summary.invoiceLabel}</span> },
+  { key: "invoices", label: "Invoices", sortKey: "seq", plainHeader: true, cell: ({ summary }) => <span className="font-mono">{summary.invoiceLabel}</span> },
   {
-    key: "contador", label: "Contador", nowrap: true,
+    key: "contador", label: "Contador", nowrap: true, plainHeader: true,
     title: "E-mail de pedido de NF enviado ao contador",
     cell: ({ job }) => <AccountantEmailCell job={job} />,
   },
@@ -253,7 +255,8 @@ const BASE_COLUMNS: Column[] = [
 const DOCUMENT_COLUMNS: Column[] = DOCUMENT_KINDS.map(kind => ({
   key: `doc_${kind}`,
   label: DOCUMENT_SHORT_LABELS[kind],
-  icon: Paperclip,
+  icon: kind === "nf" ? undefined : Paperclip,
+  plainHeader: kind === "nf" ? true : undefined,
   align: "center" as const,
   title: kind === "accountant_email"
     ? "Pedido de NF enviado ao contador, ou o e-mail anexado à mão"
@@ -430,13 +433,13 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
                   title={c.title}
                   className={[
                     "group p-2 select-none cursor-grab active:cursor-grabbing",
-                    alignClass(c.align),
+                    c.plainHeader ? "text-center" : alignClass(c.align),
                     dragging === c.key ? "opacity-40" : "",
                     dragging && dragging !== c.key ? "bg-accent/40" : "",
                   ].join(" ")}
                 >
                   <span className={`inline-flex items-center gap-1 ${c.align === "right" ? "flex-row-reverse" : ""}`}>
-                    <GripVertical className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-40" />
+                    {!c.plainHeader && <GripVertical className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-40" />}
                     {c.icon && <c.icon className="w-3 h-3 shrink-0 opacity-50" />}
                     {c.sortKey ? (
                       <button
@@ -445,8 +448,10 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
                         className={`inline-flex items-center gap-1 hover:text-foreground ${sort.key === c.sortKey ? "text-foreground font-medium" : ""}`}
                       >
                         {c.label}
-                        {sort.key !== c.sortKey ? <ChevronsUpDown className="w-3 h-3 opacity-40" />
-                          : sort.dir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                        {!c.plainHeader && (
+                          sort.key !== c.sortKey ? <ChevronsUpDown className="w-3 h-3 opacity-40" />
+                            : sort.dir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                        )}
                       </button>
                     ) : c.label}
                   </span>
