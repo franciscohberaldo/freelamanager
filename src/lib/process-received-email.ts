@@ -6,7 +6,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requestIdFrom, isNfAttachment, inboxAttachmentPath } from "@/lib/inbound-email"
 import { DOCUMENT_BUCKET, documentPath } from "@/lib/job-documents"
-import { nfseLinkFrom, downloadNfsePdf } from "@/lib/nfse-prefeitura"
+import { nfseLinkFrom, downloadNfsePdf, notaInfoFromPdf } from "@/lib/nfse-prefeitura"
 import { jobDraftFromPdf, type JobDraft } from "@/lib/job-from-pdf"
 import {
   ACCOUNTING_BUCKET, ACCOUNTING_LABELS, accountingPath,
@@ -174,36 +174,31 @@ async function createJobFromDraft(
 }
 
 /**
- * A forwarded city-hall notice carries no request tag, so the nota is matched to the
- * oldest request still waiting for it — the accountant emits them in the order asked.
+ * The nota names its tomador; the client carrying that CNPJ owns it. An open request for
+ * one of the client's jobs wins; a client with a single job is unambiguous; anything else
+ * is left for the owner to file by hand.
  */
-async function oldestOpenRequest(supabase: AdminClient, userId: string):
-  Promise<{ invoice_id: string | null; job_id: string | null } | null> {
-  const { data: requests } = await supabase
-    .from("nf_requests")
-    .select("id, invoice_id, job_id")
-    .eq("user_id", userId)
-    .eq("status", "sent")
+async function jobForTomador(supabase: AdminClient, userId: string, cnpjDigits: string):
+  Promise<{ clientName: string | null; jobId: string | null; invoiceId: string | null; jobCount: number }> {
+  const { data: clients } = await supabase.from("clients").select("id, name, cnpj").eq("user_id", userId)
+  const client = (clients ?? []).find(c => (c.cnpj ?? "").replace(/\D/g, "") === cnpjDigits)
+  if (!client) return { clientName: null, jobId: null, invoiceId: null, jobCount: 0 }
+
+  const { data: jobs } = await supabase.from("jobs").select("id")
+    .eq("user_id", userId).eq("client_id", client.id).order("created_at", { ascending: false })
+  const jobIds = (jobs ?? []).map(j => j.id)
+  if (jobIds.length === 0) return { clientName: client.name, jobId: null, invoiceId: null, jobCount: 0 }
+
+  const { data: requests } = await supabase.from("nf_requests").select("job_id, invoice_id")
+    .eq("user_id", userId).eq("status", "sent")
+    .in("job_id", jobIds)
     .order("created_at", { ascending: true })
-    .limit(20)
+    .limit(1)
+  const req = requests?.find(r => r.job_id)
+  if (req) return { clientName: client.name, jobId: req.job_id, invoiceId: req.invoice_id ?? null, jobCount: jobIds.length }
 
-  const withInvoice = (requests ?? []).filter(r => r.invoice_id)
-  if (withInvoice.length > 0) {
-    const { data: openInvoices } = await supabase
-      .from("invoices")
-      .select("id, job_id")
-      .in("id", withInvoice.map(r => r.invoice_id!))
-      .in("nf_status", ["pending", "requested"])
-    const open = new Map((openInvoices ?? []).map(i => [i.id, i.job_id]))
-    for (const r of withInvoice) {
-      if (open.has(r.invoice_id!)) {
-        return { invoice_id: r.invoice_id, job_id: open.get(r.invoice_id!) ?? r.job_id }
-      }
-    }
-  }
-
-  const jobOnly = (requests ?? []).find(r => !r.invoice_id && r.job_id)
-  return jobOnly ? { invoice_id: null, job_id: jobOnly.job_id } : null
+  if (jobIds.length === 1) return { clientName: client.name, jobId: jobIds[0], invoiceId: null, jobCount: 1 }
+  return { clientName: client.name, jobId: null, invoiceId: null, jobCount: jobIds.length }
 }
 
 export async function processReceivedEmail(emailId: string): Promise<{ ok: boolean; filed: boolean; error?: string }> {
@@ -306,36 +301,48 @@ export async function processReceivedEmail(emailId: string): Promise<{ ok: boole
       .in("nf_status", ["pending", "requested"])
   }
 
-  // The city hall's NFS-e notice carries no attachment, only the nota's link — the PDF is
-  // fetched from it and filed on the job exactly like an attached one would be.
+  // The city hall's NFS-e notice carries no attachment, only the nota's link. The PDF is
+  // fetched from it, and the tomador named inside the nota decides which job it belongs
+  // to — never a blind "oldest request" guess.
   const nfse = nfseLinkFrom(email.text, email.html)
   if (!filed && nfse) {
-    let invoiceId = nfRequest?.invoice_id ?? null
-    if (!linkedJobId) {
-      const pending = await oldestOpenRequest(supabase, userId)
-      linkedJobId = pending?.job_id ?? null
-      invoiceId = invoiceId ?? pending?.invoice_id ?? null
-    }
-    if (!linkedJobId) {
-      note = "NFS-e da prefeitura sem pedido pendente para anexar"
+    const bytes = await downloadNfsePdf(nfse)
+    const nota = bytes ? await notaInfoFromPdf(bytes) : null
+    if (!bytes || !nota?.valid) {
+      note = "Não consegui baixar o PDF da NFS-e no site da prefeitura"
     } else {
-      const bytes = await downloadNfsePdf(nfse)
-      if (!bytes) {
-        note = "Não consegui baixar o PDF da NFS-e no site da prefeitura"
+      let targetJobId = linkedJobId
+      let invoiceId = nfRequest?.invoice_id ?? null
+      if (!targetJobId && nota.tomadorCnpj) {
+        const match = await jobForTomador(supabase, userId, nota.tomadorCnpj)
+        targetJobId = match.jobId
+        invoiceId = invoiceId ?? match.invoiceId
+        if (!targetJobId) {
+          note = match.clientName
+            ? `NFS-e ${nfse.numero} de ${nota.tomadorName ?? match.clientName}: o cliente tem ${match.jobCount} jobs — escolha em qual arquivar`
+            : `NFS-e ${nfse.numero} de ${nota.tomadorName ?? "tomador desconhecido"}: cliente não cadastrado (CNPJ ${nota.tomadorCnpj})`
+        }
+      } else if (!targetJobId) {
+        note = `NFS-e ${nfse.numero}: não consegui ler o CNPJ do tomador na nota`
+      }
+
+      // The per-email copy is the one the attachment points to, so a later nota filed on
+      // the same job never overwrites this one.
+      const name = `nfse-${nfse.numero}.pdf`
+      const path = inboxAttachmentPath(userId, email.id, name)
+      const { error: upload } = await supabase.storage
+        .from(DOCUMENT_BUCKET)
+        .upload(path, bytes, { upsert: true, contentType: "application/pdf" })
+      if (upload) {
+        note = `Erro ao guardar a NFS-e: ${upload.message}`
       } else {
-        const name = `nfse-${nfse.numero}.pdf`
-        const path = documentPath(userId, linkedJobId, "nf", name)
-        const { error: upload } = await supabase.storage
-          .from(DOCUMENT_BUCKET)
-          .upload(path, bytes, { upsert: true, contentType: "application/pdf" })
-        if (upload) {
-          note = `Erro ao guardar a NFS-e: ${upload.message}`
-        } else {
+        fetched.push({ id: `nfse-${nfse.numero}`, filename: name, content_type: "application/pdf", size: bytes.length, path })
+        if (targetJobId) {
           await supabase.from("job_documents").upsert({
-            user_id: userId, job_id: linkedJobId, kind: "nf",
+            user_id: userId, job_id: targetJobId, kind: "nf",
             path, file_name: name, mime_type: "application/pdf", size_bytes: bytes.length,
           }, { onConflict: "job_id,kind" })
-          fetched.push({ id: `nfse-${nfse.numero}`, filename: name, content_type: "application/pdf", size: bytes.length, path })
+          linkedJobId = targetJobId
           filed = true
           note = null
           if (invoiceId) {
