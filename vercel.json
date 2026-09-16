@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/cron/check-emails",
-      "schedule": "17 * * * *"
+      "schedule": "47 6 * * *"
     }
   ]
 }
