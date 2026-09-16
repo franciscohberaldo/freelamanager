@@ -1,8 +1,10 @@
 import type { Invoice } from "@/lib/supabase/types"
+import { formatNfNumber, effectiveNfSeries, NF_SERIES_CODES } from "@/lib/nf-status"
+import { padSeq } from "@/lib/nf-sequence"
 
 export type HistoryInvoice = Pick<
   Invoice,
-  "seq_number" | "invoice_number" | "nf_number" | "total" | "currency" | "status" | "nf_status"
+  "seq_number" | "invoice_number" | "nf_number" | "nf_series" | "total" | "currency" | "status" | "nf_status"
   | "period_start" | "period_end" | "nf_issued_at"
 >
 
@@ -78,6 +80,28 @@ export function compactNumbers(values: (string | null)[]): string {
   return `${Math.min(...nums)}–${Math.max(...nums)}`
 }
 
+/**
+ * NF labels for a job: each one formatted with its series code ("0030 PLN", "0015 SP").
+ * Rows imported before `nf_series` existed get the series derived from the issue date.
+ * More than three collapse into a padded range — "0028–0031 PLN" when they share one
+ * series, "5 NFs" when they span both.
+ */
+export function compactNfLabels(
+  invoices: Pick<Invoice, "nf_number" | "nf_series" | "nf_issued_at" | "period_start">[],
+): string {
+  const present = invoices.filter(i => i.nf_number)
+  if (present.length === 0) return "—"
+  const seriesOf = (i: (typeof present)[number]) => effectiveNfSeries(i.nf_series, i.nf_issued_at ?? i.period_start)
+  if (present.length <= 3) return present.map(i => formatNfNumber(seriesOf(i), i.nf_number)).join(", ")
+  const nums = present.map(i => parseInt(i.nf_number!.replace(/\D/g, ""), 10)).filter(Number.isInteger)
+  if (nums.length === 0) return `${present.length} NFs`
+  const seriesSet = new Set(present.map(seriesOf))
+  // A range across two numbering sequences would be misleading — count instead.
+  if (seriesSet.size > 1) return `${present.length} NFs`
+  const range = `${padSeq(Math.min(...nums))}–${padSeq(Math.max(...nums))}`
+  return `${range} ${NF_SERIES_CODES[present.map(seriesOf)[0]]}`
+}
+
 export function summarizeJob(
   invoices: HistoryInvoice[],
   fallback?: { start_date: string | null; end_date: string | null },
@@ -90,7 +114,11 @@ export function summarizeJob(
     : invoices.every(i => i.status === "paid") ? "received"
     : "receivable"
 
-  const seqLabels = invoices.map(i => i.seq_number ?? `#${i.invoice_number}`)
+  const seqLabels = invoices.map(i => {
+    const label = i.seq_number ?? `#${i.invoice_number}`
+    const code = NF_SERIES_CODES[effectiveNfSeries(i.nf_series, i.nf_issued_at ?? i.period_start)]
+    return `${label} ${code}`
+  })
 
   const nfDates = invoices.map(i => i.nf_issued_at)
 
@@ -103,6 +131,6 @@ export function summarizeJob(
     billing,
     nfPending: invoices.some(i => i.nf_status === "pending" || i.nf_status === "requested"),
     invoiceLabel: invoices.length > 3 ? `${invoices.length} invoices` : compactNumbers(seqLabels),
-    nfLabel: compactNumbers(invoices.map(i => i.nf_number)),
+    nfLabel: compactNfLabels(invoices),
   }
 }

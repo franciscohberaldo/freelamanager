@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { NF_STATUS_LABELS, NF_SERIES_LABELS, isNfOverdue, type NfStatus, type NfSeries } from "@/lib/nf-status"
+import { NF_STATUS_LABELS, NF_SERIES_LABELS, formatNfNumber, effectiveNfSeries, isNfOverdue, type NfStatus, type NfSeries } from "@/lib/nf-status"
 import { findGaps, findDuplicates } from "@/lib/nf-sequence"
 import { InvoiceActions } from "../invoices/invoice-actions"
 import type { Invoice } from "@/lib/supabase/types"
@@ -113,7 +113,7 @@ export function NfClient({ rows }: { rows: NfRow[] }) {
               return (
                 <tr key={r.id} className={`border-t ${late ? "bg-red-50 dark:bg-red-950/20" : ""}`}>
                   <td className="p-2 font-mono">{r.seq_number ?? `#${r.invoice_number}`}</td>
-                  <td className="p-2 font-mono">{r.nf_number ? `${r.nf_number} · ${r.nf_series ? NF_SERIES_LABELS[r.nf_series] : ""}` : "—"}</td>
+                  <td className="p-2 font-mono">{r.nf_number ? formatNfNumber(effectiveNfSeries(r.nf_series, r.nf_issued_at), r.nf_number) : "—"}</td>
                   <td className="p-2">{r.nf_issued_at ? formatDate(r.nf_issued_at) : "—"}</td>
                   <td className="p-2">
                     {r.jobs?.clients?.legal_name ?? r.jobs?.clients?.name ?? "—"}

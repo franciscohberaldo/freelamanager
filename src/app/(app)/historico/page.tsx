@@ -16,7 +16,7 @@ export default async function HistoricoPage() {
 
   const { data: history } = await supabase
     .from("jobs")
-    .select("*, clients(name, legal_name), job_documents(kind), invoices(id, seq_number, invoice_number, nf_number, total, currency, status, nf_status, period_start, period_end, nf_issued_at)")
+    .select("*, clients(name, legal_name), job_documents(kind), invoices(id, seq_number, invoice_number, nf_number, nf_series, total, currency, status, nf_status, period_start, period_end, nf_issued_at)")
     .eq("user_id", user!.id)
     .order("created_at", { ascending: false })
 

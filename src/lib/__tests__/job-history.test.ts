@@ -5,6 +5,7 @@ const inv = (o: Partial<HistoryInvoice> = {}): HistoryInvoice => ({
   seq_number: null,
   invoice_number: "1",
   nf_number: null,
+  nf_series: null,
   total: 1000,
   currency: "BRL",
   status: "paid",
@@ -53,15 +54,28 @@ describe("summarizeJob", () => {
     expect(summarizeJob([inv({ nf_status: "not_required" })]).nfPending).toBe(false)
   })
 
-  it("labels invoices by sequence number, falling back to the invoice number", () => {
+  it("labels invoices by sequence number with the era code, falling back to the invoice number", () => {
     const s = summarizeJob([inv({ seq_number: "0100" }), inv({ seq_number: null, invoice_number: "7" })])
-    expect(s.invoiceLabel).toBe("0100, #7")
+    expect(s.invoiceLabel).toBe("0100 SP, #7 SP")
   })
 
-  it("labels NFs and shows an em dash when there is none", () => {
-    expect(summarizeJob([inv({ nf_number: "412" }), inv({ nf_number: "413" })]).nfLabel).toBe("412, 413")
+  it("labels old invoices with the Paulínia code, derived from the period", () => {
+    const s = summarizeJob([inv({ seq_number: "NFP056", period_start: "2016-02-24" })])
+    expect(s.invoiceLabel).toBe("NFP056 PLN")
+  })
+
+  it("labels NFs with the series code and shows an em dash when there is none", () => {
+    expect(summarizeJob([
+      inv({ nf_number: "30", nf_series: "paulinia" }),
+      inv({ nf_number: "15", nf_series: "sao_paulo" }),
+    ]).nfLabel).toBe("0030 PLN, 0015 SP")
     expect(summarizeJob([inv({ nf_number: null })]).nfLabel).toBe("—")
     expect(summarizeJob([]).nfLabel).toBe("—")
+  })
+
+  it("derives the series from the issue date when it was never recorded", () => {
+    expect(summarizeJob([inv({ nf_number: "56", nf_issued_at: "2016-02-24" })]).nfLabel).toBe("0056 PLN")
+    expect(summarizeJob([inv({ nf_number: "412" })]).nfLabel).toBe("0412 SP")
   })
 
   it("counts invoices instead of listing them past three", () => {
@@ -69,9 +83,21 @@ describe("summarizeJob", () => {
     expect(s.invoiceLabel).toBe("4 invoices")
   })
 
-  it("collapses more than three NFs into a range", () => {
-    const s = summarizeJob(["50", "51", "52", "117"].map(n => inv({ nf_number: n })))
-    expect(s.nfLabel).toBe("50–117")
+  it("collapses more than three NFs into a padded range with the series code", () => {
+    const sp = summarizeJob(["50", "51", "52", "117"].map(n => inv({ nf_number: n, nf_series: "sao_paulo" })))
+    expect(sp.nfLabel).toBe("0050–0117 SP")
+    const derived = summarizeJob(["50", "51", "52", "117"].map(n => inv({ nf_number: n })))
+    expect(derived.nfLabel).toBe("0050–0117 SP")
+  })
+
+  it("counts NFs instead of ranging them when the series are mixed", () => {
+    const s = summarizeJob([
+      inv({ nf_number: "30", nf_series: "paulinia" }),
+      inv({ nf_number: "31", nf_series: "paulinia" }),
+      inv({ nf_number: "15", nf_series: "sao_paulo" }),
+      inv({ nf_number: "16", nf_series: "sao_paulo" }),
+    ])
+    expect(s.nfLabel).toBe("4 NFs")
   })
 
   it("counts invoices without a paid date as unpaid even when the NF was sent", () => {

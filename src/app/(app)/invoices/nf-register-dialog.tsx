@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
-import { NF_SERIES_LABELS, type NfSeries } from "@/lib/nf-status"
+import { NF_SERIES_LABELS, formatNfNumber, normalizeNfNumber, seriesForDate, type NfSeries } from "@/lib/nf-status"
 
 export function NfRegisterDialog({
   invoiceId, currency, defaultAmountBrl, open, onClose,
@@ -21,21 +21,25 @@ export function NfRegisterDialog({
   const supabase = createClient()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({
-    nf_series: "sao_paulo" as NfSeries,
-    nf_number: "",
-    nf_issued_at: format(new Date(), "yyyy-MM-dd"),
-    nf_amount_brl: defaultAmountBrl ? String(defaultAmountBrl) : "",
+  const [form, setForm] = useState(() => {
+    const today = format(new Date(), "yyyy-MM-dd")
+    return {
+      nf_series: seriesForDate(today),
+      nf_number: "",
+      nf_issued_at: today,
+      nf_amount_brl: defaultAmountBrl ? String(defaultAmountBrl) : "",
+    }
   })
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.nf_number.trim()) { toast.error("Informe o número da NF"); return }
+    const nfNumber = normalizeNfNumber(form.nf_number)
+    if (!nfNumber) { toast.error("Informe o número da NF"); return }
     setLoading(true)
     const { error } = await supabase.from("invoices").update({
       nf_status: "issued",
       nf_series: form.nf_series,
-      nf_number: form.nf_number.trim(),
+      nf_number: nfNumber,
       nf_issued_at: form.nf_issued_at,
       nf_amount_brl: parseFloat(form.nf_amount_brl) || defaultAmountBrl,
     }).eq("id", invoiceId)
@@ -69,11 +73,16 @@ export function NfRegisterDialog({
             </div>
             <div className="space-y-1">
               <Label>Número da NF</Label>
-              <Input value={form.nf_number} onChange={e => setForm(f => ({ ...f, nf_number: e.target.value }))} placeholder="ex: 0102" />
+              <Input value={form.nf_number} onChange={e => setForm(f => ({ ...f, nf_number: e.target.value }))} placeholder="ex: 0030" />
+              {normalizeNfNumber(form.nf_number) && (
+                <p className="text-xs text-muted-foreground font-mono">
+                  Fica: {formatNfNumber(form.nf_series, form.nf_number)}
+                </p>
+              )}
             </div>
             <div className="space-y-1">
               <Label>Data de emissão</Label>
-              <Input type="date" value={form.nf_issued_at} onChange={e => setForm(f => ({ ...f, nf_issued_at: e.target.value }))} />
+              <Input type="date" value={form.nf_issued_at} onChange={e => setForm(f => ({ ...f, nf_issued_at: e.target.value, nf_series: seriesForDate(e.target.value) }))} />
             </div>
             <div className="space-y-1">
               <Label>Valor da NF (R$)</Label>

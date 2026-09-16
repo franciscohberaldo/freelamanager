@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest"
-import { initialNfStatus, canTransition, assertTransition, isNfOverdue, NF_STATUS_LABELS } from "@/lib/nf-status"
+import {
+  initialNfStatus, canTransition, assertTransition, isNfOverdue,
+  NF_STATUS_LABELS, NF_SERIES_CODES, NF_SERIES_CUTOFF,
+  seriesForDate, effectiveNfSeries, formatNfNumber, normalizeNfNumber,
+} from "@/lib/nf-status"
 
 describe("initialNfStatus", () => {
   it("BRL invoices start pending", () => expect(initialNfStatus("BRL")).toBe("pending"))
@@ -43,5 +47,70 @@ describe("isNfOverdue", () => {
 describe("labels", () => {
   it("has a Portuguese label for every status", () => {
     expect(Object.keys(NF_STATUS_LABELS).sort()).toEqual(["issued", "not_required", "pending", "requested", "sent"])
+  })
+})
+
+describe("seriesForDate", () => {
+  it("notes issued before the move belong to Paulínia", () => {
+    expect(seriesForDate("2019-12-31")).toBe("paulinia")
+    expect(seriesForDate("2018-03-20")).toBe("paulinia")
+  })
+  it("notes issued from the cutoff on belong to São Paulo", () => {
+    expect(seriesForDate(NF_SERIES_CUTOFF)).toBe("sao_paulo")
+    expect(seriesForDate("2026-09-16")).toBe("sao_paulo")
+  })
+  it("a missing date defaults to the current city", () => {
+    expect(seriesForDate(null)).toBe("sao_paulo")
+    expect(seriesForDate(undefined)).toBe("sao_paulo")
+  })
+})
+
+describe("effectiveNfSeries", () => {
+  it("keeps the recorded series when there is one", () => {
+    expect(effectiveNfSeries("paulinia", "2026-09-16")).toBe("paulinia")
+    expect(effectiveNfSeries("sao_paulo", "2016-02-24")).toBe("sao_paulo")
+  })
+  it("derives the series from the date when none was recorded", () => {
+    expect(effectiveNfSeries(null, "2016-02-24")).toBe("paulinia")
+    expect(effectiveNfSeries(undefined, "2026-09-16")).toBe("sao_paulo")
+  })
+  it("falls back to the current city without series or date", () => {
+    expect(effectiveNfSeries(null, null)).toBe("sao_paulo")
+  })
+})
+
+describe("formatNfNumber", () => {
+  it("pads the digits and appends the series code", () => {
+    expect(formatNfNumber("paulinia", "30")).toBe("0030 PLN")
+    expect(formatNfNumber("sao_paulo", "15")).toBe("0015 SP")
+  })
+  it("keeps an already padded number", () => {
+    expect(formatNfNumber("sao_paulo", "0102")).toBe("0102 SP")
+  })
+  it("strips stray characters before padding", () => {
+    expect(formatNfNumber("paulinia", "nfp 30")).toBe("0030 PLN")
+  })
+  it("omits the code when the series is unknown", () => {
+    expect(formatNfNumber(null, "412")).toBe("0412")
+  })
+  it("returns an empty string without a number", () => {
+    expect(formatNfNumber("sao_paulo", null)).toBe("")
+    expect(formatNfNumber("sao_paulo", undefined)).toBe("")
+  })
+  it("has a code for every series", () => {
+    expect(NF_SERIES_CODES).toEqual({ paulinia: "PLN", sao_paulo: "SP" })
+  })
+})
+
+describe("normalizeNfNumber", () => {
+  it("keeps only the digits, padded to four", () => {
+    expect(normalizeNfNumber("30")).toBe("0030")
+    expect(normalizeNfNumber("0030 PLN")).toBe("0030")
+    expect(normalizeNfNumber("nfp 30")).toBe("0030")
+    expect(normalizeNfNumber(" 15 ")).toBe("0015")
+  })
+  it("returns an empty string when there are no digits", () => {
+    expect(normalizeNfNumber("")).toBe("")
+    expect(normalizeNfNumber("PLN")).toBe("")
   })
 })

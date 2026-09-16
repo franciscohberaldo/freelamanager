@@ -13,7 +13,7 @@ import { NfRequestAction, type SentRequest } from "./nf-request-action"
 import { InvoiceDocAction } from "./invoice-doc-action"
 import { DOCUMENT_KINDS } from "@/lib/job-documents"
 import { rateOf, rateLabel } from "@/lib/billing-mode"
-import { canTransition, type NfStatus } from "@/lib/nf-status"
+import { canTransition, formatNfNumber, effectiveNfSeries, type NfStatus } from "@/lib/nf-status"
 import { ArrowLeft, FileText, Image as ImageIcon } from "lucide-react"
 import type { Job, JobDocument, Invoice, DailyLog } from "@/lib/supabase/types"
 
@@ -212,7 +212,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
                       </Badge>
                     </td>
                     <td className="p-2 font-mono">
-                      {inv.nf_number ?? <span className="text-muted-foreground font-sans">—</span>}
+                      {inv.nf_number ? formatNfNumber(effectiveNfSeries(inv.nf_series, inv.nf_issued_at), inv.nf_number) : <span className="text-muted-foreground font-sans">—</span>}
                     </td>
                   </tr>
                 ))}
