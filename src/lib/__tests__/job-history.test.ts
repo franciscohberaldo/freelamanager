@@ -83,6 +83,24 @@ describe("summarizeJob", () => {
     expect(s.invoiceLabel).toBe("0101 SP, 0102 SP, 0103 SP, 0104 SP")
   })
 
+  it("takes the job's place in the numbering from its highest seq and that note's series", () => {
+    const s = summarizeJob([inv({ seq_number: "0089" }), inv({ seq_number: "0101" })])
+    expect(s.seqNum).toBe(101)
+    expect(s.seqSeries).toBe("sao_paulo")
+  })
+
+  it("derives the numbering series from the date when it was never recorded", () => {
+    const s = summarizeJob([inv({ seq_number: "NFP056", period_start: "2016-02-24" })])
+    expect(s.seqNum).toBe(56)
+    expect(s.seqSeries).toBe("paulinia")
+  })
+
+  it("leaves the numbering empty when no invoice was ever sequenced", () => {
+    expect(summarizeJob([]).seqNum).toBeNull()
+    expect(summarizeJob([]).seqSeries).toBeNull()
+    expect(summarizeJob([inv({ seq_number: null })]).seqNum).toBeNull()
+  })
+
   it("collapses more than three NFs into a padded range with the series code", () => {
     const sp = summarizeJob(["50", "51", "52", "117"].map(n => inv({ nf_number: n, nf_series: "sao_paulo" })))
     expect(sp.nfLabel).toBe("0050–0117 SP")
@@ -174,7 +192,7 @@ describe("summarizeJob dates", () => {
 })
 
 describe("compareRows", () => {
-  const row = (o: Partial<SortableRow> = {}): SortableRow => ({ tomador: "A", marca: "A", job: "A", contract: 0, rate: 0, amount: 0, start: "2020-01-01", end: "2020-01-01", nf: "2020-01-01", ...o })
+  const row = (o: Partial<SortableRow> = {}): SortableRow => ({ tomador: "A", marca: "A", job: "A", contract: 0, rate: 0, amount: 0, start: "2020-01-01", end: "2020-01-01", nf: "2020-01-01", seq: null, seqSeries: null, ...o })
 
   it("orders text case-insensitively", () => {
     expect(compareRows(row({ job: "amazon" }), row({ job: "Boticario" }), "job", "asc")).toBeLessThan(0)
@@ -207,5 +225,21 @@ describe("compareRows", () => {
 
   it("treats two missing dates as a tie", () => {
     expect(compareRows(row({ start: null }), row({ start: null }), "start", "asc")).toBe(0)
+  })
+
+  it("orders by invoice number, São Paulo first and Paulínia at the bottom", () => {
+    const sp117 = row({ seq: 117, seqSeries: "sao_paulo" })
+    const sp90  = row({ seq: 90,  seqSeries: "sao_paulo" })
+    const pln116 = row({ seq: 116, seqSeries: "paulinia" })
+    const none  = row()
+    // desc: biggest SP number on top
+    expect(compareRows(sp117, sp90, "seq", "desc")).toBeLessThan(0)
+    // any SP above any PLN, whatever the numbers
+    expect(compareRows(sp90, pln116, "seq", "desc")).toBeLessThan(0)
+    // within PLN the bigger number still wins
+    expect(compareRows(row({ seq: 116, seqSeries: "paulinia" }), row({ seq: 95, seqSeries: "paulinia" }), "seq", "desc")).toBeLessThan(0)
+    // jobs never sequenced sort last in both directions
+    expect(compareRows(none, pln116, "seq", "desc")).toBeGreaterThan(0)
+    expect(compareRows(none, pln116, "seq", "asc")).toBeGreaterThan(0)
   })
 })

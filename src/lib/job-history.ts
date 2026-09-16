@@ -1,5 +1,5 @@
 import type { Invoice } from "@/lib/supabase/types"
-import { formatNfNumber, effectiveNfSeries, NF_SERIES_CODES } from "@/lib/nf-status"
+import { formatNfNumber, effectiveNfSeries, NF_SERIES_CODES, type NfSeries } from "@/lib/nf-status"
 import { padSeq, formatSeqNumber } from "@/lib/nf-sequence"
 
 export type HistoryInvoice = Pick<
@@ -22,6 +22,10 @@ export interface JobSummary {
   nfPending: boolean
   invoiceLabel: string
   nfLabel: string
+  /** Highest invoice seq as a number — the position in the numbering; null when the job was never sequenced. */
+  seqNum: number | null
+  /** Series of that highest invoice, recorded or derived from its date. */
+  seqSeries: NfSeries | null
   /** First day billed, from the invoices; the job's own start date when it has none. */
   start: string | null
   end: string | null
@@ -30,7 +34,7 @@ export interface JobSummary {
   nfTo: string | null
 }
 
-export type SortKey = "tomador" | "marca" | "job" | "contract" | "rate" | "total" | "start" | "end" | "nf"
+export type SortKey = "tomador" | "marca" | "job" | "contract" | "rate" | "total" | "start" | "end" | "nf" | "seq"
 
 export interface SortableRow {
   tomador: string
@@ -45,14 +49,31 @@ export interface SortableRow {
   start: string | null
   end: string | null
   nf: string | null
+  seq: number | null
+  seqSeries: NfSeries | null
 }
 
 const minOf = (v: (string | null)[]) => v.filter(Boolean).sort()[0] ?? null
 const maxOf = (v: (string | null)[]) => v.filter(Boolean).sort().at(-1) ?? null
 
+/**
+ * Invoice-number ordering: São Paulo notes first, highest number on top; the Paulínia
+ * series is a separate numbering that lives at the bottom; jobs never sequenced last.
+ * The 10M offset keeps any SP number above any PLN one — seq numbers never reach it.
+ */
+const seqRank = (r: SortableRow): number | null =>
+  r.seq == null ? null : (r.seqSeries === "paulinia" ? 0 : 10_000_000) + r.seq
+
 /** Rows missing the value sort last, whichever direction is asked for. */
 export function compareRows(a: SortableRow, b: SortableRow, key: SortKey, dir: "asc" | "desc"): number {
   const flip = dir === "asc" ? 1 : -1
+  if (key === "seq") {
+    const x = seqRank(a), y = seqRank(b)
+    if (x == null && y == null) return 0
+    if (x == null) return 1
+    if (y == null) return -1
+    return (x - y) * flip
+  }
   if (key === "total") return (a.amount - b.amount) * flip
   if (key === "contract") return (a.contract - b.contract) * flip
   if (key === "rate") return (a.rate - b.rate) * flip
@@ -122,6 +143,17 @@ export function summarizeJob(
 
   const nfDates = invoices.map(i => i.nf_issued_at)
 
+  // The job's place in the numbering is its highest seq; the series is that note's.
+  const topSeq = invoices
+    .map(i => {
+      const num = i.seq_number ? parseInt(i.seq_number.replace(/\D/g, ""), 10) : NaN
+      return Number.isInteger(num)
+        ? { num, series: effectiveNfSeries(i.nf_series, i.nf_issued_at ?? i.period_start) }
+        : null
+    })
+    .filter((v): v is { num: number; series: NfSeries } => v !== null)
+    .sort((a, b) => b.num - a.num)[0] ?? null
+
   return {
     totals: Array.from(byCurrency, ([currency, amount]) => ({ currency, amount })),
     start: invoices.length ? minOf(invoices.map(i => i.period_start)) : fallback?.start_date ?? null,
@@ -130,6 +162,8 @@ export function summarizeJob(
     nfTo: maxOf(nfDates),
     billing,
     nfPending: invoices.some(i => i.nf_status === "pending" || i.nf_status === "requested"),
+    seqNum: topSeq?.num ?? null,
+    seqSeries: topSeq?.series ?? null,
     // Every invoice listed, one entry per NF — never collapsed into a count.
     invoiceLabel: seqLabels.join(", "),
     nfLabel: compactNfLabels(invoices),

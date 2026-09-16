@@ -237,7 +237,7 @@ const BASE_COLUMNS: Column[] = [
       </>
     ),
   },
-  { key: "invoices", label: "Invoices", cell: ({ summary }) => <span className="font-mono">{summary.invoiceLabel}</span> },
+  { key: "invoices", label: "Invoices", sortKey: "seq", cell: ({ summary }) => <span className="font-mono">{summary.invoiceLabel}</span> },
   {
     key: "contador", label: "Contador", nowrap: true,
     title: "E-mail de pedido de NF enviado ao contador",
@@ -286,7 +286,7 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
   const [client, setClient] = useState("all")
   const [billing, setBilling] = useState<"all" | BillingStatus>("all")
   const [year, setYear] = useState("all")
-  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "start", dir: "desc" })
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "seq", dir: "desc" })
   const [order, setOrder] = useState<string[]>(DEFAULT_ORDER)
   const [dragging, setDragging] = useState<string | null>(null)
 
@@ -340,6 +340,8 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
           start: summary.start,
           end: summary.end,
           nf: summary.nfFrom,
+          seq: summary.seqNum,
+          seqSeries: summary.seqSeries,
         },
       }
     }),
