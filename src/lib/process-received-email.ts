@@ -6,8 +6,11 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requestIdFrom, isNfAttachment, inboxAttachmentPath } from "@/lib/inbound-email"
 import { DOCUMENT_BUCKET, documentPath } from "@/lib/job-documents"
+import { nfseLinkFrom, downloadNfsePdf } from "@/lib/nfse-prefeitura"
 
 const RESEND_API = "https://api.resend.com"
+
+type AdminClient = ReturnType<typeof createAdminClient>
 
 export type ReceivedEmail = {
   id: string
@@ -67,6 +70,39 @@ async function downloadAttachment(emailId: string, attachmentId: string): Promis
   return file.ok ? Buffer.from(await file.arrayBuffer()) : null
 }
 
+/**
+ * A forwarded city-hall notice carries no request tag, so the nota is matched to the
+ * oldest request still waiting for it — the accountant emits them in the order asked.
+ */
+async function oldestOpenRequest(supabase: AdminClient, userId: string):
+  Promise<{ invoice_id: string | null; job_id: string | null } | null> {
+  const { data: requests } = await supabase
+    .from("nf_requests")
+    .select("id, invoice_id, job_id")
+    .eq("user_id", userId)
+    .eq("status", "sent")
+    .order("created_at", { ascending: true })
+    .limit(20)
+
+  const withInvoice = (requests ?? []).filter(r => r.invoice_id)
+  if (withInvoice.length > 0) {
+    const { data: openInvoices } = await supabase
+      .from("invoices")
+      .select("id, job_id")
+      .in("id", withInvoice.map(r => r.invoice_id!))
+      .in("nf_status", ["pending", "requested"])
+    const open = new Map((openInvoices ?? []).map(i => [i.id, i.job_id]))
+    for (const r of withInvoice) {
+      if (open.has(r.invoice_id!)) {
+        return { invoice_id: r.invoice_id, job_id: open.get(r.invoice_id!) ?? r.job_id }
+      }
+    }
+  }
+
+  const jobOnly = (requests ?? []).find(r => !r.invoice_id && r.job_id)
+  return jobOnly ? { invoice_id: null, job_id: jobOnly.job_id } : null
+}
+
 export async function processReceivedEmail(emailId: string): Promise<{ ok: boolean; filed: boolean; error?: string }> {
   const email = await fetchReceivedEmail(emailId)
   if (!email) return { ok: false, filed: false, error: "E-mail não encontrado no Resend" }
@@ -90,9 +126,11 @@ export async function processReceivedEmail(emailId: string): Promise<{ ok: boole
     ?? (nfRequest?.invoice_id
       ? (await supabase.from("invoices").select("job_id").eq("id", nfRequest.invoice_id).maybeSingle()).data?.job_id
       : null)
+  let linkedJobId = jobId ?? null
 
   let filed = false
   let note: string | null = requestId && !nfRequest ? "Pedido não encontrado para este endereço" : null
+  const fetched: { id: string; filename: string; content_type: string; size: number; path: string }[] = []
 
   // Every PDF is kept, not only the one filed as the NF: the first on a job-linked message
   // goes to the job's documents, the rest stay in the owner's inbox folder — Resend's
@@ -130,19 +168,65 @@ export async function processReceivedEmail(emailId: string): Promise<{ ok: boole
       .in("nf_status", ["pending", "requested"])
   }
 
+  // The city hall's NFS-e notice carries no attachment, only the nota's link — the PDF is
+  // fetched from it and filed on the job exactly like an attached one would be.
+  const nfse = nfseLinkFrom(email.text, email.html)
+  if (!filed && nfse) {
+    let invoiceId = nfRequest?.invoice_id ?? null
+    if (!linkedJobId) {
+      const pending = await oldestOpenRequest(supabase, userId)
+      linkedJobId = pending?.job_id ?? null
+      invoiceId = invoiceId ?? pending?.invoice_id ?? null
+    }
+    if (!linkedJobId) {
+      note = "NFS-e da prefeitura sem pedido pendente para anexar"
+    } else {
+      const bytes = await downloadNfsePdf(nfse)
+      if (!bytes) {
+        note = "Não consegui baixar o PDF da NFS-e no site da prefeitura"
+      } else {
+        const name = `nfse-${nfse.numero}.pdf`
+        const path = documentPath(userId, linkedJobId, "nf", name)
+        const { error: upload } = await supabase.storage
+          .from(DOCUMENT_BUCKET)
+          .upload(path, bytes, { upsert: true, contentType: "application/pdf" })
+        if (upload) {
+          note = `Erro ao guardar a NFS-e: ${upload.message}`
+        } else {
+          await supabase.from("job_documents").upsert({
+            user_id: userId, job_id: linkedJobId, kind: "nf",
+            path, file_name: name, mime_type: "application/pdf", size_bytes: bytes.length,
+          }, { onConflict: "job_id,kind" })
+          fetched.push({ id: `nfse-${nfse.numero}`, filename: name, content_type: "application/pdf", size: bytes.length, path })
+          filed = true
+          note = null
+          if (invoiceId) {
+            await supabase.from("invoices")
+              .update({ nf_status: "issued", nf_issued_at: new Date().toISOString() })
+              .eq("id", invoiceId)
+              .in("nf_status", ["pending", "requested"])
+          }
+        }
+      }
+    }
+  }
+
   await supabase.from("inbound_emails").upsert({
     user_id: userId,
     nf_request_id: nfRequest?.id ?? null,
     invoice_id: nfRequest?.invoice_id ?? null,
-    job_id: jobId ?? null,
+    job_id: linkedJobId,
     resend_email_id: email.id,
     from_email: email.from,
     to_email: (email.to ?? [])[0] ?? null,
     subject: email.subject,
     body: bodyOf(email),
-    attachments: (email.attachments ?? []).map(a => ({
-      ...a, path: storedAt.get(a.id) ?? null,
-    })) as unknown as Record<string, unknown>[],
+    attachments: [
+      ...(email.attachments ?? []).map(a => ({
+        ...a, path: storedAt.get(a.id) ?? null,
+      })),
+      ...fetched,
+    ] as unknown as Record<string, unknown>[],
     filed, note,
   }, { onConflict: "resend_email_id" })
 
