@@ -48,11 +48,14 @@ const billingVariant: Record<BillingStatus, "outline" | "warning" | "success"> =
 
 const tomador = (j: HistoryJob) => j.clients?.legal_name ?? j.clients?.name ?? "—"
 
+/** Dates in this table use a 2-digit year (14/09/26) to keep the columns narrow. */
+const shortDate = (d: string | Date) => formatDate(d, "dd/MM/yy")
+
 /** One NF reads as a date; several read as the months they span. */
 function nfIssuedLabel(s: JobSummary) {
   if (!s.nfFrom || !s.nfTo) return "—"
-  if (s.nfFrom === s.nfTo) return formatDate(s.nfFrom)
-  return `${formatDate(s.nfFrom, "MM/yyyy")}–${formatDate(s.nfTo, "MM/yyyy")}`
+  if (s.nfFrom === s.nfTo) return shortDate(s.nfFrom)
+  return `${formatDate(s.nfFrom, "MM/yy")}–${formatDate(s.nfTo, "MM/yy")}`
 }
 
 type Row = { job: HistoryJob; summary: JobSummary }
@@ -104,12 +107,12 @@ function AccountantEmailCell({ job }: { job: HistoryJob }) {
       {replied ? (
         <span className="space-y-0.5">
           <Badge variant="success" className="whitespace-nowrap">Respondido</Badge>
-          <span className="block text-xs text-muted-foreground">{formatDate(replied.created_at)}</span>
+          <span className="block text-xs text-muted-foreground">{shortDate(replied.created_at)}</span>
         </span>
       ) : sent ? (
         <span className="space-y-0.5">
           <Badge variant="warning" className="whitespace-nowrap">Enviado</Badge>
-          <span className="block text-xs text-muted-foreground">{formatDate(sent.created_at)}</span>
+          <span className="block text-xs text-muted-foreground">{shortDate(sent.created_at)}</span>
         </span>
       ) : (
         <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
@@ -198,11 +201,11 @@ const BASE_COLUMNS: Column[] = [
   },
   {
     key: "start", label: "Início", sortKey: "start", nowrap: true,
-    cell: ({ summary }) => summary.start ? formatDate(summary.start) : "—",
+    cell: ({ summary }) => summary.start ? shortDate(summary.start) : "—",
   },
   {
     key: "end", label: "Fim", sortKey: "end", nowrap: true,
-    cell: ({ summary }) => summary.end ? formatDate(summary.end) : "—",
+    cell: ({ summary }) => summary.end ? shortDate(summary.end) : "—",
   },
   {
     key: "hours", label: "Horário", nowrap: true,
@@ -270,7 +273,7 @@ const DOCUMENT_COLUMNS: Column[] = DOCUMENT_KINDS.map(kind => ({
     if (!attached && !sent) return <NotAttached />
     return (
       <AttachedCheck
-        title={sent ? `Pedido enviado em ${formatDate(sent.created_at)}` : undefined}
+        title={sent ? `Pedido enviado em ${shortDate(sent.created_at)}` : undefined}
       />
     )
   },
