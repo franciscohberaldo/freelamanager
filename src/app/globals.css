@@ -94,3 +94,25 @@
     letter-spacing: -0.01em;
   }
 }
+
+/*
+ * Radix Select lists scroll internally but show no scrollbar by default, which hides
+ * the fact that there are more items. Give the viewport a slim always-visible bar.
+ */
+[data-radix-select-viewport] {
+  overflow-y: auto;
+  max-height: var(--radix-select-content-available-height, 24rem);
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.45) hsl(var(--muted) / 0.5);
+}
+[data-radix-select-viewport]::-webkit-scrollbar {
+  width: 8px;
+}
+[data-radix-select-viewport]::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.45);
+  border-radius: 4px;
+}
+[data-radix-select-viewport]::-webkit-scrollbar-track {
+  background: hsl(var(--muted) / 0.5);
+  border-radius: 4px;
+}
