@@ -51,6 +51,8 @@ export function CreateInvoiceDialog({
   const [dueDate, setDueDate] = useState("")
   const [notes, setNotes] = useState("")
   const [logs, setLogs] = useState<DailyLog[]>([])
+  /** log_id → invoice_number of the invoice that already billed that day. */
+  const [invoicedMap, setInvoicedMap] = useState<Record<string, string>>({})
   const [poNumber, setPoNumber] = useState(jobs[0]?.po_number ?? "")
   type ManualLine = { description: string; job_number: string; quantity: number; rate: number }
   const [manualLines, setManualLines] = useState<ManualLine[]>([])
@@ -79,13 +81,40 @@ export function CreateInvoiceDialog({
 
     if (error) { toast.error("Erro ao buscar registros"); setLoading(false); return }
     if ((!data || data.length === 0) && manualLines.length === 0) { toast.warning("Nenhum registro no período e nenhuma linha livre"); setLoading(false); return }
-    setLogs(data ?? [])
+
+    // Cross-check: which of these days were already billed on another invoice of this job
+    const fetched = data ?? []
+    const map: Record<string, string> = {}
+    if (fetched.length > 0) {
+      const { data: jobInvoices } = await supabase
+        .from("invoices")
+        .select("id, invoice_number")
+        .eq("job_id", jobId)
+      const invoiceIds = (jobInvoices ?? []).map(i => i.id)
+      if (invoiceIds.length > 0) {
+        const { data: items } = await supabase
+          .from("invoice_items")
+          .select("log_id, invoice_id")
+          .in("log_id", fetched.map(l => l.id))
+          .in("invoice_id", invoiceIds)
+        ;(items ?? []).forEach(it => {
+          if (!it.log_id) return
+          const inv = (jobInvoices ?? []).find(i => i.id === it.invoice_id)
+          if (inv) map[it.log_id] = inv.invoice_number
+        })
+      }
+    }
+    setInvoicedMap(map)
+    setLogs(fetched)
     setStep("preview")
     setLoading(false)
   }
 
-  const totalHours = logs.reduce((s, l) => s + l.hours_billed, 0)
-  const subtotal = (isProject ? projectValue : logs.reduce((s, l) => s + l.total_value, 0)) + manualSubtotal
+  const freshLogs    = logs.filter(l => !invoicedMap[l.id])
+  const alreadyBilled = logs.filter(l => invoicedMap[l.id])
+
+  const totalHours = freshLogs.reduce((s, l) => s + l.hours_billed, 0)
+  const subtotal = (isProject ? projectValue : freshLogs.reduce((s, l) => s + l.total_value, 0)) + manualSubtotal
   const taxRate = selectedJob?.tax_rate ?? 0
   const taxAmount = subtotal * (taxRate / 100)
   const total = subtotal + taxAmount
@@ -142,7 +171,7 @@ export function CreateInvoiceDialog({
       unit: "project" as const,
       rate: projectValue,
       subtotal: projectValue,
-    }] : logs.map((l) => ({
+    }] : freshLogs.map((l) => ({
       invoice_id: invoice.id,
       log_id: l.id,
       date: l.date,
@@ -169,13 +198,14 @@ export function CreateInvoiceDialog({
     setOpen(false)
     setStep("config")
     setLogs([])
+    setInvoicedMap({})
     setManualLines([])
     router.refresh()
     setLoading(false)
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setStep("config"); setLogs([]) } }}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setStep("config"); setLogs([]); setInvoicedMap({}) } }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -281,20 +311,38 @@ export function CreateInvoiceDialog({
 
               <div className="border-t pt-3 space-y-2">
                 <p className="text-sm font-medium">
-                  Registros ({logs.length})
+                  Registros ({freshLogs.length})
                   {isProject && (
                     <span className="ml-1.5 font-normal text-xs text-muted-foreground">
                       tempo gasto; a invoice sai com uma linha só
                     </span>
                   )}
                 </p>
-                {logs.map((l) => (
+                {freshLogs.map((l) => (
                   <div key={l.id} className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{formatDate(l.date)} · {qtyLabel(l.hours_billed)}</span>
                     <span>{isProject ? "—" : formatCurrency(l.total_value, selectedJob?.currency)}</span>
                   </div>
                 ))}
               </div>
+
+              {alreadyBilled.length > 0 && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 space-y-1.5">
+                  <p className="text-sm font-medium flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                    <AlertCircle className="w-4 h-4" />
+                    {alreadyBilled.length} {alreadyBilled.length === 1 ? "diária já foi faturada" : "diárias já foram faturadas"} para este job
+                  </p>
+                  {alreadyBilled.map(l => (
+                    <div key={l.id} className="flex justify-between text-xs text-amber-700 dark:text-amber-400">
+                      <span>{formatDate(l.date)} · {qtyLabel(l.hours_billed)}</span>
+                      <span>Invoice #{invoicedMap[l.id]}</span>
+                    </div>
+                  ))}
+                  <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
+                    Essas diárias ficaram de fora deste invoice para não cobrar em dobro.
+                  </p>
+                </div>
+              )}
 
               {manualLines.length > 0 && (
                 <div className="border-t pt-3 space-y-2">
@@ -334,7 +382,7 @@ export function CreateInvoiceDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setStep("config")}>Voltar</Button>
-              <Button onClick={createInvoice} disabled={loading}>
+              <Button onClick={createInvoice} disabled={loading || (freshLogs.length === 0 && manualLines.filter(l => l.description.trim() && l.quantity > 0).length === 0)}>
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 Criar Invoice
               </Button>

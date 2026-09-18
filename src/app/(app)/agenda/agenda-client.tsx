@@ -9,17 +9,22 @@ import { TableView } from "./table-view"
 import { GanttView } from "./gantt-view"
 import { CalendarView, type CalendarHold } from "./calendar-view"
 import { TimelineView } from "./timeline-view"
+import type { DayLog } from "./day-dialog"
+import type { JobOption } from "../logs/log-dialog"
 import type { AgendaEvent } from "@/lib/supabase/types"
 
 interface Job { id: string; name: string; start_date: string | null; end_date: string | null; status: string }
 
+export type AgendaJob = Job & JobOption
+
 interface Props {
   events: (AgendaEvent & { jobs: { name: string } | null })[]
-  jobs: Job[]
+  jobs: AgendaJob[]
   holds: CalendarHold[]
+  logs: DayLog[]
 }
 
-export function AgendaClient({ events, jobs, holds }: Props) {
+export function AgendaClient({ events, jobs, holds, logs }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   return (
@@ -57,7 +62,7 @@ export function AgendaClient({ events, jobs, holds }: Props) {
         </div>
 
         <TabsContent value="calendar" className="flex-1 m-0 overflow-auto p-6">
-          <CalendarView events={events} holds={holds} />
+          <CalendarView events={events} holds={holds} logs={logs} jobs={jobs} />
         </TabsContent>
         <TabsContent value="table" className="flex-1 m-0">
           <TableView events={events} jobs={jobs} onNew={() => setDialogOpen(true)} />

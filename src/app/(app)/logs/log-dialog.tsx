@@ -18,7 +18,7 @@ import { Loader2, Timer, Square } from "lucide-react"
 import { format } from "date-fns"
 import type { DailyLog } from "@/lib/supabase/types"
 
-interface JobOption {
+export interface JobOption {
   id: string
   name: string
   hourly_rate: number
@@ -34,11 +34,13 @@ interface Props {
   log?: DailyLog
   mode: "create" | "edit" | "duplicate"
   hourRounding?: string
+  /** Pre-fills the date field on create (e.g. a day clicked in the agenda). */
+  defaultDate?: string
 }
 
 const isDailyJob = (job?: JobOption) => job?.billing_mode === "daily"
 
-export function LogDialog({ children, jobs, log, mode, hourRounding = "none" }: Props) {
+export function LogDialog({ children, jobs, log, mode, hourRounding = "none", defaultDate }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -49,7 +51,7 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none" }: 
 
   const [form, setForm] = useState({
     job_id:       log?.job_id ?? (jobs[0]?.id ?? ""),
-    date:         isDuplicate ? format(new Date(), "yyyy-MM-dd") : (log?.date ?? format(new Date(), "yyyy-MM-dd")),
+    date:         isDuplicate ? format(new Date(), "yyyy-MM-dd") : (log?.date ?? defaultDate ?? format(new Date(), "yyyy-MM-dd")),
     meetings:     log?.meetings ?? "",
     requests:     log?.requests ?? "",
     daily_rate:   log?.daily_rate ?? (jobs[0]?.daily_rate ?? 0),

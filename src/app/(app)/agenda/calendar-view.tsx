@@ -6,6 +6,8 @@ import { ptBR } from "date-fns/locale"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { AgendaEvent } from "@/lib/supabase/types"
+import { DayDialog, type DayLog } from "./day-dialog"
+import type { JobOption } from "../logs/log-dialog"
 
 export interface CalendarHold {
   id: string
@@ -20,6 +22,8 @@ export interface CalendarHold {
 interface Props {
   events: (AgendaEvent & { jobs: { name: string } | null })[]
   holds?: CalendarHold[]
+  logs?: DayLog[]
+  jobs?: JobOption[]
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -35,8 +39,9 @@ const HOLD_STYLE: Record<CalendarHold["type"], { color: string; label: string }>
   "booked":   { color: "#3b82f6", label: "Booked" },
 }
 
-export function CalendarView({ events, holds = [] }: Props) {
+export function CalendarView({ events, holds = [], logs = [], jobs = [] }: Props) {
   const [month, setMonth] = useState(new Date())
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
 
   // Holds active on a given day (booked wins over 1st hold over 2nd hold)
   const holdsForDay = (key: string) =>
@@ -62,6 +67,16 @@ export function CalendarView({ events, holds = [] }: Props) {
     })
     return map
   }, [events])
+
+  const logsByDate = useMemo(() => {
+    const map: Record<string, DayLog[]> = {}
+    logs.forEach(l => {
+      const k = l.date.slice(0, 10)
+      if (!map[k]) map[k] = []
+      map[k].push(l)
+    })
+    return map
+  }, [logs])
 
   const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 
@@ -96,6 +111,7 @@ export function CalendarView({ events, holds = [] }: Props) {
           {days.map((day, i) => {
             const key  = format(day, "yyyy-MM-dd")
             const evs  = eventsByDate[key] ?? []
+            const dayLogs = logsByDate[key] ?? []
             const inMonth = isSameMonth(day, month)
             const today   = isToday(day)
             const dayHolds = holdsForDay(key)
@@ -103,8 +119,9 @@ export function CalendarView({ events, holds = [] }: Props) {
             return (
               <div
                 key={i}
+                onClick={() => setSelectedDay(key)}
                 className={[
-                  "min-h-24 p-1.5 border-b border-r",
+                  "min-h-24 p-1.5 border-b border-r cursor-pointer hover:bg-accent/40 transition-colors",
                   !inMonth ? "bg-muted/10" : "",
                   today ? "bg-blue-50 dark:bg-blue-950/20" : "",
                 ].join(" ")}
@@ -147,12 +164,26 @@ export function CalendarView({ events, holds = [] }: Props) {
                       +{evs.length - 3} mais
                     </div>
                   )}
+                  {dayLogs.length > 0 && (
+                    <div className="text-[10px] text-emerald-600 dark:text-emerald-400 px-1 font-medium">
+                      ● {dayLogs.length} diária{dayLogs.length > 1 ? "s" : ""}
+                    </div>
+                  )}
                 </div>
               </div>
             )
           })}
         </div>
       </div>
+
+      <DayDialog
+        date={selectedDay}
+        events={selectedDay ? (eventsByDate[selectedDay] ?? []) : []}
+        holds={selectedDay ? holdsForDay(selectedDay) : []}
+        logs={selectedDay ? (logsByDate[selectedDay] ?? []) : []}
+        jobs={jobs}
+        onClose={() => setSelectedDay(null)}
+      />
     </div>
   )
 }
