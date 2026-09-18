@@ -14,7 +14,7 @@ import { Loader2, AlertCircle } from "lucide-react"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { format, startOfMonth, endOfMonth } from "date-fns"
 import { HOURS_PER_DAY } from "@/lib/invoice-i18n"
-import { rateOf, type BillingMode } from "@/lib/billing-mode"
+import { rateOf, BILLING_MODE_LABELS, type BillingMode } from "@/lib/billing-mode"
 import type { DailyLog } from "@/lib/supabase/types"
 import { initialNfStatus } from "@/lib/nf-status"
 
@@ -223,7 +223,7 @@ export function CreateInvoiceDialog({
                 <SelectContent>
                   {jobs.map((j) => (
                     <SelectItem key={j.id} value={j.id}>
-                      {j.name} {j.clients ? `· ${j.clients.name}` : ""}
+                      {[j.clients?.name, j.name, BILLING_MODE_LABELS[j.billing_mode ?? "hourly"]].filter(Boolean).join(" · ")}
                     </SelectItem>
                   ))}
                 </SelectContent>

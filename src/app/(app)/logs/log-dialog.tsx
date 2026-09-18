@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import { calculateTotal } from "@/lib/utils"
 import { roundHours } from "@/lib/csv"
 import { HOURS_PER_DAY } from "@/lib/invoice-i18n"
-import { logValue, type BillingMode } from "@/lib/billing-mode"
+import { logValue, BILLING_MODE_LABELS, type BillingMode } from "@/lib/billing-mode"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -39,8 +39,6 @@ interface Props {
 }
 
 const isDailyJob = (job?: JobOption) => job?.billing_mode === "daily"
-
-const BILLING_LABELS: Record<string, string> = { hourly: "Hora", daily: "Diária", fixed: "Projeto" }
 
 export function LogDialog({ children, jobs, log, mode, hourRounding = "none", defaultDate }: Props) {
   const [open, setOpen] = useState(false)
@@ -168,7 +166,7 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none", de
                 <SelectContent>
                   {jobs.map((j) => (
                     <SelectItem key={j.id} value={j.id}>
-                      {[j.clients?.name, j.name, BILLING_LABELS[j.billing_mode ?? "hourly"]].filter(Boolean).join(" · ")}
+                      {[j.clients?.name, j.name, BILLING_MODE_LABELS[j.billing_mode ?? "hourly"]].filter(Boolean).join(" · ")}
                     </SelectItem>
                   ))}
                 </SelectContent>
