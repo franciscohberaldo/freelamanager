@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Loader2, Image as ImageIcon } from "lucide-react"
 import type { Job } from "@/lib/supabase/types"
 import { COMMON_TIMEZONES, workHoursInLocal } from "@/lib/timezone"
@@ -170,16 +171,13 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2 sm:col-span-2">
           <Label>Cliente *</Label>
-          <Select defaultValue={job?.client_id} onValueChange={(v) => setValue("client_id", v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione um cliente" />
-            </SelectTrigger>
-            <SelectContent>
-              {clients.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            options={clients.map(c => ({ value: c.id, label: c.name }))}
+            value={watch("client_id")}
+            onChange={(v) => setValue("client_id", v, { shouldValidate: true })}
+            placeholder="Selecione um cliente"
+            searchPlaceholder="Buscar cliente…"
+          />
           {errors.client_id && <p className="text-xs text-destructive">{errors.client_id.message}</p>}
         </div>
 

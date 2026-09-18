@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Loader2, Timer, Square } from "lucide-react"
 import { format } from "date-fns"
 import type { DailyLog } from "@/lib/supabase/types"
@@ -159,18 +159,16 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none", de
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2 col-span-2">
               <Label>Job *</Label>
-              <Select defaultValue={form.job_id} onValueChange={(v) => update("job_id", v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o job" />
-                </SelectTrigger>
-                <SelectContent>
-                  {jobs.map((j) => (
-                    <SelectItem key={j.id} value={j.id}>
-                      {[j.clients?.name, j.name, BILLING_MODE_LABELS[j.billing_mode ?? "hourly"]].filter(Boolean).join(" · ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={jobs.map(j => ({
+                  value: j.id,
+                  label: [j.clients?.name, j.name, BILLING_MODE_LABELS[j.billing_mode ?? "hourly"]].filter(Boolean).join(" · "),
+                }))}
+                value={form.job_id}
+                onChange={(v) => update("job_id", v)}
+                placeholder="Selecione o job"
+                searchPlaceholder="Buscar job…"
+              />
             </div>
 
             <div className="space-y-2 col-span-2">

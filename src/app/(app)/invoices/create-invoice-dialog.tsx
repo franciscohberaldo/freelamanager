@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Loader2, AlertCircle } from "lucide-react"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { format, startOfMonth, endOfMonth } from "date-fns"
@@ -218,16 +218,16 @@ export function CreateInvoiceDialog({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Job *</Label>
-              <Select value={jobId} onValueChange={(v) => { setJobId(v); const j = jobs.find(x => x.id === v); setPoNumber(j?.po_number ?? "") }}>
-                <SelectTrigger><SelectValue placeholder="Selecione o job" /></SelectTrigger>
-                <SelectContent>
-                  {jobs.map((j) => (
-                    <SelectItem key={j.id} value={j.id}>
-                      {[j.clients?.name, j.name, BILLING_MODE_LABELS[j.billing_mode ?? "hourly"]].filter(Boolean).join(" · ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={jobs.map(j => ({
+                  value: j.id,
+                  label: [j.clients?.name, j.name, BILLING_MODE_LABELS[j.billing_mode ?? "hourly"]].filter(Boolean).join(" · "),
+                }))}
+                value={jobId}
+                onChange={(v) => { setJobId(v); const j = jobs.find(x => x.id === v); setPoNumber(j?.po_number ?? "") }}
+                placeholder="Selecione o job"
+                searchPlaceholder="Buscar job…"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
