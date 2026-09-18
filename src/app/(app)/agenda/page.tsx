@@ -22,6 +22,7 @@ export default async function AgendaPage() {
       .from("jobs")
       .select("id, name, start_date, end_date, status, hourly_rate, daily_rate, billing_mode, currency, clients(name)")
       .eq("user_id", user!.id)
+      .neq("status", "completed")
       .order("name"),
     supabase
       .from("availability_holds")
