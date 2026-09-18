@@ -40,6 +40,8 @@ interface Props {
 
 const isDailyJob = (job?: JobOption) => job?.billing_mode === "daily"
 
+const BILLING_LABELS: Record<string, string> = { hourly: "Hora", daily: "Diária", fixed: "Projeto" }
+
 export function LogDialog({ children, jobs, log, mode, hourRounding = "none", defaultDate }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -166,7 +168,7 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none", de
                 <SelectContent>
                   {jobs.map((j) => (
                     <SelectItem key={j.id} value={j.id}>
-                      {j.name} {j.clients ? `· ${(j.clients as { name: string }).name}` : ""}
+                      {[j.clients?.name, j.name, BILLING_LABELS[j.billing_mode ?? "hourly"]].filter(Boolean).join(" · ")}
                     </SelectItem>
                   ))}
                 </SelectContent>
