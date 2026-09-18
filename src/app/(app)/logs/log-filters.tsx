@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter, useSearchParams } from "next/navigation"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { format, subMonths, addMonths, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
@@ -40,20 +40,14 @@ export function LogFilters({ jobs, currentMonth, currentJobId }: Props) {
         </Button>
       </div>
 
-      <Select
-        defaultValue={currentJobId ?? "all"}
-        onValueChange={(v) => navigate(currentMonth, v === "all" ? undefined : v)}
-      >
-        <SelectTrigger className="w-48">
-          <SelectValue placeholder="Todos os jobs" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todos os jobs</SelectItem>
-          {jobs.map((j) => (
-            <SelectItem key={j.id} value={j.id}>{j.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Combobox
+        options={[{ value: "all", label: "Todos os jobs" }, ...jobs.map(j => ({ value: j.id, label: j.name }))]}
+        value={currentJobId ?? "all"}
+        onChange={(v) => navigate(currentMonth, v === "all" ? undefined : v)}
+        placeholder="Todos os jobs"
+        searchPlaceholder="Buscar job…"
+        className="w-48"
+      />
     </div>
   )
 }

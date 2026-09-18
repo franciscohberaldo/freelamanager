@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Plus, Pencil, Trash2, Loader2, GripVertical } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
@@ -118,15 +119,13 @@ function DealDialog({
             </div>
             <div className="space-y-2">
               <Label>Cliente</Label>
-              <Select value={form.client_id || "none"} onValueChange={v => set("client_id", v)}>
-                <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhum</SelectItem>
-                  {clients.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={[{ value: "none", label: "Nenhum" }, ...clients.map(c => ({ value: c.id, label: c.name }))]}
+                value={form.client_id || "none"}
+                onChange={v => set("client_id", v)}
+                placeholder="Nenhum"
+                searchPlaceholder="Buscar cliente…"
+              />
             </div>
           </div>
 

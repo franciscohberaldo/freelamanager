@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Loader2, FolderKanban, CalendarRange, ChevronRight, BookTemplate, Save } from "lucide-react"
@@ -151,13 +152,13 @@ function NewProjectDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Cliente</Label>
-              <Select value={form.client_id} onValueChange={v => set("client_id", v)}>
-                <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhum</SelectItem>
-                  {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={[{ value: "none", label: "Nenhum" }, ...clients.map(c => ({ value: c.id, label: c.name }))]}
+                value={form.client_id}
+                onChange={v => set("client_id", v)}
+                placeholder="Nenhum"
+                searchPlaceholder="Buscar cliente…"
+              />
             </div>
             <div className="space-y-2">
               <Label>Status</Label>

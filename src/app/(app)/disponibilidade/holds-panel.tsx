@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Plus, Trash2, CalendarRange } from "lucide-react"
 import { format, parseISO, differenceInCalendarDays } from "date-fns"
@@ -129,23 +130,23 @@ export function HoldsPanel({ holds, clients, jobs }: Props) {
         <form onSubmit={addHold} className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t">
           <div className="space-y-1">
             <Label className="text-xs">Cliente</Label>
-            <Select value={form.client_id || "none"} onValueChange={v => { set("client_id", v === "none" ? "" : v); set("job_id", "") }}>
-              <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sem cliente</SelectItem>
-                {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Combobox
+              options={[{ value: "none", label: "Sem cliente" }, ...clients.map(c => ({ value: c.id, label: c.name }))]}
+              value={form.client_id || "none"}
+              onChange={v => { set("client_id", v === "none" ? "" : v); set("job_id", "") }}
+              placeholder="Selecionar"
+              searchPlaceholder="Buscar cliente…"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Job (opcional)</Label>
-            <Select value={form.job_id || "none"} onValueChange={v => set("job_id", v === "none" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nenhum</SelectItem>
-                {jobsForClient.map(j => <SelectItem key={j.id} value={j.id}>{j.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Combobox
+              options={[{ value: "none", label: "Nenhum" }, ...jobsForClient.map(j => ({ value: j.id, label: j.name }))]}
+              value={form.job_id || "none"}
+              onChange={v => set("job_id", v === "none" ? "" : v)}
+              placeholder="Nenhum"
+              searchPlaceholder="Buscar job…"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Tipo</Label>

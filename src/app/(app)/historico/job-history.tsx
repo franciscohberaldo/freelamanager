@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { formatCurrency, formatDate, JOB_STATUS_LABELS } from "@/lib/utils"
 import { rateOf, rateLabel } from "@/lib/billing-mode"
 import { workHoursInLocal } from "@/lib/timezone"
@@ -389,13 +390,13 @@ export function JobHistory({ jobs }: { jobs: HistoryJob[] }) {
           placeholder="Buscar por job, marca ou tomador"
           className="w-64"
         />
-        <Select value={client} onValueChange={setClient}>
-          <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os tomadores</SelectItem>
-            {clientNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <Combobox
+          options={[{ value: "all", label: "Todos os tomadores" }, ...clientNames.map(n => ({ value: n, label: n }))]}
+          value={client}
+          onChange={setClient}
+          searchPlaceholder="Buscar tomador…"
+          className="w-56"
+        />
         <Select value={billing} onValueChange={v => setBilling(v as typeof billing)}>
           <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
