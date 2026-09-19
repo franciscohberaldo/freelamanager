@@ -64,9 +64,9 @@ export async function POST(request: NextRequest) {
     return `
     <tr>
       <td style="padding:8px;border-bottom:1px solid #eee">${formatDatePDF(item.date, lang)}</td>
-      <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${item.description ?? formatQuantity(q.quantity, q.unit, lang)}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${workedDay ? (item.description ?? job?.name ?? "") : (item.description ?? formatQuantity(q.quantity, q.unit, lang))}</td>
       <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${workedDay ? "—" : formatCurrency(item.rate, invoice.currency)}</td>
-      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;font-weight:bold">${workedDay ? "—" : formatCurrency(item.subtotal, invoice.currency)}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;font-weight:bold">${workedDay ? (item.hours_billed > 0 ? formatQuantity(item.hours_billed, "hour", lang) : "—") : formatCurrency(item.subtotal, invoice.currency)}</td>
     </tr>
   `}).join("") ?? ""
 

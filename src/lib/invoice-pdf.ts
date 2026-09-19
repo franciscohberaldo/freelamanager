@@ -296,17 +296,21 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   say(job?.name ?? "", X.label, Y.serviceValue)
 
   // ── the lines ──────────────────────────────────────────────────────────────
-  // Every invoice lists the days worked. On a project they carry no amount of their own —
-  // the closed price sits on the project line — so they read as a record, not a charge.
+  // Every invoice lists the days worked. On a project each day names the job and puts
+  // its hours where the money would go — the closed price sits on the project line —
+  // so the days read as a record, not a charge.
   let y = Y.itemsStart
   for (const item of items) {
     const q = resolveItemQuantity(item, billingMode)
     const workedDay = isWorkedDayLine(item, billingMode)
     say(format(parseISO(item.date), "dd/MM"), X.label, y, { tone: INK.figure })
-    const label = item.description
-      ?? (workedDay && !(item.hours_billed > 0) ? t.workedDay : formatQuantity(q.quantity, q.unit, lang))
-    say(label, X.itemDesc, y, { tone: INK.figure })
-    if (!workedDay) say(cur(item.subtotal), X.itemAmount, y, { tone: INK.figure })
+    if (workedDay) {
+      say(item.description ?? job?.name ?? t.workedDay, X.itemDesc, y, { tone: INK.figure })
+      say(item.hours_billed > 0 ? formatQuantity(item.hours_billed, "hour", lang) : t.workedDay, X.itemAmount, y, { tone: INK.figure })
+    } else {
+      say(item.description ?? formatQuantity(q.quantity, q.unit, lang), X.itemDesc, y, { tone: INK.figure })
+      say(cur(item.subtotal), X.itemAmount, y, { tone: INK.figure })
+    }
     y += ROW
   }
 
