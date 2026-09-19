@@ -13,13 +13,13 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Download, Send, CheckCircle2, Loader2, DollarSign, Sparkles, Copy, CreditCard, Receipt, Eye } from "lucide-react"
+import { MoreHorizontal, Download, Send, CheckCircle2, Loader2, DollarSign, Sparkles, Copy, CreditCard, Receipt, Eye, Trash2 } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { format } from "date-fns"
 import { formatCurrency } from "@/lib/utils"
 import type { Invoice } from "@/lib/supabase/types"
 import type { InvoiceLang } from "@/lib/invoice-i18n"
-import { NF_STATUS_LABELS, canTransition, type NfStatus } from "@/lib/nf-status"
+import { NF_STATUS_LABELS, canTransition, formatNfNumber, effectiveNfSeries, type NfStatus } from "@/lib/nf-status"
 import { NfRequestDialog } from "./nf-request-dialog"
 import { NfRegisterDialog } from "./nf-register-dialog"
 
@@ -202,6 +202,68 @@ function PaymentDialog({
   )
 }
 
+/**
+ * Removing an invoice takes its lines, payments, NF requests and payment links with it
+ * (the database cascades); e-mails about it stay in the inbox, unlinked. The sequence
+ * number is not reused. A paid invoice or one with an issued NF gets a louder warning.
+ */
+function DeleteInvoiceDialog({
+  invoice, paidAmount, open, onClose,
+}: { invoice: Invoice; paidAmount: number; open: boolean; onClose: () => void }) {
+  const supabase = createClient()
+  const router   = useRouter()
+  const [deleting, setDeleting] = useState(false)
+
+  const label     = invoice.seq_number ?? invoice.invoice_number
+  const nfStatus  = (invoice.nf_status ?? "not_required") as NfStatus
+  const hasMoney  = invoice.status === "paid" || paidAmount > 0
+  const hasNf     = nfStatus === "issued" || nfStatus === "sent"
+  const nfNumber  = invoice.nf_number ? formatNfNumber(effectiveNfSeries(invoice.nf_series, invoice.nf_issued_at), invoice.nf_number) : null
+
+  async function remove() {
+    setDeleting(true)
+    const { error } = await supabase.from("invoices").delete().eq("id", invoice.id)
+    if (error) { toast.error(`Erro ao excluir invoice: ${error.message}`); setDeleting(false); return }
+    toast.success(`Invoice ${label} excluída`)
+    setDeleting(false)
+    onClose()
+    router.refresh()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Excluir invoice {label}?</DialogTitle>
+          <DialogDescription>
+            Saem junto as linhas, os pagamentos registrados e os pedidos de NF desta invoice.
+            E-mails sobre ela ficam na caixa de entrada, sem vínculo. O número {label} não volta a ser usado.
+          </DialogDescription>
+        </DialogHeader>
+
+        {(hasMoney || hasNf) && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-sm text-amber-800 dark:text-amber-300 space-y-1">
+            {hasMoney && (
+              <p>Esta invoice já tem pagamento registrado{invoice.status === "paid" ? " e está marcada como paga" : ""}. O histórico financeiro perde esse recebimento.</p>
+            )}
+            {hasNf && (
+              <p>A nota fiscal {nfNumber ?? ""} já foi emitida sobre ela. Excluir a invoice não cancela a NF na prefeitura.</p>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={deleting}>Cancelar</Button>
+          <Button variant="destructive" onClick={remove} disabled={deleting}>
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Excluir
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function AiDescriptionDialog({
   invoiceId, open, onClose,
 }: { invoiceId: string; open: boolean; onClose: () => void }) {
@@ -299,6 +361,7 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
   const [aiOpen, setAiOpen]           = useState(false)
   const [nfOpen, setNfOpen]           = useState(false)
   const [nfRegisterOpen, setNfRegisterOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen]   = useState(false)
   const nfStatus = (invoice.nf_status ?? "not_required") as NfStatus
   const [linkLoading, setLinkLoading] = useState(false)
   const router   = useRouter()
@@ -457,8 +520,21 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
               </DropdownMenuItem>
             </>
           )}
+
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive">
+            <Trash2 className="w-4 h-4" />
+            Excluir invoice
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <DeleteInvoiceDialog
+        invoice={invoice}
+        paidAmount={paidAmount}
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+      />
 
       <PaymentDialog
         invoiceId={invoice.id}
