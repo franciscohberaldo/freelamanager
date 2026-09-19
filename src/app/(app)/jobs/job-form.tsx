@@ -252,11 +252,6 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
         </div>
 
         <div className="space-y-2">
-          <Label>Intermediário (estúdio)</Label>
-          <Input {...register("intermediary")} placeholder="ex: Lobo" />
-        </div>
-
-        <div className="space-y-2">
           <Label>Nº da PO (padrão)</Label>
           <Input {...register("po_number")} placeholder="ex: 4702134214" />
         </div>

@@ -11,6 +11,7 @@ import { DeleteJobButton } from "./delete-job-button"
 import { JobDocumentsPanel } from "./job-documents-panel"
 import { NfRequestAction, type SentRequest } from "./nf-request-action"
 import { InvoiceDocAction } from "./invoice-doc-action"
+import { InvoiceActions } from "@/app/(app)/invoices/invoice-actions"
 import { rateOf, rateLabel } from "@/lib/billing-mode"
 import { canTransition, formatNfNumber, effectiveNfSeries, type NfStatus } from "@/lib/nf-status"
 import { ArrowLeft, FileText, Image as ImageIcon } from "lucide-react"
@@ -190,6 +191,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
                   <th className="p-2 text-right">Total</th>
                   <th className="p-2 text-left">Status</th>
                   <th className="p-2 text-left">NF</th>
+                  <th className="p-2 w-12"><span className="sr-only">Ações</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -210,6 +212,9 @@ export default async function JobPage({ params }: { params: { id: string } }) {
                     <td className="p-2 font-mono">
                       {inv.nf_number ? formatNfNumber(effectiveNfSeries(inv.nf_series, inv.nf_issued_at), inv.nf_number) : <span className="text-muted-foreground font-sans">—</span>}
                     </td>
+                    <td className="p-1 text-right">
+                      <InvoiceActions invoice={inv} clientEmail={client?.email ?? null} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -217,7 +222,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
           </div>
         )}
         <p className="text-xs text-muted-foreground mt-3">
-          Invoices são criadas e editadas em <Link href="/invoices" className="underline">Invoices</Link>.
+          O menu de cada linha faz o mesmo que em <Link href="/invoices" className="underline">Invoices</Link>: PDF, e-mail, NF, pagamento e exclusão.
         </p>
       </section>
     </div>
