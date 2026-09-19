@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { AgendaClient } from "./agenda-client"
+import { jobStage, type StageInvoice, type StageDocument } from "@/lib/job-stage"
 
 export default async function AgendaPage() {
   const supabase = await createClient()
@@ -12,6 +13,8 @@ export default async function AgendaPage() {
     { data: jobs },
     { data: holds },
     { data: logs },
+    { data: invoices },
+    { data: documents },
   ] = await Promise.all([
     supabase
       .from("agenda_events")
@@ -36,7 +39,25 @@ export default async function AgendaPage() {
       .gte("date", `${year - 1}-01-01`)
       .lte("date", `${year + 1}-12-31`)
       .order("date"),
+    supabase
+      .from("invoices")
+      .select("job_id, status, nf_status")
+      .eq("user_id", user!.id),
+    supabase
+      .from("job_documents")
+      .select("job_id, kind")
+      .eq("user_id", user!.id),
   ])
+
+  // Where each job stands — work, invoice, NF, DAS, money — drawn on its calendar chip.
+  const invoicesByJob = new Map<string, StageInvoice[]>()
+  for (const i of invoices ?? []) invoicesByJob.set(i.job_id, [...(invoicesByJob.get(i.job_id) ?? []), i])
+  const docsByJob = new Map<string, StageDocument[]>()
+  for (const d of documents ?? []) docsByJob.set(d.job_id, [...(docsByJob.get(d.job_id) ?? []), d])
+  const jobsWithStage = (jobs ?? []).map(j => ({
+    ...j,
+    stage: jobStage(j, invoicesByJob.get(j.id) ?? [], docsByJob.get(j.id) ?? []),
+  }))
 
   if (eventsError) {
     console.error("agenda_events query error:", eventsError.message)
@@ -45,7 +66,7 @@ export default async function AgendaPage() {
   return (
     <AgendaClient
       events={events ?? []}
-      jobs={(jobs ?? []) as unknown as import("./agenda-client").AgendaJob[]}
+      jobs={jobsWithStage as unknown as import("./agenda-client").AgendaJob[]}
       holds={(holds ?? []) as unknown as import("./calendar-view").CalendarHold[]}
       logs={(logs ?? []) as unknown as import("./day-dialog").DayLog[]}
     />

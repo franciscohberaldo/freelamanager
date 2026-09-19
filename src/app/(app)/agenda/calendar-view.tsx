@@ -7,6 +7,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import type { AgendaEvent } from "@/lib/supabase/types"
+import type { JobStage } from "@/lib/job-stage"
+import { JobStageIcon, RunnerIcon } from "@/components/job-stage-icon"
+import { JOB_STAGE_LABELS } from "@/lib/job-stage"
+import { CircleDollarSign, X } from "lucide-react"
 import { DayDialog, type DayLog } from "./day-dialog"
 import type { JobOption } from "../logs/log-dialog"
 
@@ -26,6 +30,8 @@ export interface CalendarJob {
   start_date: string | null
   end_date: string | null
   status: string
+  /** Work, or the first pending step after it, or done — see lib/job-stage. */
+  stage?: JobStage
 }
 
 interface Props {
@@ -160,6 +166,10 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
             <span className={cn("w-2 h-2 rounded-full", TONE[l.tone].dot)} /> {l.label}
           </span>
         ))}
+        <span className="hidden sm:inline-block w-px h-4 bg-border" aria-hidden />
+        <span className="flex items-center gap-1.5"><RunnerIcon className="w-3.5 h-3.5" /> Em andamento</span>
+        <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400"><X className="w-3.5 h-3.5" strokeWidth={2.5} /><span className="text-foreground/80">Pendência (invoice, NF, DAS, recebimento)</span></span>
+        <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400"><CircleDollarSign className="w-3.5 h-3.5" /><span className="text-foreground/80">Recebido</span></span>
       </div>
 
       {/* Weekdays */}
@@ -214,9 +224,15 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                     href={`/jobs/${j.id}`}
                     onClick={e => e.stopPropagation()}
                     title={`${j.name} — ${j.start_date}${j.end_date && j.end_date !== j.start_date ? ` a ${j.end_date}` : ""}${j.status === "completed" ? " (encerrado)" : ""}`}
-                    className={chip(j.status === "completed" ? "grey" : "blue")}
+                    className={cn(chip(j.status === "completed" ? "grey" : "blue"), "flex items-center gap-1.5")}
                   >
-                    {j.name}
+                    {j.stage && <JobStageIcon stage={j.stage} withLabel={false} />}
+                    <span className="truncate">{j.name}</span>
+                    {j.stage && j.stage !== "work" && j.stage !== "done" && (
+                      <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-400 shrink-0">
+                        {JOB_STAGE_LABELS[j.stage]}
+                      </span>
+                    )}
                   </Link>
                 ))}
                 {dayJobs.length > 2 && (

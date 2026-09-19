@@ -11,6 +11,7 @@ import { JobDocumentsPanel } from "./job-documents-panel"
 import { NfRequestAction, type SentRequest } from "./nf-request-action"
 import { InvoiceDocAction } from "./invoice-doc-action"
 import { JobDays, type JobDay } from "./job-days"
+import { JobTimeline } from "./job-timeline"
 import { InvoiceActions } from "@/app/(app)/invoices/invoice-actions"
 import { rateOf, rateLabel } from "@/lib/billing-mode"
 import { canTransition, formatNfNumber, effectiveNfSeries, type NfStatus } from "@/lib/nf-status"
@@ -116,6 +117,10 @@ export default async function JobPage({ params }: { params: { id: string } }) {
           }
         />
       </div>
+
+      <section id="linha-do-tempo" className="max-w-4xl">
+        <JobTimeline job={typedJob} invoices={jobInvoices} documents={docs} />
+      </section>
 
       <section id="dados" className="max-w-4xl">
         <JobForm clients={clients ?? []} job={typedJob} mode="edit" />

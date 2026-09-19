@@ -13,8 +13,9 @@ import { TimelineView } from "./timeline-view"
 import type { DayLog } from "./day-dialog"
 import type { JobOption } from "../logs/log-dialog"
 import type { AgendaEvent } from "@/lib/supabase/types"
+import type { JobStage } from "@/lib/job-stage"
 
-interface Job { id: string; name: string; start_date: string | null; end_date: string | null; status: string }
+interface Job { id: string; name: string; start_date: string | null; end_date: string | null; status: string; stage?: JobStage }
 
 export type AgendaJob = Job & JobOption
 
