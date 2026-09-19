@@ -170,8 +170,9 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-2 sm:col-span-2">
+      {/* ── Identificação ─────────────────────────────────────────────────────── */}
+      <Group title="Identificação" hint="Quem contratou e como o trabalho se chama.">
+        <div className="space-y-2">
           <Label>Cliente *</Label>
           <Combobox
             options={clients.map(c => ({ value: c.id, label: c.name }))}
@@ -183,27 +184,10 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
           {errors.client_id && <p className="text-xs text-destructive">{errors.client_id.message}</p>}
         </div>
 
-        <div className="space-y-2 sm:col-span-2">
+        <div className="space-y-2">
           <Label>Nome do job *</Label>
           <Input {...register("name")} placeholder="ex: Desenvolvimento Web" />
           {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-        </div>
-
-        <div className="space-y-2">
-          <Label>Cobrança</Label>
-          <Select defaultValue={job?.billing_mode ?? "hourly"} onValueChange={(v) => setValue("billing_mode", v as BillingMode)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {BILLING_MODES.map(m => (
-                <SelectItem key={m} value={m}>{BILLING_MODE_LABELS[m]}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Código do projeto</Label>
-          <Input {...register("project_code")} placeholder="ex: Deltek, PO, nº do projeto" />
         </div>
 
         <div className="space-y-2">
@@ -211,9 +195,19 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
           <Input {...register("end_client")} placeholder="ex: Mastercard" />
         </div>
 
-        <div className="space-y-2 sm:col-span-2">
+        <div className="space-y-2">
+          <Label>Código do projeto</Label>
+          <Input {...register("project_code")} placeholder="ex: Deltek, nº do projeto" />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Nº da PO (padrão)</Label>
+          <Input {...register("po_number")} placeholder="ex: 4702134214" />
+        </div>
+
+        <div className="space-y-2">
           <Label>Thumbnail do projeto</Label>
-          <div className="relative w-24 h-16 rounded border bg-muted/40 overflow-hidden shrink-0 flex items-center justify-center">
+          <div className="relative w-24 h-16 rounded-lg border bg-muted/40 overflow-hidden shrink-0 flex items-center justify-center">
             {thumbnail
               // storage URLs are user-supplied, so plain img keeps next/image config out of it
               // eslint-disable-next-line @next/next/no-img-element
@@ -250,16 +244,20 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
             </DropdownMenu>
           </div>
         </div>
+      </Group>
 
+      {/* ── Cobrança ──────────────────────────────────────────────────────────── */}
+      <Group title="Cobrança" hint="Como este job vira dinheiro.">
         <div className="space-y-2">
-          <Label>Nº da PO (padrão)</Label>
-          <Input {...register("po_number")} placeholder="ex: 4702134214" />
-        </div>
-
-        <div className="space-y-2 sm:col-span-2">
-          <Label>Descrição fiscal (texto da NF)</Label>
-          <Input {...register("nf_description")} placeholder="ex: Serviços prestados de animação" />
-          <p className="text-xs text-muted-foreground">Vai no pedido de NF ao contador. Sem inglês, sem nome de job.</p>
+          <Label>Tipo de contratação</Label>
+          <Select defaultValue={job?.billing_mode ?? "hourly"} onValueChange={(v) => setValue("billing_mode", v as BillingMode)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {BILLING_MODES.map(m => (
+                <SelectItem key={m} value={m}>{BILLING_MODE_LABELS[m]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {billingMode === "hourly" && (
@@ -273,7 +271,17 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
           <div className="space-y-2">
             <Label>Valor/dia *</Label>
             <Input {...register("daily_rate")} type="number" step="0.01" placeholder="0.00" />
-            <p className="text-xs text-muted-foreground">Registros e invoices deste job são calculados em dias (1 dia = 8h).</p>
+            <p className="text-xs text-muted-foreground">Registros e invoices são calculados em dias (1 dia = 8h).</p>
+          </div>
+        )}
+
+        {billingMode === "fixed" && (
+          <div className="space-y-2">
+            <Label>Valor do contrato *</Label>
+            <Input {...register("contract_value")} type="number" step="0.01" placeholder="Total do contrato" />
+            <p className="text-xs text-muted-foreground">
+              Preço fechado. Os dias trabalhados saem listados na invoice; o valor fica na linha do projeto.
+            </p>
           </div>
         )}
 
@@ -290,6 +298,14 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
         </div>
 
         <div className="space-y-2">
+          <Label>Taxa de imposto (%)</Label>
+          <Input {...register("tax_rate")} type="number" step="0.01" placeholder="0" />
+        </div>
+      </Group>
+
+      {/* ── Prazo e disponibilidade ───────────────────────────────────────────── */}
+      <Group title="Prazo e disponibilidade" hint="Quando acontece e em que horário o cliente trabalha.">
+        <div className="space-y-2">
           <Label>Status</Label>
           <Select defaultValue={job?.status ?? "active"} onValueChange={(v) => setValue("status", v as "proposal" | "active" | "paused" | "completed")}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -302,30 +318,15 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label>Data início</Label>
-          <Input {...register("start_date")} type="date" />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Data fim</Label>
-          <Input {...register("end_date")} type="date" />
-        </div>
-
-        {billingMode === "fixed" && (
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label>Valor do contrato *</Label>
-            <Input {...register("contract_value")} type="number" step="0.01" placeholder="Total do contrato" />
-            <p className="text-xs text-muted-foreground">
-              É o preço fechado. Os registros continuam aceitando horas, mas sem valor — a
-              invoice sai com uma linha só.
-            </p>
+            <Label>Data início</Label>
+            <Input {...register("start_date")} type="date" />
           </div>
-        )}
-
-        <div className="space-y-2">
-          <Label>Taxa de imposto (%)</Label>
-          <Input {...register("tax_rate")} type="number" step="0.01" placeholder="0" />
+          <div className="space-y-2">
+            <Label>Data fim</Label>
+            <Input {...register("end_date")} type="date" />
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -351,12 +352,21 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
             </p>
           )}
         </div>
+      </Group>
 
-        <div className="space-y-2 sm:col-span-2">
+      {/* ── Nota fiscal e notas ───────────────────────────────────────────────── */}
+      <Group title="Nota fiscal e notas" hint="O que vai para o contador e o que é só seu." single>
+        <div className="space-y-2">
+          <Label>Descrição fiscal (texto da NF)</Label>
+          <Input {...register("nf_description")} placeholder="ex: Serviços prestados de animação" />
+          <p className="text-xs text-muted-foreground">Vai no pedido de NF ao contador. Sem inglês, sem nome de job.</p>
+        </div>
+
+        <div className="space-y-2">
           <Label>Notas</Label>
           <Textarea {...register("notes")} placeholder="Observações sobre o job..." rows={3} />
         </div>
-      </div>
+      </Group>
 
       <div className="flex justify-end gap-2">
         {onCancel && (
@@ -368,5 +378,21 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
         </Button>
       </div>
     </form>
+  )
+}
+
+/** One card per subject, so a form of twenty fields reads as four short ones. */
+function Group({ title, hint, single, children }: { title: string; hint?: string; single?: boolean; children: React.ReactNode }) {
+  return (
+    <fieldset className="rounded-xl border bg-card p-5">
+      <legend className="sr-only">{title}</legend>
+      <div className="mb-4">
+        <p className="font-semibold">{title}</p>
+        {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
+      </div>
+      <div className={single ? "space-y-4" : "grid grid-cols-1 sm:grid-cols-2 gap-4"}>
+        {children}
+      </div>
+    </fieldset>
   )
 }

@@ -120,14 +120,8 @@ export default async function JobPage({ params }: { params: { id: string } }) {
         />
       </div>
 
-      <section id="dados" className="space-y-3">
-        <h2 className="text-lg font-semibold">Dados</h2>
-        <div className="max-w-3xl">
-          <JobForm clients={clients ?? []} job={typedJob} mode="edit" />
-        </div>
-        <div className="max-w-3xl pt-4 mt-2 border-t flex justify-end">
-          <DeleteJobButton jobId={typedJob.id} jobName={typedJob.name} thumbnailUrl={typedJob.thumbnail_url} />
-        </div>
+      <section id="dados" className="max-w-4xl">
+        <JobForm clients={clients ?? []} job={typedJob} mode="edit" />
       </section>
 
       <section id="documentos" className="space-y-3">
@@ -224,6 +218,12 @@ export default async function JobPage({ params }: { params: { id: string } }) {
         <p className="text-xs text-muted-foreground mt-3">
           O menu de cada linha faz o mesmo que em <Link href="/invoices" className="underline">Invoices</Link>: PDF, e-mail, NF, pagamento e exclusão.
         </p>
+      </section>
+
+      {/* Removing the job is the one action that should never sit next to Salvar. */}
+      <section className="max-w-4xl pt-6 border-t flex items-center justify-between gap-4">
+        <p className="text-sm text-muted-foreground">Excluir apaga o job. Jobs que ainda têm invoices, diárias ou documentos não podem ser excluídos.</p>
+        <DeleteJobButton jobId={typedJob.id} jobName={typedJob.name} thumbnailUrl={typedJob.thumbnail_url} />
       </section>
     </div>
   )
