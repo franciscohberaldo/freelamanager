@@ -16,6 +16,7 @@ import { format, startOfMonth, endOfMonth } from "date-fns"
 import { HOURS_PER_DAY } from "@/lib/invoice-i18n"
 import { rateOf, BILLING_MODE_LABELS, type BillingMode } from "@/lib/billing-mode"
 import { buildDraft, draftIsEmpty, type ManualLine } from "@/lib/invoice-draft"
+import { missingDays, logForDay } from "@/lib/job-days"
 import type { DailyLog } from "@/lib/supabase/types"
 import { initialNfStatus } from "@/lib/nf-status"
 
@@ -28,12 +29,20 @@ interface JobOption {
   billing_mode?: BillingMode
   project_code?: string | null
   po_number?: string | null
+  start_date?: string | null
+  end_date?: string | null
   currency: string
   tax_rate: number
   clients: { name: string; email: string | null } | null
 }
 
 const PREVIEW_DEBOUNCE_MS = 500
+
+/** The earliest and latest of the dates given, ignoring blanks. */
+const spanOf = (dates: (string | null | undefined)[]) => {
+  const ds = dates.filter((d): d is string => !!d).sort()
+  return ds.length ? { start: ds[0], end: ds[ds.length - 1] } : null
+}
 
 /**
  * Writing an invoice with the page in view: the form on the right, and on the left the
@@ -94,9 +103,36 @@ export function CreateInvoiceDialog({
   const total     = draft.subtotal + taxAmount
   const empty     = !selectedJob || draftIsEmpty(draft, selectedJob)
 
+  // ── a project is invoiced whole: its period is the job's, and its days exist ────────
+  const [projectReady, setProjectReady] = useState<string | null>(null)
+  useEffect(() => {
+    if (!open || !selectedJob) return
+    if (selectedJob.billing_mode !== "fixed") { setProjectReady(jobId); return }
+    let cancelled = false
+    ;(async () => {
+      const { data: all } = await supabase.from("daily_logs").select("date").eq("job_id", jobId).order("date")
+      let dates = (all ?? []).map(l => l.date as string)
+      if (dates.length === 0 && selectedJob.start_date && selectedJob.end_date) {
+        const { data: { user } } = await supabase.auth.getUser()
+        const missing = missingDays(selectedJob, [])
+        if (missing.length > 0 && user) {
+          const { error } = await supabase.from("daily_logs").insert(missing.map(d => logForDay(selectedJob, d, user.id)))
+          if (!error) { dates = missing; toast.success(`${missing.length} ${missing.length === 1 ? "diária criada" : "diárias criadas"} para o período do job`) }
+          else toast.error(`Não foi possível criar as diárias do job: ${error.message}`)
+        }
+      }
+      if (cancelled) return
+      const span = spanOf([selectedJob.start_date, selectedJob.end_date, ...dates])
+      if (span) { setPeriodStart(span.start); setPeriodEnd(span.end) }
+      setProjectReady(jobId)
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, jobId])
+
   // ── the days in the period, and which of them another invoice already took ──────────
   useEffect(() => {
-    if (!open || !jobId || !periodStart || !periodEnd) return
+    if (!open || !jobId || !periodStart || !periodEnd || projectReady !== jobId) return
     let cancelled = false
     setLoadingLogs(true)
     ;(async () => {
@@ -135,7 +171,7 @@ export function CreateInvoiceDialog({
     })()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, jobId, periodStart, periodEnd])
+  }, [open, jobId, periodStart, periodEnd, projectReady])
 
   // ── the page, redrawn as the fields change ──────────────────────────────────────────
   const draftKey = JSON.stringify(draft.items)
@@ -176,6 +212,7 @@ export function CreateInvoiceDialog({
 
   function reset() {
     previewAbort.current?.abort()
+    setProjectReady(null)
     setLogs([])
     setInvoicedMap({})
     setManualLines([])
@@ -291,6 +328,11 @@ export function CreateInvoiceDialog({
               />
             </div>
 
+            {isProject && (
+              <p className="text-xs text-muted-foreground -mt-2">
+                Projeto fechado: o período começa como o do job e todos os dias trabalhados entram na invoice, sem valor; o preço fica na linha do projeto.
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Período início</Label>

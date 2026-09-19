@@ -20,6 +20,8 @@ interface JobOption {
   billing_mode?: BillingMode
   project_code?: string | null
   po_number?: string | null
+  start_date?: string | null
+  end_date?: string | null
   currency: string
   tax_rate: number
   clients: { name: string; email: string | null } | null
