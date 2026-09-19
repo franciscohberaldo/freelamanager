@@ -9,6 +9,7 @@ import { downloadCsv } from "@/lib/csv"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LogDialog } from "./log-dialog"
+import { DeleteLogButton } from "./delete-log-button"
 import { LogTimerButton } from "./log-timer-button"
 import { TimesheetDialog } from "./timesheet-dialog"
 import { LoadMoreButton } from "@/components/load-more-button"
@@ -268,6 +269,11 @@ export function LogsClient({ logs, logsCount, jobs, currentMonth, hourRounding }
                       <LogDialog jobs={jobs} log={log} mode="edit" hourRounding={hourRounding}>
                         <Button variant="ghost" size="sm" className="h-7 text-xs">Editar</Button>
                       </LogDialog>
+                      <DeleteLogButton
+                        logId={log.id}
+                        logDate={formatLogDate(log.date)}
+                        jobName={job?.name ?? "—"}
+                      />
                     </div>
                   </td>
                 </tr>
