@@ -54,6 +54,7 @@ export function CreateInvoiceDialog({
   /** log_id → invoice_number of the invoice that already billed that day. */
   const [invoicedMap, setInvoicedMap] = useState<Record<string, string>>({})
   const [poNumber, setPoNumber] = useState(jobs[0]?.po_number ?? "")
+  const [emptyWarning, setEmptyWarning] = useState(false)
   type ManualLine = { description: string; job_number: string; quantity: number; rate: number }
   const [manualLines, setManualLines] = useState<ManualLine[]>([])
   const addLine = () => setManualLines(ls => [...ls, { description: "", job_number: "", quantity: 1, rate: 0 }])
@@ -80,7 +81,13 @@ export function CreateInvoiceDialog({
       .order("date")
 
     if (error) { toast.error("Erro ao buscar registros"); setLoading(false); return }
-    if ((!data || data.length === 0) && manualLines.length === 0) { toast.warning("Nenhum registro no período e nenhuma linha livre"); setLoading(false); return }
+    if ((!data || data.length === 0) && manualLines.length === 0 && !isProject) {
+      setEmptyWarning(true)
+      toast.warning("Nenhum registro no período e nenhuma linha livre")
+      setLoading(false)
+      return
+    }
+    setEmptyWarning(false)
 
     // Cross-check: which of these days were already billed on another invoice of this job
     const fetched = data ?? []
@@ -224,7 +231,7 @@ export function CreateInvoiceDialog({
                   label: [j.clients?.name, j.name, BILLING_MODE_LABELS[j.billing_mode ?? "hourly"]].filter(Boolean).join(" · "),
                 }))}
                 value={jobId}
-                onChange={(v) => { setJobId(v); const j = jobs.find(x => x.id === v); setPoNumber(j?.po_number ?? "") }}
+                onChange={(v) => { setJobId(v); setEmptyWarning(false); const j = jobs.find(x => x.id === v); setPoNumber(j?.po_number ?? "") }}
                 placeholder="Selecione o job"
                 searchPlaceholder="Buscar job…"
               />
@@ -233,11 +240,11 @@ export function CreateInvoiceDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Período início</Label>
-                <Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
+                <Input type="date" value={periodStart} onChange={(e) => { setPeriodStart(e.target.value); setEmptyWarning(false) }} />
               </div>
               <div className="space-y-2">
                 <Label>Período fim</Label>
-                <Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
+                <Input type="date" value={periodEnd} onChange={(e) => { setPeriodEnd(e.target.value); setEmptyWarning(false) }} />
               </div>
               <div className="space-y-2">
                 <Label>Data de vencimento</Label>
@@ -269,6 +276,17 @@ export function CreateInvoiceDialog({
                 </div>
               ))}
             </div>
+
+            {emptyWarning && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 flex gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-700 dark:text-amber-400" />
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  Nenhuma diária registrada para este job nesse período — por isso o invoice não é gerado.
+                  Adicione diárias clicando no dia no <strong>Calendário</strong> ou em{" "}
+                  <strong>Tracking Diário</strong>, ou inclua uma <strong>linha livre</strong> abaixo.
+                </p>
+              </div>
+            )}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
@@ -382,7 +400,7 @@ export function CreateInvoiceDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setStep("config")}>Voltar</Button>
-              <Button onClick={createInvoice} disabled={loading || (freshLogs.length === 0 && manualLines.filter(l => l.description.trim() && l.quantity > 0).length === 0)}>
+              <Button onClick={createInvoice} disabled={loading || (!isProject && freshLogs.length === 0 && manualLines.filter(l => l.description.trim() && l.quantity > 0).length === 0)}>
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 Criar Invoice
               </Button>
