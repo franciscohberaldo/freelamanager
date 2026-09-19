@@ -26,13 +26,16 @@ interface Props {
 
 export function AgendaClient({ events, jobs, holds, logs }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false)
+  // Pickers (new task, new daily log) only offer jobs still open; the calendar and
+  // timeline show every job, including completed ones, so the history stays visible.
+  const openJobs = jobs.filter(j => j.status !== "completed")
 
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-4 border-b">
-        <h1 className="text-xl font-bold">Agenda</h1>
-        <TaskDialog jobs={jobs} open={dialogOpen} onOpenChange={setDialogOpen}>
+        <h1 className="text-xl font-bold">Calendário</h1>
+        <TaskDialog jobs={openJobs} open={dialogOpen} onOpenChange={setDialogOpen}>
           <Button size="sm">
             <Plus className="w-4 h-4" />
             Nova tarefa
@@ -62,7 +65,7 @@ export function AgendaClient({ events, jobs, holds, logs }: Props) {
         </div>
 
         <TabsContent value="calendar" className="flex-1 m-0 overflow-auto p-6">
-          <CalendarView events={events} holds={holds} logs={logs} jobs={jobs} />
+          <CalendarView events={events} holds={holds} logs={logs} jobs={jobs} pickerJobs={openJobs} />
         </TabsContent>
         <TabsContent value="table" className="flex-1 m-0">
           <TableView events={events} jobs={jobs} onNew={() => setDialogOpen(true)} />

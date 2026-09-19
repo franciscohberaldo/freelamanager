@@ -24,7 +24,7 @@ const STATIC_LINKS: Result[] = [
   { id: "nf",      label: "Notas fiscais",    href: "/notas-fiscais", icon: Receipt,     category: "Páginas" },
   { id: "desp",    label: "Despesas",         href: "/despesas",  icon: Wallet,          category: "Páginas" },
   { id: "conta",   label: "Contabilidade",    href: "/contabilidade", icon: Calculator,  category: "Páginas" },
-  { id: "agenda",  label: "Agenda",           href: "/agenda",    icon: CalendarDays,    category: "Páginas" },
+  { id: "agenda",  label: "Calendário",       href: "/agenda",    icon: CalendarDays,    category: "Páginas" },
   { id: "disp",    label: "Disponibilidade",  href: "/disponibilidade", icon: Clock,     category: "Páginas" },
   { id: "folgas",  label: "Folgas",           href: "/folgas",    icon: CalendarOff,     category: "Páginas" },
   { id: "reports", label: "Relatórios",       href: "/reports",   icon: TrendingUp,      category: "Páginas" },

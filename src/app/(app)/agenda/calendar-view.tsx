@@ -20,11 +20,22 @@ export interface CalendarHold {
   jobs: { name: string } | null
 }
 
+export interface CalendarJob {
+  id: string
+  name: string
+  start_date: string | null
+  end_date: string | null
+  status: string
+}
+
 interface Props {
   events: (AgendaEvent & { jobs: { name: string } | null })[]
   holds?: CalendarHold[]
   logs?: DayLog[]
-  jobs?: JobOption[]
+  /** Every job with dates — shown on the calendar across its start→end span. */
+  jobs?: CalendarJob[]
+  /** Open jobs only — offered when adding a daily log from a day. */
+  pickerJobs?: JobOption[]
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -40,7 +51,7 @@ const HOLD_STYLE: Record<CalendarHold["type"], { color: string; label: string }>
   "booked":   { color: "#3b82f6", label: "Booked" },
 }
 
-export function CalendarView({ events, holds = [], logs = [], jobs = [] }: Props) {
+export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJobs = [] }: Props) {
   const [month, setMonth] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
 
@@ -49,6 +60,14 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [] }: Props
     holds
       .filter(h => h.start_date <= key && h.end_date >= key)
       .sort((a, b) => ["booked", "1st_hold", "2nd_hold"].indexOf(a.type) - ["booked", "1st_hold", "2nd_hold"].indexOf(b.type))
+
+  // Jobs whose start→end span covers the day (a missing end reads as a single day)
+  const jobsForDay = (key: string) =>
+    jobs.filter(j => {
+      if (!j.start_date) return false
+      const end = j.end_date ?? j.start_date
+      return j.start_date <= key && key <= end
+    })
 
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(month), { weekStartsOn: 0 })
@@ -117,6 +136,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [] }: Props
             const today   = isToday(day)
             const dayHolds = holdsForDay(key)
             const topHold  = dayHolds[0]
+            const dayJobs  = jobsForDay(key)
             return (
               <div
                 key={i}
@@ -146,6 +166,22 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [] }: Props
                   )}
                 </div>
                 <div className="space-y-0.5">
+                  {dayJobs.slice(0, 2).map(j => (
+                    <Link
+                      key={j.id}
+                      href={`/jobs/${j.id}`}
+                      onClick={e => e.stopPropagation()}
+                      title={`${j.name} — ${j.start_date}${j.end_date && j.end_date !== j.start_date ? ` a ${j.end_date}` : ""}`}
+                      className="block text-[10px] px-1.5 py-0.5 rounded truncate bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/60"
+                    >
+                      {j.name}
+                    </Link>
+                  ))}
+                  {dayJobs.length > 2 && (
+                    <div className="text-[10px] text-blue-600 dark:text-blue-400 px-1 font-medium">
+                      +{dayJobs.length - 2} job{dayJobs.length - 2 > 1 ? "s" : ""}
+                    </div>
+                  )}
                   {evs.slice(0, 3).map(e => (
                     <div
                       key={e.id}
@@ -193,7 +229,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [] }: Props
         events={selectedDay ? (eventsByDate[selectedDay] ?? []) : []}
         holds={selectedDay ? holdsForDay(selectedDay) : []}
         logs={selectedDay ? (logsByDate[selectedDay] ?? []) : []}
-        jobs={jobs}
+        jobs={pickerJobs}
         onClose={() => setSelectedDay(null)}
       />
     </div>
