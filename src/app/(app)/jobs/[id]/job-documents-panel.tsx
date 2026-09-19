@@ -83,8 +83,8 @@ export function JobDocumentsPanel({ jobId, userId, documents, actions, done }: P
   }
 
   return (
-    <div className="grid gap-3">
-      {DOCUMENT_KINDS.map(kind => {
+    <div className="grid gap-3 max-w-3xl">
+      {DOCUMENT_KINDS.map((kind, i) => {
         const doc = byKind.get(kind)
         const loading = busy === kind
         const settled = !!doc || !!done?.[kind]
@@ -95,7 +95,7 @@ export function JobDocumentsPanel({ jobId, userId, documents, actions, done }: P
             <CardContent className="py-4 px-5 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-medium text-sm">{DOCUMENT_LABELS[kind]}</p>
+                  <p className="font-medium text-sm">{i + 1}. {DOCUMENT_LABELS[kind]}</p>
                   <p className="text-xs text-muted-foreground">{DOCUMENT_HINTS[kind]}</p>
                 </div>
                 <FileText className={`w-4 h-4 shrink-0 ${doc ? "text-foreground" : "text-muted-foreground/30"}`} />
@@ -156,7 +156,7 @@ export function JobDocumentsPanel({ jobId, userId, documents, actions, done }: P
         )
       })}
 
-      <p className="text-xs text-muted-foreground sm:col-span-2">
+      <p className="text-xs text-muted-foreground">
         PDF, PNG ou JPG, até 10 MB. Os arquivos ficam em um bucket privado — o link de
         visualização vale por um minuto.
       </p>

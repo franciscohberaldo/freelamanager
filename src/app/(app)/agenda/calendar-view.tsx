@@ -115,6 +115,28 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         </Button>
       </div>
 
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-sm bg-blue-400" /> Job em aberto
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-sm bg-muted-foreground/40" /> Job encerrado
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-sm bg-emerald-400" /> Diária trabalhada
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: HOLD_STYLE["1st_hold"].color }} /> 1st hold
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: HOLD_STYLE["2nd_hold"].color }} /> 2nd hold
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: HOLD_STYLE.booked.color }} /> Booked
+        </span>
+      </div>
+
       {/* Grid */}
       <div className="border rounded-lg overflow-hidden">
         {/* Weekday headers */}

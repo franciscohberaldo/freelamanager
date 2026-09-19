@@ -13,12 +13,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Combobox } from "@/components/ui/combobox"
-import { Loader2, Image as ImageIcon } from "lucide-react"
+import { Loader2, Image as ImageIcon, MoreHorizontal, Trash2, Upload } from "lucide-react"
 import type { Job } from "@/lib/supabase/types"
 import { COMMON_TIMEZONES, workHoursInLocal } from "@/lib/timezone"
 import { BILLING_MODES, BILLING_MODE_LABELS, type BillingMode } from "@/lib/billing-mode"
@@ -211,31 +213,41 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
 
         <div className="space-y-2 sm:col-span-2">
           <Label>Thumbnail do projeto</Label>
-          <div className="flex items-center gap-3">
-            <div className="w-24 h-16 rounded border bg-muted/40 overflow-hidden shrink-0 flex items-center justify-center">
-              {thumbnail
-                // storage URLs are user-supplied, so plain img keeps next/image config out of it
-                // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={thumbnail} alt="" className="w-full h-full object-cover" />
-                : <ImageIcon className="w-5 h-5 text-muted-foreground/50" />}
-            </div>
-            <div className="space-y-1">
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" size="sm" disabled={uploading} asChild>
-                  <label className="cursor-pointer">
-                    {uploading && <Loader2 className="w-3 h-3 animate-spin" />}
-                    {thumbnail ? "Trocar imagem" : "Escolher imagem"}
+          <div className="relative w-24 h-16 rounded border bg-muted/40 overflow-hidden shrink-0 flex items-center justify-center">
+            {thumbnail
+              // storage URLs are user-supplied, so plain img keeps next/image config out of it
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={thumbnail} alt="" className="w-full h-full object-cover" />
+              : <ImageIcon className="w-5 h-5 text-muted-foreground/50" />}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  disabled={uploading}
+                  title="Opções da thumbnail"
+                  className="absolute top-1 right-1 rounded-full bg-background/80 border p-1 text-muted-foreground hover:text-foreground"
+                >
+                  {uploading
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <MoreHorizontal className="w-3.5 h-3.5" />}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <label className="flex items-center gap-2 cursor-pointer w-full">
+                    <Upload className="w-3.5 h-3.5" />
+                    Enviar imagem
                     <input type="file" accept="image/*" className="hidden" onChange={onPickThumbnail} disabled={uploading} />
                   </label>
-                </Button>
+                </DropdownMenuItem>
                 {thumbnail && (
-                  <Button type="button" variant="ghost" size="sm" onClick={onRemoveThumbnail} disabled={uploading}>
+                  <DropdownMenuItem onClick={onRemoveThumbnail} className="flex items-center gap-2 text-destructive">
+                    <Trash2 className="w-3.5 h-3.5" />
                     Remover
-                  </Button>
+                  </DropdownMenuItem>
                 )}
-              </div>
-              <p className="text-xs text-muted-foreground">PNG, JPG ou WebP, até 5 MB.</p>
-            </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -255,20 +267,20 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
           <p className="text-xs text-muted-foreground">Vai no pedido de NF ao contador. Sem inglês, sem nome de job.</p>
         </div>
 
-        <div className="space-y-2">
-          <Label>{billingMode === "hourly" ? "Valor/hora" : "Valor/hora (ref)"}</Label>
-          <Input {...register("hourly_rate")} type="number" step="0.01" placeholder="0.00" />
-        </div>
+        {billingMode === "hourly" && (
+          <div className="space-y-2">
+            <Label>Valor/hora *</Label>
+            <Input {...register("hourly_rate")} type="number" step="0.01" placeholder="0.00" />
+          </div>
+        )}
 
-        <div className="space-y-2">
-          <Label>
-            {billingMode === "daily" ? "Valor/dia *" : billingMode === "fixed" ? "Valor/dia (ref)" : "Valor/dia"}
-          </Label>
-          <Input {...register("daily_rate")} type="number" step="0.01" placeholder="0.00" />
-          {billingMode === "daily" && (
+        {billingMode === "daily" && (
+          <div className="space-y-2">
+            <Label>Valor/dia *</Label>
+            <Input {...register("daily_rate")} type="number" step="0.01" placeholder="0.00" />
             <p className="text-xs text-muted-foreground">Registros e invoices deste job são calculados em dias (1 dia = 8h).</p>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>Moeda</Label>
@@ -305,16 +317,16 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
           <Input {...register("end_date")} type="date" />
         </div>
 
-        <div className="space-y-2">
-          <Label>{billingMode === "fixed" ? "Valor do projeto *" : "Valor do contrato"}</Label>
-          <Input {...register("contract_value")} type="number" step="0.01" placeholder="Total do contrato" />
-          {billingMode === "fixed" && (
+        {billingMode === "fixed" && (
+          <div className="space-y-2">
+            <Label>Valor do contrato *</Label>
+            <Input {...register("contract_value")} type="number" step="0.01" placeholder="Total do contrato" />
             <p className="text-xs text-muted-foreground">
               É o preço fechado. Os registros continuam aceitando horas, mas sem valor — a
               invoice sai com uma linha só.
             </p>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>Taxa de imposto (%)</Label>
@@ -343,27 +355,6 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
               {localHours.nextDay ? " (vira o dia)" : ""} · diferença {localHours.diffHours > 0 ? "+" : ""}{localHours.diffHours}h
             </p>
           )}
-        </div>
-
-        <div className="flex items-center gap-3 sm:col-span-2 py-2">
-          <Switch
-            id="recurring"
-            defaultChecked={job?.is_recurring}
-            onCheckedChange={(v) => setValue("is_recurring", v)}
-          />
-          <Label htmlFor="recurring">Job recorrente (renovação automática)</Label>
-        </div>
-
-        <div className="flex items-center gap-3 sm:col-span-2 py-1">
-          <Switch
-            id="confidential"
-            defaultChecked={job?.is_confidential}
-            onCheckedChange={(v) => setValue("is_confidential", v)}
-          />
-          <div>
-            <Label htmlFor="confidential">Confidencial (NDA)</Label>
-            <p className="text-xs text-muted-foreground">O trabalho não pode ser divulgado em portfólio, redes ou site.</p>
-          </div>
         </div>
 
         <div className="space-y-2 sm:col-span-2">

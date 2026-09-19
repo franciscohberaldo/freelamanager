@@ -4,19 +4,17 @@ import { createClient } from "@/lib/supabase/server"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { formatCurrency, formatDate, formatHours, JOB_STATUS_LABELS } from "@/lib/utils"
+import { formatCurrency, formatDate, JOB_STATUS_LABELS } from "@/lib/utils"
 import { workHoursInLocal } from "@/lib/timezone"
 import { JobForm } from "../job-form"
 import { DeleteJobButton } from "./delete-job-button"
 import { JobDocumentsPanel } from "./job-documents-panel"
-import { SectionNav } from "@/components/section-nav"
 import { NfRequestAction, type SentRequest } from "./nf-request-action"
 import { InvoiceDocAction } from "./invoice-doc-action"
-import { DOCUMENT_KINDS } from "@/lib/job-documents"
 import { rateOf, rateLabel } from "@/lib/billing-mode"
 import { canTransition, formatNfNumber, effectiveNfSeries, type NfStatus } from "@/lib/nf-status"
 import { ArrowLeft, FileText, Image as ImageIcon } from "lucide-react"
-import type { Job, JobDocument, Invoice, DailyLog } from "@/lib/supabase/types"
+import type { Job, JobDocument, Invoice } from "@/lib/supabase/types"
 
 const statusVariant: Record<string, "default" | "success" | "warning" | "outline"> = {
   proposal: "outline", active: "success", paused: "warning", completed: "default",
@@ -43,25 +41,18 @@ export default async function JobPage({ params }: { params: { id: string } }) {
 
   if (!job) notFound()
 
-  const [{ data: clients }, { data: documents }, { data: invoices }, { data: logs }] = await Promise.all([
+  const [{ data: clients }, { data: documents }, { data: invoices }] = await Promise.all([
     supabase.from("clients").select("id, name").eq("user_id", user!.id).order("name"),
     supabase.from("job_documents").select("*").eq("job_id", params.id),
     supabase.from("invoices").select("*").eq("job_id", params.id).order("period_start", { ascending: false }),
-    supabase.from("daily_logs").select("*").eq("job_id", params.id).order("date", { ascending: false }),
   ])
 
   const typedJob = job as unknown as Job & { clients: { id: string; name: string; legal_name: string | null; email: string | null } | null }
   const docs = (documents ?? []) as JobDocument[]
   const jobInvoices = (invoices ?? []) as Invoice[]
-  const jobLogs = (logs ?? []) as DailyLog[]
 
   const client = typedJob.clients
-  const perDay = typedJob.billing_mode === "daily"
-  const perProject = typedJob.billing_mode === "fixed"
   const localHours = workHoursInLocal(typedJob.work_hours, typedJob.timezone)
-
-  const loggedHours = jobLogs.reduce((sum, l) => sum + (l.hours_billed ?? 0), 0)
-  const loggedValue = jobLogs.reduce((sum, l) => sum + (l.total_value ?? 0), 0)
 
   // Every request about this job: the ones made from it, and the ones about its invoices.
   const invoiceIds = jobInvoices.map(i => i.id)
@@ -79,13 +70,6 @@ export default async function JobPage({ params }: { params: { id: string } }) {
   const nfCandidates = jobInvoices
     .filter(i => canTransition((i.nf_status ?? "not_required") as NfStatus, "requested"))
     .map(i => ({ id: i.id, label: i.seq_number ?? i.invoice_number }))
-
-  const sections = [
-    { id: "dados", label: "Dados" },
-    { id: "documentos", label: "Documentos", count: docs.length ? `${docs.length}/${DOCUMENT_KINDS.length}` : undefined },
-    { id: "invoices", label: "Invoices", count: jobInvoices.length ? String(jobInvoices.length) : undefined },
-    { id: "registros", label: "Registros", count: jobLogs.length ? String(jobLogs.length) : undefined },
-  ]
 
   return (
     <div className="p-6 space-y-6">
@@ -126,9 +110,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
         </div>
       </div>
 
-      <SectionNav sections={sections} />
-
-      <section id="dados" className="scroll-mt-24 space-y-3">
+      <section id="dados" className="space-y-3">
         <h2 className="text-lg font-semibold">Dados</h2>
         <div className="max-w-3xl">
           <JobForm clients={clients ?? []} job={typedJob} mode="edit" />
@@ -138,7 +120,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
         </div>
       </section>
 
-      <section id="documentos" className="scroll-mt-24 space-y-3">
+      <section id="documentos" className="space-y-3">
         <h2 className="text-lg font-semibold">Documentos</h2>
         <JobDocumentsPanel
           jobId={typedJob.id}
@@ -179,7 +161,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
         />
       </section>
 
-      <section id="invoices" className="scroll-mt-24 space-y-3">
+      <section id="invoices" className="space-y-3">
         <h2 className="text-lg font-semibold">Invoices</h2>
         {jobInvoices.length === 0 ? (
           <Card>
@@ -227,77 +209,6 @@ export default async function JobPage({ params }: { params: { id: string } }) {
         <p className="text-xs text-muted-foreground mt-3">
           Invoices são criadas e editadas em <Link href="/invoices" className="underline">Invoices</Link>.
         </p>
-      </section>
-
-      <section id="registros" className="scroll-mt-24 space-y-3">
-        <h2 className="text-lg font-semibold">Registros</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Card>
-            <CardContent className="py-4 px-5">
-              <p className="text-xs text-muted-foreground">Faturável lançado</p>
-              <p className="text-xl font-semibold">
-                {perDay ? `${(loggedHours / 8).toLocaleString("pt-BR")} dias` : formatHours(loggedHours)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="py-4 px-5">
-              <p className="text-xs text-muted-foreground">
-                {perProject ? "Valor do projeto" : "Valor lançado"}
-              </p>
-              <p className="text-xl font-semibold">
-                {formatCurrency(perProject ? (typedJob.contract_value ?? 0) : loggedValue, typedJob.currency)}
-              </p>
-              {perProject && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Preço fechado; as horas abaixo são só o tempo gasto.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {jobLogs.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <p>Nenhum registro para este job.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="rounded-md border overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/40 text-xs text-muted-foreground">
-                <tr>
-                  <th className="p-2 text-left">Data</th>
-                  <th className="p-2 text-right">{perDay ? "Dias" : "Horas"}</th>
-                  <th className="p-2 text-right">Valor</th>
-                  <th className="p-2 text-left">Reuniões / pedidos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jobLogs.slice(0, 30).map(log => (
-                  <tr key={log.id} className="border-t">
-                    <td className="p-2 whitespace-nowrap">{formatDate(log.date)}</td>
-                    <td className="p-2 text-right whitespace-nowrap">
-                      {perDay ? (log.hours_billed / 8).toLocaleString("pt-BR") : formatHours(log.hours_billed)}
-                    </td>
-                    <td className="p-2 text-right whitespace-nowrap">
-                      {formatCurrency(log.total_value, typedJob.currency)}
-                    </td>
-                    <td className="p-2 text-muted-foreground">
-                      {[log.meetings, log.requests].filter(Boolean).join(" · ") || "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {jobLogs.length > 30 && (
-              <p className="p-2 text-xs text-muted-foreground border-t">
-                Mostrando os 30 mais recentes de {jobLogs.length}.
-              </p>
-            )}
-          </div>
-        )}
       </section>
     </div>
   )
