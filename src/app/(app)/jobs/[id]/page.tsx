@@ -2,7 +2,6 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { formatCurrency, formatDate, JOB_STATUS_LABELS } from "@/lib/utils"
 import { workHoursInLocal } from "@/lib/timezone"
@@ -11,10 +10,11 @@ import { DeleteJobButton } from "./delete-job-button"
 import { JobDocumentsPanel } from "./job-documents-panel"
 import { NfRequestAction, type SentRequest } from "./nf-request-action"
 import { InvoiceDocAction } from "./invoice-doc-action"
+import { JobDays, type JobDay } from "./job-days"
 import { InvoiceActions } from "@/app/(app)/invoices/invoice-actions"
 import { rateOf, rateLabel } from "@/lib/billing-mode"
 import { canTransition, formatNfNumber, effectiveNfSeries, type NfStatus } from "@/lib/nf-status"
-import { ArrowLeft, FileText, Image as ImageIcon } from "lucide-react"
+import { FileText, Image as ImageIcon } from "lucide-react"
 import type { Job, JobDocument, Invoice } from "@/lib/supabase/types"
 import { PageHeader } from "@/components/page-header"
 
@@ -43,10 +43,11 @@ export default async function JobPage({ params }: { params: { id: string } }) {
 
   if (!job) notFound()
 
-  const [{ data: clients }, { data: documents }, { data: invoices }] = await Promise.all([
+  const [{ data: clients }, { data: documents }, { data: invoices }, { data: workedDays }] = await Promise.all([
     supabase.from("clients").select("id, name").eq("user_id", user!.id).order("name"),
     supabase.from("job_documents").select("*").eq("job_id", params.id),
     supabase.from("invoices").select("*").eq("job_id", params.id).order("period_start", { ascending: false }),
+    supabase.from("daily_logs").select("id, date, hours_billed").eq("job_id", params.id).order("date"),
   ])
 
   const typedJob = job as unknown as Job & { clients: { id: string; name: string; legal_name: string | null; email: string | null } | null }
@@ -75,10 +76,6 @@ export default async function JobPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="px-8 py-6 space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
-        <Link href="/historico"><ArrowLeft className="w-4 h-4" />Histórico</Link>
-      </Button>
-
       <div className="flex items-start gap-4">
         <div className="w-28 h-20 rounded border bg-muted/40 overflow-hidden shrink-0 flex items-center justify-center">
           {typedJob.thumbnail_url
@@ -124,7 +121,18 @@ export default async function JobPage({ params }: { params: { id: string } }) {
         <JobForm clients={clients ?? []} job={typedJob} mode="edit" />
       </section>
 
-      <section id="documentos" className="space-y-3">
+      <section id="diarias" className="max-w-4xl">
+        <JobDays
+          job={{
+            id: typedJob.id, name: typedJob.name, hourly_rate: typedJob.hourly_rate, daily_rate: typedJob.daily_rate,
+            billing_mode: typedJob.billing_mode, currency: typedJob.currency,
+            clients: typedJob.clients ? { name: typedJob.clients.name } : null,
+          }}
+          days={(workedDays ?? []) as JobDay[]}
+        />
+      </section>
+
+      <section id="documentos" className="space-y-3 max-w-4xl">
         <h2 className="text-lg font-semibold">Documentos</h2>
         <JobDocumentsPanel
           jobId={typedJob.id}
@@ -166,7 +174,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
         />
       </section>
 
-      <section id="invoices" className="space-y-3">
+      <section id="invoices" className="space-y-3 max-w-4xl">
         <h2 className="text-lg font-semibold">Invoices</h2>
         {jobInvoices.length === 0 ? (
           <Card>

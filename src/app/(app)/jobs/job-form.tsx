@@ -20,6 +20,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Combobox } from "@/components/ui/combobox"
+import { FieldHint } from "@/components/field-hint"
 import { Loader2, Image as ImageIcon, MoreHorizontal, Trash2, Upload } from "lucide-react"
 import type { Job } from "@/lib/supabase/types"
 import { COMMON_TIMEZONES, workHoursInLocal } from "@/lib/timezone"
@@ -269,19 +270,15 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
 
         {billingMode === "daily" && (
           <div className="space-y-2">
-            <Label>Valor/dia *</Label>
+            <Label className="flex items-center gap-1.5">Valor/dia * <FieldHint>Registros e invoices são calculados em dias (1 dia = 8h).</FieldHint></Label>
             <Input {...register("daily_rate")} type="number" step="0.01" placeholder="0.00" />
-            <p className="text-xs text-muted-foreground">Registros e invoices são calculados em dias (1 dia = 8h).</p>
           </div>
         )}
 
         {billingMode === "fixed" && (
           <div className="space-y-2">
-            <Label>Valor do contrato *</Label>
+            <Label className="flex items-center gap-1.5">Valor do contrato * <FieldHint>Preço fechado. Os dias trabalhados saem listados na invoice; o valor fica na linha do projeto.</FieldHint></Label>
             <Input {...register("contract_value")} type="number" step="0.01" placeholder="Total do contrato" />
-            <p className="text-xs text-muted-foreground">
-              Preço fechado. Os dias trabalhados saem listados na invoice; o valor fica na linha do projeto.
-            </p>
           </div>
         )}
 
@@ -357,9 +354,8 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
       {/* ── Nota fiscal e notas ───────────────────────────────────────────────── */}
       <Group title="Nota fiscal e notas" hint="O que vai para o contador e o que é só seu." single>
         <div className="space-y-2">
-          <Label>Descrição fiscal (texto da NF)</Label>
+          <Label className="flex items-center gap-1.5">Descrição fiscal (texto da NF) <FieldHint>Vai no pedido de NF ao contador. Sem inglês, sem nome de job.</FieldHint></Label>
           <Input {...register("nf_description")} placeholder="ex: Serviços prestados de animação" />
-          <p className="text-xs text-muted-foreground">Vai no pedido de NF ao contador. Sem inglês, sem nome de job.</p>
         </div>
 
         <div className="space-y-2">

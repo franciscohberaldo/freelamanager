@@ -83,7 +83,7 @@ export function JobDocumentsPanel({ jobId, userId, documents, actions, done }: P
   }
 
   return (
-    <div className="grid gap-3 max-w-3xl">
+    <div className="grid gap-3">
       {DOCUMENT_KINDS.map((kind, i) => {
         const doc = byKind.get(kind)
         const loading = busy === kind
