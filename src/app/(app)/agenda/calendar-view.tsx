@@ -171,8 +171,12 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                       key={j.id}
                       href={`/jobs/${j.id}`}
                       onClick={e => e.stopPropagation()}
-                      title={`${j.name} — ${j.start_date}${j.end_date && j.end_date !== j.start_date ? ` a ${j.end_date}` : ""}`}
-                      className="block text-[10px] px-1.5 py-0.5 rounded truncate bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/60"
+                      title={`${j.name} — ${j.start_date}${j.end_date && j.end_date !== j.start_date ? ` a ${j.end_date}` : ""}${j.status === "completed" ? " (encerrado)" : ""}`}
+                      className={`block text-[10px] px-1.5 py-0.5 rounded truncate ${
+                        j.status === "completed"
+                          ? "bg-muted text-muted-foreground hover:bg-accent"
+                          : "bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/60"
+                      }`}
                     >
                       {j.name}
                     </Link>
