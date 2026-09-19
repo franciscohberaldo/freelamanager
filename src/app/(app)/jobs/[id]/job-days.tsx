@@ -4,6 +4,8 @@ import Link from "next/link"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { LogDialog, type JobOption } from "@/app/(app)/logs/log-dialog"
+import { GenerateDaysButton } from "./generate-days-button"
+import type { SpanJob } from "@/lib/job-days"
 import { formatHours } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 
@@ -14,7 +16,8 @@ export interface JobDay {
 }
 
 interface Props {
-  job: JobOption
+  job: JobOption & SpanJob
+  userId: string
   days: JobDay[]
 }
 
@@ -22,7 +25,7 @@ interface Props {
  * The days this job was actually worked, month by month, straight from the calendar.
  * Weekends are tinted so a week with Saturday in it reads differently from one without.
  */
-export function JobDays({ job, days }: Props) {
+export function JobDays({ job, userId, days }: Props) {
   const byMonth = new Map<string, JobDay[]>()
   for (const d of days) {
     const key = d.date.slice(0, 7)
@@ -43,18 +46,22 @@ export function JobDays({ job, days }: Props) {
               : `${days.length} ${days.length === 1 ? "dia trabalhado" : "dias trabalhados"} · ${formatHours(totalHours)}`}
           </p>
         </div>
-        <LogDialog jobs={[job]} mode="create">
-          <Button variant="outline" size="sm">
-            <Plus className="w-4 h-4" />
-            Adicionar diária
-          </Button>
-        </LogDialog>
+        <div className="flex items-center gap-2">
+          <GenerateDaysButton job={job} userId={userId} existing={days.map(d => d.date)} />
+          <LogDialog jobs={[job]} mode="create">
+            <Button variant="outline" size="sm">
+              <Plus className="w-4 h-4" />
+              Adicionar diária
+            </Button>
+          </LogDialog>
+        </div>
       </div>
 
       {days.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Nenhuma diária ainda. Clique em um dia no{" "}
-          <Link href="/agenda" className="underline">Calendário</Link> ou adicione aqui.
+          {job.start_date && job.end_date
+            ? <>Nenhuma diária ainda. &ldquo;Gerar do período&rdquo; cria uma por dia do job; &ldquo;Adicionar diária&rdquo; cria uma de cada vez.</>
+            : <>Nenhuma diária ainda. Dê datas de início e fim ao job, clique em um dia no <Link href="/agenda" className="underline">Calendário</Link> ou adicione aqui.</>}
         </p>
       ) : (
         <div className="space-y-4">

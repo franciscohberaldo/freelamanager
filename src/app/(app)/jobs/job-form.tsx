@@ -25,6 +25,7 @@ import { Loader2, Image as ImageIcon, MoreHorizontal, Trash2, Upload } from "luc
 import type { Job } from "@/lib/supabase/types"
 import { COMMON_TIMEZONES, workHoursInLocal } from "@/lib/timezone"
 import { BILLING_MODES, BILLING_MODE_LABELS, type BillingMode } from "@/lib/billing-mode"
+import { missingDays, logForDay } from "@/lib/job-days"
 
 const jobSchema = z.object({
   client_id:      z.string().min(1, "Selecione um cliente"),
@@ -162,6 +163,22 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
       const { error } = await supabase.from("jobs").update(payload).eq("id", job!.id)
       if (error) { toast.error("Erro ao atualizar job"); setLoading(false); return }
       toast.success("Job atualizado!")
+    }
+
+    // A job with a start and an end was worked on those days: give it one diária per
+    // weekday, but only while it has none, so days removed by hand are not put back.
+    if (savedId && payload.start_date && payload.end_date) {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { count } = await supabase.from("daily_logs").select("*", { count: "exact", head: true }).eq("job_id", savedId)
+      if ((count ?? 0) === 0) {
+        const span = { id: savedId, billing_mode: payload.billing_mode, hourly_rate: payload.hourly_rate, daily_rate: payload.daily_rate, start_date: payload.start_date, end_date: payload.end_date }
+        const dates = missingDays(span, [])
+        if (dates.length > 0) {
+          const { error } = await supabase.from("daily_logs").insert(dates.map(d => logForDay(span, d, user!.id)))
+          if (error) toast.error(`Job salvo, mas as diárias do período não foram criadas: ${error.message}`)
+          else toast.success(`${dates.length} ${dates.length === 1 ? "diária criada" : "diárias criadas"} para o período`)
+        }
+      }
     }
 
     router.refresh()

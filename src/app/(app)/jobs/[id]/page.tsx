@@ -123,9 +123,11 @@ export default async function JobPage({ params }: { params: { id: string } }) {
 
       <section id="diarias" className="max-w-4xl">
         <JobDays
+          userId={user!.id}
           job={{
             id: typedJob.id, name: typedJob.name, hourly_rate: typedJob.hourly_rate, daily_rate: typedJob.daily_rate,
             billing_mode: typedJob.billing_mode, currency: typedJob.currency,
+            start_date: typedJob.start_date, end_date: typedJob.end_date,
             clients: typedJob.clients ? { name: typedJob.clients.name } : null,
           }}
           days={(workedDays ?? []) as JobDay[]}
