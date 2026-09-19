@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/page-header"
 import { Plus, Table2, GitBranch, BarChart2, CalendarDays } from "lucide-react"
 import { TaskDialog } from "./task-dialog"
 import { TableView } from "./table-view"
@@ -31,49 +32,46 @@ export function AgendaClient({ events, jobs, holds, logs }: Props) {
   const openJobs = jobs.filter(j => j.status !== "completed")
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b">
-        <h1 className="text-xl font-bold">Calendário</h1>
-        <TaskDialog jobs={openJobs} open={dialogOpen} onOpenChange={setDialogOpen}>
-          <Button size="sm">
-            <Plus className="w-4 h-4" />
-            Nova tarefa
-          </Button>
-        </TaskDialog>
-      </div>
+    <div className="px-8 py-6">
+      <PageHeader
+        eyebrow="Planejamento"
+        title="Agenda de projetos"
+        description="Organize entregas, tarefas e períodos de trabalho em uma visão única."
+        actions={
+          <TaskDialog jobs={openJobs} open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Button size="lg">
+              <Plus className="w-4 h-4" />
+              Nova tarefa
+            </Button>
+          </TaskDialog>
+        }
+      />
 
-      <Tabs defaultValue="calendar" className="flex-1 flex flex-col">
-        <div className="px-6 border-b">
-          <TabsList className="h-9 bg-transparent p-0 gap-0 rounded-none">
-            {[
-              { value: "calendar", label: "Calendário", icon: CalendarDays },
-              { value: "table",    label: "Tabela",   icon: Table2 },
-              { value: "timeline", label: "Timeline", icon: GitBranch },
-              { value: "gantt",    label: "Gantt",    icon: BarChart2 },
-            ].map(({ value, label, icon: Icon }) => (
-              <TabsTrigger
-                key={value}
-                value={value}
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-9 text-sm"
-              >
-                <Icon className="w-3.5 h-3.5 mr-1.5" />
-                {label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
+      <Tabs defaultValue="calendar">
+        <TabsList>
+          {[
+            { value: "calendar", label: "Calendário", icon: CalendarDays },
+            { value: "table",    label: "Tabela",   icon: Table2 },
+            { value: "timeline", label: "Timeline", icon: GitBranch },
+            { value: "gantt",    label: "Gantt",    icon: BarChart2 },
+          ].map(({ value, label, icon: Icon }) => (
+            <TabsTrigger key={value} value={value}>
+              <Icon />
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-        <TabsContent value="calendar" className="flex-1 m-0 overflow-auto p-6">
+        <TabsContent value="calendar">
           <CalendarView events={events} holds={holds} logs={logs} jobs={jobs} pickerJobs={openJobs} />
         </TabsContent>
-        <TabsContent value="table" className="flex-1 m-0">
+        <TabsContent value="table">
           <TableView events={events} jobs={jobs} onNew={() => setDialogOpen(true)} />
         </TabsContent>
-        <TabsContent value="timeline" className="flex-1 m-0 overflow-auto p-6">
+        <TabsContent value="timeline">
           <TimelineView events={events} jobs={jobs} />
         </TabsContent>
-        <TabsContent value="gantt" className="flex-1 m-0 overflow-auto p-6">
+        <TabsContent value="gantt">
           <GanttView events={events} jobs={jobs} />
         </TabsContent>
       </Tabs>

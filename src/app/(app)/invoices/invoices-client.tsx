@@ -11,6 +11,7 @@ import { LoadMoreButton } from "@/components/load-more-button"
 import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { FileText, Plus } from "lucide-react"
 import { NF_STATUS_LABELS, type NfStatus } from "@/lib/nf-status"
+import { PageHeader } from "@/components/page-header"
 
 const statusMap: Record<string, { label: string; variant: "default" | "outline" | "success" | "warning" | "destructive" }> = {
   draft:   { label: "Rascunho", variant: "outline" },
@@ -68,50 +69,51 @@ export function InvoicesClient({ invoices, invoicesCount, paidMap, jobs }: Props
   const typedList = invoiceList as unknown as Invoice[]
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-light tracking-tight">Invoices</h1>
-          <p className="text-muted-foreground text-sm">{invoicesCount} invoices gerados</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <CsvExportButton
-            filename="invoices.csv"
-            data={typedList.map(inv => {
-              const job = inv.jobs as Invoice["jobs"]
-              return {
-                numero:   inv.invoice_number,
-                status:   inv.status,
-                job:      job?.name ?? "",
-                cliente:  job?.clients?.name ?? "",
-                periodo:  `${inv.period_start} a ${inv.period_end}`,
-                horas:    inv.total_hours_billed,
-                subtotal: inv.subtotal,
-                impostos: inv.tax_amount,
-                total:    inv.total,
-                moeda:    inv.currency,
-                pago_em:  inv.paid_at ?? "",
-              }
-            })}
-            columns={[
-              { key: "numero",   label: "Número" },
-              { key: "status",   label: "Status" },
-              { key: "job",      label: "Job" },
-              { key: "cliente",  label: "Cliente" },
-              { key: "periodo",  label: "Período" },
-              { key: "horas",    label: "Horas Faturadas" },
-              { key: "subtotal", label: "Subtotal" },
-              { key: "impostos", label: "Impostos" },
-              { key: "total",    label: "Total" },
-              { key: "moeda",    label: "Moeda" },
-              { key: "pago_em",  label: "Pago Em" },
-            ]}
-          />
-          <CreateInvoiceDialog jobs={jobs}>
-            <Button><Plus className="w-4 h-4" />Gerar Invoice</Button>
-          </CreateInvoiceDialog>
-        </div>
-      </div>
+    <div className="px-8 py-6 space-y-6">
+      <PageHeader
+        eyebrow="Financeiro"
+        title="Invoices"
+        description={<>{invoicesCount} invoices gerados</>}
+        actions={
+          <>
+            <CsvExportButton
+              filename="invoices.csv"
+              data={typedList.map(inv => {
+                const job = inv.jobs as Invoice["jobs"]
+                return {
+                  numero:   inv.invoice_number,
+                  status:   inv.status,
+                  job:      job?.name ?? "",
+                  cliente:  job?.clients?.name ?? "",
+                  periodo:  `${inv.period_start} a ${inv.period_end}`,
+                  horas:    inv.total_hours_billed,
+                  subtotal: inv.subtotal,
+                  impostos: inv.tax_amount,
+                  total:    inv.total,
+                  moeda:    inv.currency,
+                  pago_em:  inv.paid_at ?? "",
+                }
+              })}
+              columns={[
+                { key: "numero",   label: "Número" },
+                { key: "status",   label: "Status" },
+                { key: "job",      label: "Job" },
+                { key: "cliente",  label: "Cliente" },
+                { key: "periodo",  label: "Período" },
+                { key: "horas",    label: "Horas Faturadas" },
+                { key: "subtotal", label: "Subtotal" },
+                { key: "impostos", label: "Impostos" },
+                { key: "total",    label: "Total" },
+                { key: "moeda",    label: "Moeda" },
+                { key: "pago_em",  label: "Pago Em" },
+              ]}
+            />
+            <CreateInvoiceDialog jobs={jobs}>
+              <Button><Plus className="w-4 h-4" />Gerar Invoice</Button>
+            </CreateInvoiceDialog>
+          </>
+        }
+      />
 
       <div className="space-y-3">
         {typedList.length === 0 && (

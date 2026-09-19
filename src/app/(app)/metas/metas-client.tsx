@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChevronLeft, ChevronRight, Target, Clock, TrendingUp, Wallet, Loader2, CheckCircle2 } from "lucide-react"
 import { format, parseISO, subMonths, addMonths } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { PageHeader } from "@/components/page-header"
 
 interface Goal {
   id: string; user_id: string; type: string; target: number; period: string
@@ -168,23 +169,23 @@ export function MetasClient({ goals, currentMonth, actualHours, actualRevenue, t
   const netRevenue = actualRevenue - totalExpenses
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-light tracking-tight">Metas</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Defina e acompanhe objetivos mensais</p>
-        </div>
-        <div className="flex items-center border rounded-lg h-9">
-          <Button variant="ghost" size="icon" className="h-9 w-8" onClick={() => router.push(`/metas?month=${prevMonth}`)}>
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <span className="text-sm font-medium px-3 capitalize min-w-36 text-center">{monthLabel}</span>
-          <Button variant="ghost" size="icon" className="h-9 w-8" onClick={() => router.push(`/metas?month=${nextMonth}`)}>
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
+    <div className="px-8 py-6 space-y-6 max-w-3xl">
+      <PageHeader
+        eyebrow="Financeiro"
+        title="Metas"
+        description="Defina e acompanhe objetivos mensais"
+        actions={
+          <div className="flex items-center border rounded-lg h-9">
+            <Button variant="ghost" size="icon" className="h-9 w-8" onClick={() => router.push(`/metas?month=${prevMonth}`)}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-sm font-medium px-3 capitalize min-w-36 text-center">{monthLabel}</span>
+            <Button variant="ghost" size="icon" className="h-9 w-8" onClick={() => router.push(`/metas?month=${nextMonth}`)}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        }
+      />
 
       {/* Summary bar */}
       <div className="grid grid-cols-3 gap-4">

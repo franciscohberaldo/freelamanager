@@ -3,6 +3,7 @@ import { JobHistory, type HistoryJob } from "./job-history"
 import { JobDialog } from "../jobs/job-dialog"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
+import { PageHeader } from "@/components/page-header"
 
 export default async function HistoricoPage() {
   const supabase = await createClient()
@@ -65,21 +66,20 @@ export default async function HistoricoPage() {
   }))
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-light tracking-tight">Histórico de jobs</h1>
-          <p className="text-muted-foreground text-sm">
-            {jobs.length} jobs com datas, faturamento e notas fiscais
-          </p>
-        </div>
-        <JobDialog clients={clients ?? []} mode="create">
-          <Button>
-            <Plus className="w-4 h-4" />
-            Novo Job
-          </Button>
-        </JobDialog>
-      </div>
+    <div className="px-8 py-6 space-y-6">
+      <PageHeader
+        eyebrow="Operação"
+        title="Jobs"
+        description={<>{jobs.length} jobs com datas, faturamento e notas fiscais</>}
+        actions={
+          <JobDialog clients={clients ?? []} mode="create">
+            <Button>
+              <Plus className="w-4 h-4" />
+              Novo Job
+            </Button>
+          </JobDialog>
+        }
+      />
 
       <JobHistory jobs={jobs} />
     </div>

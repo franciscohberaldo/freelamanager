@@ -3,65 +3,64 @@
 @tailwind utilities;
 
 /*
- * The palette follows DESIGN.md: indigo as the one filled colour, deep navy ink instead of
- * black for every word, and a cool off-white for the surfaces beneath. Ruby stands in for
- * red — it is the destructive colour, never a button people press by habit.
+ * The palette follows the shell mockup: a grey canvas with white cards on it, one violet
+ * for everything that is primary (the active menu item, the filled button, links), and a
+ * neutral near-black for words. The dark theme keeps the violet and swaps the neutrals.
  */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 210 65% 14.5%;
+    --background: 220 20% 97%;
+    --foreground: 228 22% 13%;
     --card: 0 0% 100%;
-    --card-foreground: 210 65% 14.5%;
+    --card-foreground: 228 22% 13%;
     --popover: 0 0% 100%;
-    --popover-foreground: 210 65% 14.5%;
-    --primary: 247.7 98% 61%;
+    --popover-foreground: 228 22% 13%;
+    --primary: 252 92% 62%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 50% 97.6%;
-    --secondary-foreground: 214.3 35% 23.5%;
-    --muted: 210 50% 97.6%;
-    --muted-foreground: 216.6 17% 47.3%;
-    --accent: 240 84.2% 96%;
-    --accent-foreground: 246 65% 51.8%;
-    --destructive: 341.1 82.6% 52.5%;
+    --secondary: 220 18% 95%;
+    --secondary-foreground: 228 18% 25%;
+    --muted: 220 18% 95%;
+    --muted-foreground: 225 10% 46%;
+    --accent: 252 100% 96%;
+    --accent-foreground: 252 85% 52%;
+    --destructive: 350 80% 55%;
     --destructive-foreground: 0 0% 100%;
-    --border: 212.7 24.4% 91.2%;
-    --input: 212.7 24.4% 91.2%;
-    --ring: 247.7 98% 61%;
+    --border: 220 16% 90%;
+    --input: 220 16% 88%;
+    --ring: 252 92% 62%;
     --radius: 0.75rem;
-    --chart-1: 247.7 98% 61%;
-    --chart-2: 341.1 82.6% 52.5%;
-    --chart-3: 237.9 50% 22%;
-    --chart-4: 33.2 58.2% 38.4%;
-    --chart-5: 304.6 92.2% 69.8%;
+    --chart-1: 252 92% 62%;
+    --chart-2: 350 80% 55%;
+    --chart-3: 228 22% 25%;
+    --chart-4: 35 90% 50%;
+    --chart-5: 160 60% 42%;
   }
 
-  /* The dashboard track flips polarity to the brand's deep navy, not to black. */
   .dark {
-    --background: 237.9 50% 12%;
-    --foreground: 210 50% 97.6%;
-    --card: 237.9 50% 16%;
-    --card-foreground: 210 50% 97.6%;
-    --popover: 237.9 50% 16%;
-    --popover-foreground: 210 50% 97.6%;
-    --primary: 243 97.5% 68%;
+    --background: 228 18% 8%;
+    --foreground: 220 20% 95%;
+    --card: 228 16% 11%;
+    --card-foreground: 220 20% 95%;
+    --popover: 228 16% 11%;
+    --popover-foreground: 220 20% 95%;
+    --primary: 252 95% 70%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 237.9 40% 22%;
-    --secondary-foreground: 210 50% 97.6%;
-    --muted: 237.9 40% 22%;
-    --muted-foreground: 214 20% 70%;
-    --accent: 237.9 45% 26%;
-    --accent-foreground: 210 50% 97.6%;
-    --destructive: 341.1 72% 45%;
+    --secondary: 228 14% 16%;
+    --secondary-foreground: 220 20% 95%;
+    --muted: 228 14% 16%;
+    --muted-foreground: 225 10% 65%;
+    --accent: 252 40% 22%;
+    --accent-foreground: 252 100% 88%;
+    --destructive: 350 70% 50%;
     --destructive-foreground: 0 0% 100%;
-    --border: 237.9 35% 26%;
-    --input: 237.9 35% 26%;
-    --ring: 243 97.5% 68%;
-    --chart-1: 243 97.5% 68%;
-    --chart-2: 341.1 82.6% 52.5%;
-    --chart-3: 240 84.2% 85.1%;
-    --chart-4: 33.2 58.2% 55%;
-    --chart-5: 304.6 92.2% 69.8%;
+    --border: 228 12% 20%;
+    --input: 228 12% 22%;
+    --ring: 252 95% 70%;
+    --chart-1: 252 95% 70%;
+    --chart-2: 350 80% 60%;
+    --chart-3: 220 20% 80%;
+    --chart-4: 35 90% 60%;
+    --chart-5: 160 60% 50%;
   }
 }
 
@@ -72,13 +71,10 @@
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11";
   }
 
-  /*
-   * Editorial density: the display tier is set light and tight, the way the reference sets
-   * Sohne 300 with negative tracking. Weight utilities in the markup still win where a
-   * heading has to shout.
-   */
+  /* Headings are set tight, as in the mockup's geometric sans. */
   h1, h2, h3 {
     letter-spacing: -0.022em;
   }

@@ -3,6 +3,7 @@ import { formatCurrency } from "@/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { ReportsClient } from "./reports-client"
 import { format, startOfYear, endOfYear, subMonths, startOfMonth, endOfMonth } from "date-fns"
+import { PageHeader } from "@/components/page-header"
 
 export default async function ReportsPage({ searchParams }: { searchParams: { year?: string } }) {
   const supabase = await createClient()
@@ -179,14 +180,13 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
   }).filter(c => c.totalRevenue > 0) ?? []
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-light tracking-tight">Relatórios</h1>
-          <p className="text-muted-foreground text-sm">Visão anual — {year}</p>
-        </div>
-        <div className="flex gap-2">
-          {[year - 1, year, year + 1].map(y => (
+    <div className="px-8 py-6 space-y-6">
+      <PageHeader
+        eyebrow="Financeiro"
+        title="Relatórios"
+        description={<>Visão anual — {year}</>}
+        actions={
+          [year - 1, year, year + 1].map(y => (
             <a key={y} href={`/reports?year=${y}`}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 y === year
@@ -195,9 +195,9 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
               }`}>
               {y}
             </a>
-          ))}
-        </div>
-      </div>
+          ))
+        }
+      />
 
       {/* Annual KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

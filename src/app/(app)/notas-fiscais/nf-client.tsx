@@ -9,6 +9,7 @@ import { NF_STATUS_LABELS, NF_SERIES_LABELS, formatNfNumber, effectiveNfSeries, 
 import { findGaps, findDuplicates, formatSeqNumber } from "@/lib/nf-sequence"
 import { InvoiceActions } from "../invoices/invoice-actions"
 import type { Invoice } from "@/lib/supabase/types"
+import { PageHeader } from "@/components/page-header"
 
 export type NfRow = Invoice & { jobs: { name: string; clients: { name: string; legal_name: string | null } | null } | null }
 
@@ -46,11 +47,12 @@ export function NfClient({ rows }: { rows: NfRow[] }) {
   const fmtGap = (g: { from: number; to: number }) => g.from === g.to ? String(g.from) : `${g.from}–${g.to}`
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-light tracking-tight">Notas fiscais</h1>
-        <p className="text-muted-foreground text-sm">{visible.length} invoices com NF · {overdue.length} acumuladas há mais de 7 dias</p>
-      </div>
+    <div className="px-8 py-6 space-y-6">
+      <PageHeader
+        eyebrow="Financeiro"
+        title="Notas fiscais"
+        description={<>{visible.length} invoices com NF · {overdue.length} acumuladas há mais de 7 dias</>}
+      />
 
       {(seqGaps.length > 0 || seqDups.length > 0 || nfAlerts.length > 0) && (
         <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">

@@ -24,6 +24,7 @@ import {
   ChevronLeft, ChevronRight, Plus, Download,
   Clock, DollarSign, Briefcase, X, Loader2,
 } from "lucide-react"
+import { PageHeader } from "@/components/page-header"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -305,54 +306,52 @@ export function TrackingClient({ logs: initialLogs, jobs, currentMonth }: Props)
   const weekDayNames = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
+    <div className="flex flex-col gap-6 px-8 py-6 max-w-5xl mx-auto">
 
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-light tracking-tight capitalize">{monthLabel}</h1>
-          <p className="text-sm text-muted-foreground">
-            {monthTotals.days} dias trabalhados · {formatHours(monthTotals.hours)} · {formatCurrency(monthTotals.value)}
-          </p>
-        </div>
+      <PageHeader
+        eyebrow="Planejamento"
+        className="mb-0"
+        title={<span className="capitalize">{monthLabel}</span>}
+        description={<>{monthTotals.days} dias trabalhados · {formatHours(monthTotals.hours)} · {formatCurrency(monthTotals.value)}</>}
+        actions={
+          <>
+            {/* Job filter */}
+            <Select value={filterJobId} onValueChange={setFilterJobId}>
+              <SelectTrigger className="w-44 h-8 text-sm">
+                <SelectValue placeholder="Todos os jobs" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os jobs</SelectItem>
+                {jobs.map(j => (
+                  <SelectItem key={j.id} value={j.id} className="text-sm">
+                    {j.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Job filter */}
-          <Select value={filterJobId} onValueChange={setFilterJobId}>
-            <SelectTrigger className="w-44 h-8 text-sm">
-              <SelectValue placeholder="Todos os jobs" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os jobs</SelectItem>
-              {jobs.map(j => (
-                <SelectItem key={j.id} value={j.id} className="text-sm">
-                  {j.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Export */}
-          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={exportWeek}>
-            <Download className="w-3.5 h-3.5" />Semana
-          </Button>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={exportMonth}>
-            <Download className="w-3.5 h-3.5" />Mês
-          </Button>
-
-          {/* Month nav */}
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="h-8 w-8"
-              onClick={() => router.push(`/diario?month=${prevMonth}`)}>
-              <ChevronLeft className="w-4 h-4" />
+            {/* Export */}
+            <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={exportWeek}>
+              <Download className="w-3.5 h-3.5" />Semana
             </Button>
-            <Button variant="outline" size="icon" className="h-8 w-8"
-              onClick={() => router.push(`/diario?month=${nextMonth}`)}>
-              <ChevronRight className="w-4 h-4" />
+            <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={exportMonth}>
+              <Download className="w-3.5 h-3.5" />Mês
             </Button>
-          </div>
-        </div>
-      </div>
+
+            {/* Month nav */}
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="icon" className="h-8 w-8"
+                onClick={() => router.push(`/diario?month=${prevMonth}`)}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="icon" className="h-8 w-8"
+                onClick={() => router.push(`/diario?month=${nextMonth}`)}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </>
+        }
+      />
 
       {/* Week navigation (feature 5: current week expanded) */}
       <div className="flex items-center gap-2">

@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Loader2, CheckCircle2, Clock, XCircle, AlertCircle } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { PageHeader } from "@/components/page-header"
 
 type Status = "disponivel" | "parcialmente" | "ocupado" | "indisponivel"
 
@@ -137,14 +138,12 @@ export function AvailabilityClient({ availability }: Props) {
   const current = STATUS_OPTIONS.find(s => s.value === status)!
 
   return (
-    <div className="p-6 max-w-3xl space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-light tracking-tight">Status de Agenda</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Configure sua disponibilidade para novos projetos e clientes.
-        </p>
-      </div>
+    <div className="px-8 py-6 max-w-3xl space-y-8">
+      <PageHeader
+        eyebrow="Planejamento"
+        title="Disponibilidade"
+        description="Configure sua disponibilidade para novos projetos e clientes."
+      />
 
       {/* Current status preview */}
       <div className={`rounded-xl border-2 p-5 flex items-center gap-4 ${current.bg} ${current.border}`}>

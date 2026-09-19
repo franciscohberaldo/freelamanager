@@ -8,6 +8,7 @@ import { AccountCard } from "./account-card"
 import { ExportButton } from "./export-button"
 import { ApiKeysPanel } from "./api-keys-panel"
 import { WebhooksPanel } from "./webhooks-panel"
+import { PageHeader } from "@/components/page-header"
 
 /**
  * Whether a service is actually wired up, read from the environment instead of told to the
@@ -85,11 +86,12 @@ export default async function SettingsPage() {
   const services = integrations(settings?.accountant_email ?? null)
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
-      <div>
-        <h1 className="text-3xl font-light tracking-tight">Configurações</h1>
-        <p className="text-muted-foreground text-sm">Sua empresa, seus bancos e o que o sistema faz por você</p>
-      </div>
+    <div className="px-8 py-6 space-y-6 max-w-4xl">
+      <PageHeader
+        eyebrow="Conta"
+        title="Configurações"
+        description="Sua empresa, seus bancos e o que o sistema faz por você"
+      />
 
       <SectionNav sections={SECTIONS} />
 

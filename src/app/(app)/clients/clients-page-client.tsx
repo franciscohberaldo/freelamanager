@@ -10,6 +10,7 @@ import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { PipelineClient } from "@/app/(app)/pipeline/pipeline-client"
 import { Plus, Users, Star, ChevronRight } from "lucide-react"
 import Link from "next/link"
+import { PageHeader } from "@/components/page-header"
 
 interface ClientContact { name: string; role: string | null }
 
@@ -62,33 +63,34 @@ export function ClientsPageClient({ clients, clientsCount, deals, pipelineClient
     initialCount: clientsCount,
   })
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-light tracking-tight">Clientes</h1>
-          <p className="text-muted-foreground text-sm">{clientsCount} clientes cadastrados</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <CsvExportButton
-            filename="clientes.csv"
-            data={(clientList as unknown as Client[]).map(c => ({
-              nome:     c.name,
-              empresa:  c.company ?? "",
-              email:    c.email ?? "",
-              telefone: c.phone ?? "",
-            }))}
-            columns={[
-              { key: "nome",     label: "Nome" },
-              { key: "empresa",  label: "Empresa" },
-              { key: "email",    label: "E-mail" },
-              { key: "telefone", label: "Telefone" },
-            ]}
-          />
-          <ClientDialog mode="create">
-            <Button><Plus className="w-4 h-4" />Novo Cliente</Button>
-          </ClientDialog>
-        </div>
-      </div>
+    <div className="px-8 py-6 space-y-6">
+      <PageHeader
+        eyebrow="Operação"
+        title="Clientes"
+        description={<>{clientsCount} clientes cadastrados</>}
+        actions={
+          <>
+            <CsvExportButton
+              filename="clientes.csv"
+              data={(clientList as unknown as Client[]).map(c => ({
+                nome:     c.name,
+                empresa:  c.company ?? "",
+                email:    c.email ?? "",
+                telefone: c.phone ?? "",
+              }))}
+              columns={[
+                { key: "nome",     label: "Nome" },
+                { key: "empresa",  label: "Empresa" },
+                { key: "email",    label: "E-mail" },
+                { key: "telefone", label: "Telefone" },
+              ]}
+            />
+            <ClientDialog mode="create">
+              <Button><Plus className="w-4 h-4" />Novo Cliente</Button>
+            </ClientDialog>
+          </>
+        }
+      />
 
       <Tabs defaultValue="clientes">
         <TabsList>

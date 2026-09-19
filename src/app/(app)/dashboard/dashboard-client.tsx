@@ -3,6 +3,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MonthlyView, type MonthlyViewProps } from "./monthly-view"
 import { DailyView, type DailyViewProps } from "./daily-view"
+import { PageHeader } from "@/components/page-header"
 
 export interface DashboardClientProps {
   monthly: MonthlyViewProps
@@ -11,15 +12,17 @@ export interface DashboardClientProps {
 
 export function DashboardClient({ monthly, daily }: DashboardClientProps) {
   return (
-    <div className="p-6 space-y-6">
+    <div className="px-8 py-6 space-y-6">
       <Tabs defaultValue="hoje">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-light tracking-tight">Dashboard</h1>
-          <TabsList>
-            <TabsTrigger value="hoje">Hoje</TabsTrigger>
-            <TabsTrigger value="mensal">Mensal</TabsTrigger>
-          </TabsList>
-        </div>
+        <PageHeader
+          eyebrow="Visão geral"
+          title="Início"
+          description="O mês de hoje em números: horas, faturamento e o que vence."
+        />
+        <TabsList>
+          <TabsTrigger value="hoje">Hoje</TabsTrigger>
+          <TabsTrigger value="mensal">Mensal</TabsTrigger>
+        </TabsList>
 
         <TabsContent value="hoje">
           <DailyView {...daily} />

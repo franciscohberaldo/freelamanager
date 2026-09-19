@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Loader2, FolderKanban, CalendarRange, ChevronRight, BookTemplate, Save } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { PageHeader } from "@/components/page-header"
 
 interface Task { id: string; status: string; title: string; description: string | null; progress: number }
 interface Project {
@@ -240,17 +241,18 @@ export function ProjectsClient({ projects, clients, templates }: Props) {
   const router = useRouter()
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-light tracking-tight">Projetos</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
+    <div className="px-8 py-6 space-y-6">
+      <PageHeader
+        eyebrow="Planejamento"
+        title="Projetos"
+        description={
+          <>
             {projects.length} projeto{projects.length !== 1 ? "s" : ""}
             {templates.length > 0 && ` · ${templates.length} template${templates.length !== 1 ? "s" : ""}`}
-          </p>
-        </div>
-        <NewProjectDialog clients={clients} templates={templates} onCreated={() => router.refresh()} />
-      </div>
+          </>
+        }
+        actions={<NewProjectDialog clients={clients} templates={templates} onCreated={() => router.refresh()} />}
+      />
 
       {projects.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">

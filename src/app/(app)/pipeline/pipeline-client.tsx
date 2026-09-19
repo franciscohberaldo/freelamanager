@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Plus, Pencil, Trash2, Loader2, GripVertical } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
+import { PageHeader } from "@/components/page-header"
 
 interface Deal {
   id: string; user_id: string; stage: string; title: string
@@ -205,25 +206,28 @@ export function PipelineClient({ deals: initialDeals, clients }: Props) {
   const pipelineTotal = deals.filter(d => !["won","lost"].includes(d.stage)).reduce((s, d) => s + (d.value ?? 0), 0)
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-light tracking-tight">Pipeline de Vendas</h1>
-          <p className="text-muted-foreground text-sm">
+    <div className="px-8 py-6 space-y-6">
+      <PageHeader
+        eyebrow="Comunicação"
+        title="Pipeline de Vendas"
+        description={
+          <>
             {deals.filter(d => !["won","lost"].includes(d.stage)).length} oportunidades em aberto · {formatCurrency(pipelineTotal)} no pipeline
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {wonTotal > 0 && (
-            <span className="text-sm font-medium text-green-600">
-              Fechado: {formatCurrency(wonTotal)}
-            </span>
-          )}
-          <Button className="gap-2" onClick={() => { setEditing(undefined); setDialogOpen(true) }}>
-            <Plus className="w-4 h-4" /> Novo deal
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <>
+            {wonTotal > 0 && (
+              <span className="text-sm font-medium text-green-600">
+                Fechado: {formatCurrency(wonTotal)}
+              </span>
+            )}
+            <Button className="gap-2" onClick={() => { setEditing(undefined); setDialogOpen(true) }}>
+              <Plus className="w-4 h-4" /> Novo deal
+            </Button>
+          </>
+        }
+      />
 
       {/* Kanban board */}
       <div className="flex gap-4 overflow-x-auto pb-4">

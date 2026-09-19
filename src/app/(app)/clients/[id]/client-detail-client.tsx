@@ -18,6 +18,7 @@ import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { ArrowLeft, Plus, Star, Link2, Copy, Phone, Mail, Briefcase, Loader2, Pencil } from "lucide-react"
 import Link from "next/link"
+import { PageHeader } from "@/components/page-header"
 
 interface Props {
   client: {
@@ -169,17 +170,16 @@ export function ClientDetailClient({ client, interactions, jobs, invoices, porta
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl">
-      {/* Header */}
-      <div className="flex items-start gap-4">
-        <Link href="/clients">
-          <Button variant="ghost" size="icon"><ArrowLeft className="w-4 h-4" /></Button>
-        </Link>
-        <div className="flex-1">
-          <h1 className="text-3xl font-light tracking-tight">{client.name}</h1>
-          {client.company && <p className="text-muted-foreground">{client.company}</p>}
-        </div>
-      </div>
+    <div className="px-8 py-6 space-y-6 max-w-5xl">
+      <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
+        <Link href="/clients"><ArrowLeft className="w-4 h-4" />Clientes</Link>
+      </Button>
+
+      <PageHeader
+        eyebrow="Operação"
+        title={client.name}
+        description={client.company ?? undefined}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column: info + score + portal */}

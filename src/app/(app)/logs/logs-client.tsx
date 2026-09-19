@@ -7,6 +7,7 @@ import { ptBR } from "date-fns/locale"
 import { formatCurrency, formatHours } from "@/lib/utils"
 import { downloadCsv } from "@/lib/csv"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/page-header"
 import { Input } from "@/components/ui/input"
 import { LogDialog } from "./log-dialog"
 import { DeleteLogButton } from "./delete-log-button"
@@ -125,62 +126,59 @@ export function LogsClient({ logs, logsCount, jobs, currentMonth, hourRounding }
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Top bar */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b">
-        <div className="flex-1">
-          <h1 className="text-xl font-bold leading-none">
-            Registro Diário
-            <span className="text-muted-foreground font-normal text-base ml-2">/ Timesheet</span>
-          </h1>
-        </div>
+    <div className="px-8 py-6">
+      <PageHeader
+        eyebrow="Operação"
+        title="Registro Diário"
+        description="As horas de cada dia, por job — a base de toda invoice."
+        actions={
+          <>
+            <LogDialog jobs={jobs} mode="create" hourRounding={hourRounding}>
+              <Button size="lg" variant="outline" className="border-emerald-500/60 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/20">
+                <Play className="w-4 h-4 fill-current" />
+                Iniciar timer
+              </Button>
+            </LogDialog>
+            <LogDialog jobs={jobs} mode="create" hourRounding={hourRounding}>
+              <Button size="lg">
+                <Plus className="w-4 h-4" />
+                Novo registro
+              </Button>
+            </LogDialog>
+          </>
+        }
+      />
 
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          <LogDialog jobs={jobs} mode="create" hourRounding={hourRounding}>
-            <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white gap-1.5">
-              <Plus className="w-4 h-4" />
-              Novo registro
-            </Button>
-          </LogDialog>
-          <LogDialog jobs={jobs} mode="create" hourRounding={hourRounding}>
-            <Button size="sm" variant="outline" className="gap-1.5 border-emerald-500 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20">
-              <Play className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />
-              Iniciar timer
-            </Button>
-          </LogDialog>
+      <div className="bg-card border rounded-xl shadow-sm overflow-hidden">
+      {/* Toolbar: search, exports, month */}
+      <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar..."
+            className="pl-8 h-9 w-56 text-sm"
+          />
         </div>
-
-        {/* Search + filter + period */}
-        <div className="flex items-center gap-2 ml-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar..."
-              className="pl-8 h-8 w-48 text-sm"
-            />
-          </div>
-          <TimesheetDialog jobs={jobs}>
-            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              Timesheet
-            </Button>
-          </TimesheetDialog>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={exportCsv}>
-            <Download className="w-3.5 h-3.5" />
-            CSV
+        <TimesheetDialog jobs={jobs}>
+          <Button variant="outline" size="sm">
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            Timesheet
           </Button>
-          <div className="flex items-center border rounded-md h-8">
-            <Button variant="ghost" size="icon" className="h-8 w-7 rounded-r-none" onClick={() => navigate(prevMonth)}>
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </Button>
-            <span className="text-xs font-medium px-2 capitalize whitespace-nowrap">{monthLabel}</span>
-            <Button variant="ghost" size="icon" className="h-8 w-7 rounded-l-none" onClick={() => navigate(nextMonth)}>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Button>
-          </div>
+        </TimesheetDialog>
+        <Button variant="outline" size="sm" onClick={exportCsv}>
+          <Download className="w-3.5 h-3.5" />
+          CSV
+        </Button>
+        <div className="ml-auto flex items-center border rounded-lg h-9">
+          <Button variant="ghost" size="icon" className="h-9 w-8 rounded-r-none" onClick={() => navigate(prevMonth)}>
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </Button>
+          <span className="text-sm font-medium px-2 capitalize whitespace-nowrap">{monthLabel}</span>
+          <Button variant="ghost" size="icon" className="h-9 w-8 rounded-l-none" onClick={() => navigate(nextMonth)}>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Button>
         </div>
       </div>
 
@@ -211,7 +209,7 @@ export function LogsClient({ logs, logsCount, jobs, currentMonth, hourRounding }
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="border-b bg-muted/20 text-muted-foreground text-xs sticky top-0">
@@ -282,6 +280,7 @@ export function LogsClient({ logs, logsCount, jobs, currentMonth, hourRounding }
           </tbody>
         </table>
         <LoadMoreButton hasMore={hasMore} loading={loadingMore} onClick={loadMore} />
+      </div>
       </div>
     </div>
   )

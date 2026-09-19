@@ -262,11 +262,12 @@ Geração e gestão de faturas.
 - Observações
 
 **Fluxo de criação:**
-1. Selecionar job, período, data de vencimento
-2. Sistema busca todos os `daily_logs` do período
-3. Preview mostra cada log como linha de item (unidade `hour`/`day`/`project` conforme o modo do job)
-4. Ao confirmar: cria `invoice` + `invoice_items`
-5. Numerações via funções PostgreSQL `get_next_invoice_number` e `get_next_invoice_seq`
+1. Selecionar job, período, vencimento, PO, notas e linhas livres — o formulário fica à direita
+2. Sistema busca os `daily_logs` do período e descarta os que outra invoice do job já faturou
+3. À esquerda, a **prévia do PDF** (`/api/invoices/preview`) é redesenhada a cada edição, pelo mesmo gerador do PDF final
+4. As linhas vêm de `src/lib/invoice-draft.ts`: por hora/dia, uma linha por diária; **por projeto, os dias trabalhados entram sem valor e o preço fechado fica na última linha**; linhas livres ao final
+5. Ao confirmar: cria `invoice` + `invoice_items` exatamente como mostrado
+6. Numerações via funções PostgreSQL `get_next_invoice_number` e `get_next_invoice_seq`
 
 **Ações por invoice:**
 - Baixar PDF (PT ou EN) — `/api/invoices/pdf?id=X&lang=pt|en`
@@ -277,7 +278,7 @@ Geração e gestão de faturas.
 - Marcar como pago — atualiza status e `paid_at`; **pagamentos internacionais** registram câmbio (`exchange_rate`, `amount_received_brl`, `fees`, método `wire`)
 - **Pagamentos parciais** — múltiplos recebimentos por invoice (`invoice_payments`) com saldo em aberto
 
-**PDF inclui:** número, dados do cliente, tabela de itens, totais, observações, **bloco de dados bancários** (conta BR, conta internacional + banco intermediário, PIX) e **contato do emissor** (e-mail/telefone junto à razão social)
+**PDF inclui:** carimbo de cidade e **data de emissão** (`sent_at ?? created_at`), dados do cliente e do prestador (nomes e endereços gravados em caixa alta são impressos em caixa normal), tabela de itens, totais, observações, **bloco de dados bancários** (internacional + banco intermediário; Pix e conta BR) e **contato do emissor**. Idioma segue a moeda da invoice.
 
 ---
 
@@ -544,7 +545,8 @@ Página **pública** (sem login) que cada cliente acessa por link único.
 
 | Rota | Método | Descrição |
 |---|---|---|
-| `/api/invoices/pdf` | GET | Gera PDF da invoice. Params: `id`, `lang` (`pt`/`en`). Requer auth |
+| `/api/invoices/pdf` | GET | Gera PDF da invoice. Params: `id`, `lang` (`pt`/`en`; omitido → idioma pela moeda: BRL = pt, demais = en), `inline=1` abre no navegador. Requer auth |
+| `/api/invoices/preview` | POST | PDF de um invoice **antes de existir** — o diálogo de criação envia as linhas que vai gravar e mostra a página ao vivo. Body: `{ jobId, periodStart, periodEnd, dueDate?, notes?, poNumber?, items, subtotal, taxRate }` |
 | `/api/invoices/send-email` | POST | Envia invoice por e-mail via Resend. Body: `{ invoiceId, lang }`. Atualiza `status='sent'` e `sent_at`. Copia contatos com `cc_invoices` |
 | `/api/invoices/ai-description` | POST | Gera descrição dos itens com Claude a partir dos logs. Body: `{ invoiceId}`. Requer `ANTHROPIC_API_KEY` |
 | `/api/invoices/payment-link` | POST | Cria Stripe Checkout Session para a invoice. Requer `STRIPE_SECRET_KEY` |
@@ -925,14 +927,18 @@ FreelancerAdmin/
 │   │   ├── manifest.ts                   # PWA manifest
 │   │   └── icon-192|512.png/             # Ícones via next/og
 │   ├── components/
-│   │   ├── layout/sidebar.tsx            # Nav + badges (invoices vencidas, deals parados) + CommandPalette
+│   │   ├── layout/app-shell.tsx          # Sidebar + barra superior + página (client)
+│   │   ├── layout/sidebar.tsx            # Menu (recolhível) + badges
+│   │   ├── layout/topbar.tsx             # Título da seção, busca (⌘K), sino de pendências, avatar (tema, sair)
+│   │   ├── layout/nav.ts                 # Itens do menu e título da seção por rota
+│   │   ├── page-header.tsx               # Cabeçalho padrão das páginas (rótulo, título, descrição, ações)
 │   │   ├── command-palette.tsx           # Busca global (Cmd+K)
 │   │   ├── ui/                           # shadcn/ui
 │   │   └── ...
 │   ├── hooks/use-paginated-list.ts
 │   └── lib/
 │       ├── supabase/                     # client, server, middleware, admin (service role), types
-│       ├── invoice-pdf.ts, billing-pdf.ts, invoice-i18n.ts, invoice-items.ts, invoice-layout.ts
+│       ├── invoice-pdf.ts, billing-pdf.ts, invoice-i18n.ts, invoice-items.ts, invoice-draft.ts, invoice-layout.ts
 │       ├── nf-request.ts, nf-status.ts, nf-sequence.ts, nfse-prefeitura.ts
 │       ├── inbound-email.ts, process-received-email.ts
 │       ├── job-documents.ts, accounting-documents.ts, job-history.ts, job-thumbnail.ts
@@ -1033,8 +1039,11 @@ Os PDFs usam a família **Jost** embutida em `src/lib/fonts/` (base64), garantin
 - Manifest via `src/app/manifest.ts` (convenção Next.js 14, serve em `/manifest.webmanifest`)
 - Service worker em `public/sw.js` + página `/offline`
 
+### Design do shell
+Tokens em `globals.css` (roxo primário, fundo cinza-claro, cards brancos, texto neutro), fonte **Manrope** via `next/font`, botões e chips com raio 8px, cards 12px. Spec em `docs/superpowers/specs/2026-09-19-shell-redesign-design.md`.
+
 ### Dark Mode
-Implementado via `next-themes`. Toggle no rodapé da sidebar. Persiste via `localStorage`.
+Implementado via `next-themes`. Toggle no menu do avatar (barra superior). Persiste via `localStorage`.
 
 ### Testes
 `npm test` roda Vitest sobre `src/lib/__tests__/` — 15 suítes cobrindo lógica pura: sequência e status de NF, documentos (jobs e contabilidade), histórico, billing mode, CNPJ, e-mails inbound, layout e itens de invoice, ordem de colunas, capitalização de nomes.

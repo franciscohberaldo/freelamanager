@@ -15,6 +15,7 @@ import { rateOf, rateLabel } from "@/lib/billing-mode"
 import { canTransition, formatNfNumber, effectiveNfSeries, type NfStatus } from "@/lib/nf-status"
 import { ArrowLeft, FileText, Image as ImageIcon } from "lucide-react"
 import type { Job, JobDocument, Invoice } from "@/lib/supabase/types"
+import { PageHeader } from "@/components/page-header"
 
 const statusVariant: Record<string, "default" | "success" | "warning" | "outline"> = {
   proposal: "outline", active: "success", paused: "warning", completed: "default",
@@ -72,7 +73,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
     .map(i => ({ id: i.id, label: i.seq_number ?? i.invoice_number }))
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="px-8 py-6 space-y-6">
       <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
         <Link href="/historico"><ArrowLeft className="w-4 h-4" />Histórico</Link>
       </Button>
@@ -84,30 +85,38 @@ export default async function JobPage({ params }: { params: { id: string } }) {
             ? <img src={typedJob.thumbnail_url} alt="" className="w-full h-full object-cover" />
             : <ImageIcon className="w-6 h-6 text-muted-foreground/40" />}
         </div>
-        <div className="min-w-0 space-y-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-3xl font-light tracking-tight">{typedJob.name}</h1>
-            <Badge variant={statusVariant[typedJob.status] ?? "outline"}>
-              {JOB_STATUS_LABELS[typedJob.status] ?? typedJob.status}
-            </Badge>
-            {typedJob.is_recurring && <Badge variant="outline">Recorrente</Badge>}
-            {typedJob.is_confidential && (
-              <Badge variant="destructive" title="Confidencial: não divulgar o trabalho">NDA</Badge>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {client?.legal_name ?? client?.name ?? "Sem cliente"}
-            {typedJob.intermediary && ` · via ${typedJob.intermediary}`}
-            {typedJob.end_client && ` · ${typedJob.end_client}`}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {`${formatCurrency(rateOf(typedJob), typedJob.currency)}${rateLabel(typedJob.billing_mode)}`}
-            {typedJob.start_date && ` · ${formatDate(typedJob.start_date)}`}
-            {typedJob.end_date && ` – ${formatDate(typedJob.end_date)}`}
-            {typedJob.project_code && ` · ${typedJob.project_code}`}
-            {localHours && ` · ${localHours.remoteLabel} = ${localHours.localLabel}`}
-          </p>
-        </div>
+        <PageHeader
+          eyebrow="Operação"
+          className="flex-1 mb-0"
+          title={
+            <span className="flex items-center gap-2 flex-wrap">
+              {typedJob.name}
+              <Badge variant={statusVariant[typedJob.status] ?? "outline"}>
+                {JOB_STATUS_LABELS[typedJob.status] ?? typedJob.status}
+              </Badge>
+              {typedJob.is_recurring && <Badge variant="outline">Recorrente</Badge>}
+              {typedJob.is_confidential && (
+                <Badge variant="destructive" title="Confidencial: não divulgar o trabalho">NDA</Badge>
+              )}
+            </span>
+          }
+          description={
+            <>
+              <p>
+                {client?.legal_name ?? client?.name ?? "Sem cliente"}
+                {typedJob.intermediary && ` · via ${typedJob.intermediary}`}
+                {typedJob.end_client && ` · ${typedJob.end_client}`}
+              </p>
+              <p>
+                {`${formatCurrency(rateOf(typedJob), typedJob.currency)}${rateLabel(typedJob.billing_mode)}`}
+                {typedJob.start_date && ` · ${formatDate(typedJob.start_date)}`}
+                {typedJob.end_date && ` – ${formatDate(typedJob.end_date)}`}
+                {typedJob.project_code && ` · ${typedJob.project_code}`}
+                {localHours && ` · ${localHours.remoteLabel} = ${localHours.localLabel}`}
+              </p>
+            </>
+          }
+        />
       </div>
 
       <section id="dados" className="space-y-3">

@@ -2,158 +2,123 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
-import {
-  BarChart3, Briefcase, CalendarDays, CalendarOff, Calculator, ClipboardList, Clock,
-  FileText, LayoutDashboard, LogOut, Mail, Moon, Receipt, Search, Settings,
-  Sun, TrendingUp, Users, Wallet,
-} from "lucide-react"
-import { useTheme } from "next-themes"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
-import { CommandPalette } from "@/components/command-palette"
+import { Badge } from "@/components/ui/badge"
+import { NAV_ITEMS, SETTINGS_ITEM, isNavActive, type NavItem } from "./nav"
+import type { AttentionCounts } from "@/hooks/use-attention-counts"
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard",      icon: LayoutDashboard },
-  { href: "/logs",      label: "Tracking Diário", icon: ClipboardList },
-  // a job's detail page still lives under /jobs, so the entry lights up for it too
-  { href: "/historico", label: "Jobs",            icon: Briefcase, alias: "/jobs" },
-  { href: "/clients",   label: "Clientes",        icon: Users },
-  { href: "/invoices",  label: "Invoices",        icon: FileText },
-  { href: "/notas-fiscais", label: "Notas fiscais", icon: Receipt },
-  { href: "/emails",    label: "E-mails",         icon: Mail },
-  { href: "/despesas",  label: "Despesas",        icon: Wallet },
-  { href: "/contabilidade", label: "Contabilidade", icon: Calculator },
-  { href: "/agenda",    label: "Calendário",      icon: CalendarDays },
-  { href: "/disponibilidade", label: "Disponibilidade", icon: Clock },
-  { href: "/folgas",    label: "Folgas",          icon: CalendarOff },
-  { href: "/reports",   label: "Relatórios",      icon: TrendingUp },
-  { href: "/settings",  label: "Configurações",   icon: Settings },
-]
+const COLLAPSED_KEY = "sidebar:collapsed"
 
-const isActive = (pathname: string, href: string) =>
-  pathname === href || pathname.startsWith(href + "/")
+interface Props {
+  counts: AttentionCounts
+}
 
-export function Sidebar() {
+/**
+ * The menu: brand on top, every section as a plain row, settings and sign-out at the foot.
+ * Collapses to icons; the choice is remembered in this browser.
+ */
+export function Sidebar({ counts }: Props) {
   const pathname = usePathname()
-  const { theme, setTheme } = useTheme()
   const router = useRouter()
-  const supabase = createClient()
-  const [overdueInvoices, setOverdueInvoices] = useState(0)
-  const [stalledDeals, setStalledDeals] = useState(0)
+  const [collapsed, setCollapsed] = useState(false)
 
   useEffect(() => {
-    async function fetchBadgeCounts() {
-      const { count: overdueCount } = await supabase
-        .from("invoices")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "overdue")
-
-      const sevenDaysAgo = new Date()
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-
-      const { count: stalledCount } = await supabase
-        .from("sales_pipeline")
-        .select("*", { count: "exact", head: true })
-        .not("stage", "in", '("won","lost")')
-        .lt("updated_at", sevenDaysAgo.toISOString())
-
-      setOverdueInvoices(overdueCount ?? 0)
-      setStalledDeals(stalledCount ?? 0)
-    }
-
-    fetchBadgeCounts()
+    try { setCollapsed(localStorage.getItem(COLLAPSED_KEY) === "1") } catch { /* private mode */ }
   }, [])
 
+  function toggle() {
+    setCollapsed(c => {
+      try { localStorage.setItem(COLLAPSED_KEY, c ? "0" : "1") } catch { /* private mode */ }
+      return !c
+    })
+  }
+
   async function handleSignOut() {
+    const supabase = createClient()
     await supabase.auth.signOut()
     router.push("/login")
     router.refresh()
   }
 
+  const badgeFor = (href: string) =>
+    href === "/invoices" ? counts.overdueInvoices :
+    href === "/clients"  ? counts.stalledDeals : 0
+
+  const Item = ({ item }: { item: NavItem }) => {
+    const active = isNavActive(pathname, item)
+    const badge = badgeFor(item.href)
+    return (
+      <Link
+        href={item.href}
+        title={collapsed ? item.label : undefined}
+        className={cn(
+          "flex items-center gap-3 h-10 rounded-lg px-3 text-[15px] transition-colors",
+          collapsed && "justify-center px-0",
+          active
+            ? "bg-accent text-accent-foreground font-medium"
+            : "text-foreground/80 hover:bg-muted hover:text-foreground",
+        )}
+      >
+        <item.icon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
+        {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+        {badge > 0 && (
+          collapsed
+            ? <span className="absolute ml-5 -mt-5 w-2 h-2 rounded-full bg-destructive" />
+            : <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[10px] justify-center">{badge}</Badge>
+        )}
+      </Link>
+    )
+  }
+
   return (
-    <>
-    <aside className="flex flex-col w-64 shrink-0 border-r bg-card h-full overflow-y-auto">
-      {/* Logo */}
-      <div className="flex items-center gap-2 px-6 py-5 border-b">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground">
-          <BarChart3 className="w-4 h-4" />
+    <aside
+      className={cn(
+        "relative flex flex-col shrink-0 h-full bg-card border-r transition-[width] duration-200",
+        collapsed ? "w-16" : "w-64",
+      )}
+    >
+      {/* Brand */}
+      <div className={cn("flex items-center gap-3 h-16 px-4", collapsed && "justify-center px-0")}>
+        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-primary text-primary-foreground text-sm font-bold tracking-tight shrink-0">
+          FM
         </div>
-        <span className="font-bold text-lg">Freela Manager</span>
+        {!collapsed && <span className="font-semibold text-[17px] tracking-tight">Freela Manager</span>}
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map(({ href, label, icon: Icon, alias }) => {
-          const badgeCount =
-            href === "/invoices" ? overdueInvoices :
-            href === "/clients" ? stalledDeals : 0
+      {/* Collapse handle, riding the sidebar's edge */}
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+        className="absolute -right-3.5 top-[76px] z-10 flex items-center justify-center w-7 h-7 rounded-md border bg-card text-muted-foreground shadow-sm hover:text-foreground hover:bg-muted transition-colors"
+      >
+        {collapsed ? <PanelLeftOpen className="w-3.5 h-3.5" /> : <PanelLeftClose className="w-3.5 h-3.5" />}
+      </button>
 
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
-                isActive(pathname, href) || (!!alias && isActive(pathname, alias))
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              )}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              <span className="flex-1">{label}</span>
-              {badgeCount > 0 && (
-                <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[10px] justify-center">
-                  {badgeCount}
-                </Badge>
-              )}
-            </Link>
-          )
-        })}
+      {/* Sections */}
+      <nav className={cn("flex-1 overflow-y-auto py-4 space-y-1", collapsed ? "px-2" : "px-3")}>
+        {NAV_ITEMS.map(item => <Item key={item.href} item={item} />)}
       </nav>
 
-      {/* Search shortcut */}
-      <div className="px-3 pb-2">
+      {/* Foot */}
+      <div className={cn("py-4 space-y-1 border-t", collapsed ? "px-2" : "px-3")}>
+        <Item item={SETTINGS_ITEM} />
         <button
-          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, ctrlKey: true, bubbles: true }))}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground border bg-muted/30 hover:bg-accent transition-colors"
+          type="button"
+          onClick={handleSignOut}
+          title={collapsed ? "Sair" : undefined}
+          className={cn(
+            "w-full flex items-center gap-3 h-10 rounded-lg px-3 text-[15px] text-foreground/80 hover:bg-muted hover:text-foreground transition-colors",
+            collapsed && "justify-center px-0",
+          )}
         >
-          <Search className="w-3.5 h-3.5 shrink-0" />
-          <span className="flex-1 text-left text-xs">Buscar...</span>
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 font-mono text-[10px] bg-background border rounded px-1">
-            ⌘K
-          </kbd>
+          <LogOut className="w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
+          {!collapsed && <span>Sair</span>}
         </button>
       </div>
-
-      {/* Footer */}
-      <div className="px-3 pb-4 space-y-1 border-t pt-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-3 text-muted-foreground"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        >
-          {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          {theme === "dark" ? "Modo claro" : "Modo escuro"}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
-          onClick={handleSignOut}
-        >
-          <LogOut className="w-4 h-4" />
-          Sair
-        </Button>
-      </div>
     </aside>
-
-    {/* Global command palette — rendered once here, triggered by Cmd+K */}
-    <CommandPalette />
-    </>
   )
 }

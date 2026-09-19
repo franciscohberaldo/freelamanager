@@ -17,6 +17,7 @@ import { KanbanBoard } from "./kanban-board"
 import { ChevronLeft, Plus, Loader2, Pencil, Trash2, GanttChartSquare, List, LayoutGrid, Check, X } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { PageHeader } from "@/components/page-header"
 
 interface ChecklistItem {
   id: string; text: string; is_done: boolean; position: number
@@ -298,32 +299,38 @@ export function ProjectClient({ project, tasks: initialTasks }: Props) {
   const pct   = tasks.length ? Math.round((done / tasks.length) * 100) : 0
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="px-8 py-6 space-y-6">
       {/* Header */}
       <div>
         <Link href="/projetos" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3 w-fit">
           <ChevronLeft className="w-4 h-4" /> Projetos
         </Link>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-4 h-4 rounded-full shrink-0 mt-1" style={{ background: project.color }} />
-            <div>
-              <h1 className="text-3xl font-light tracking-tight">{project.name}</h1>
-              <div className="flex items-center gap-3 mt-0.5 text-sm text-muted-foreground">
-                {project.clients && <span>{project.clients.name}</span>}
-                {project.start_date && (
-                  <span>
-                    {format(parseISO(project.start_date), "dd MMM", { locale: ptBR })}
-                    {project.end_date && ` → ${format(parseISO(project.end_date), "dd MMM yyyy", { locale: ptBR })}`}
-                  </span>
-                )}
-              </div>
+        <PageHeader
+          eyebrow="Planejamento"
+          className="mb-0"
+          title={
+            <span className="flex items-center gap-3">
+              <span className="w-4 h-4 rounded-full shrink-0" style={{ background: project.color }} />
+              {project.name}
+            </span>
+          }
+          description={
+            <div className="flex items-center gap-3">
+              {project.clients && <span>{project.clients.name}</span>}
+              {project.start_date && (
+                <span>
+                  {format(parseISO(project.start_date), "dd MMM", { locale: ptBR })}
+                  {project.end_date && ` → ${format(parseISO(project.end_date), "dd MMM yyyy", { locale: ptBR })}`}
+                </span>
+              )}
             </div>
-          </div>
-          <Button onClick={openNew} className="gap-2 shrink-0">
-            <Plus className="w-4 h-4" /> Nova Tarefa
-          </Button>
-        </div>
+          }
+          actions={
+            <Button onClick={openNew} className="gap-2 shrink-0">
+              <Plus className="w-4 h-4" /> Nova Tarefa
+            </Button>
+          }
+        />
 
         {/* Progress bar */}
         {tasks.length > 0 && (

@@ -15,6 +15,7 @@ import {
 } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { ChevronLeft, ChevronRight, CalendarOff, Loader2, Trash2 } from "lucide-react"
+import { PageHeader } from "@/components/page-header"
 
 interface TimeOff {
   id: string; user_id: string; date: string; type: string; note: string | null
@@ -153,25 +154,23 @@ export function FolgasClient({ timeOff, yearTimeOff, currentMonth }: Props) {
   const totalDaysOff = yearTimeOff.length
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-light tracking-tight">Folgas e Férias</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            {totalDaysOff} dia{totalDaysOff !== 1 ? "s" : ""} registrado{totalDaysOff !== 1 ? "s" : ""} este ano
-          </p>
-        </div>
-        <div className="flex items-center border rounded-lg h-9">
-          <Button variant="ghost" size="icon" className="h-9 w-8" onClick={() => router.push(`/folgas?month=${prevMonth}`)}>
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <span className="text-sm font-medium px-3 capitalize min-w-36 text-center">{monthLabel}</span>
-          <Button variant="ghost" size="icon" className="h-9 w-8" onClick={() => router.push(`/folgas?month=${nextMonth}`)}>
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
+    <div className="px-8 py-6 space-y-6 max-w-4xl">
+      <PageHeader
+        eyebrow="Planejamento"
+        title="Folgas e Férias"
+        description={<>{totalDaysOff} dia{totalDaysOff !== 1 ? "s" : ""} registrado{totalDaysOff !== 1 ? "s" : ""} este ano</>}
+        actions={
+          <div className="flex items-center border rounded-lg h-9">
+            <Button variant="ghost" size="icon" className="h-9 w-8" onClick={() => router.push(`/folgas?month=${prevMonth}`)}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-sm font-medium px-3 capitalize min-w-36 text-center">{monthLabel}</span>
+            <Button variant="ghost" size="icon" className="h-9 w-8" onClick={() => router.push(`/folgas?month=${nextMonth}`)}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        }
+      />
 
       {/* Summary chips */}
       <div className="flex gap-2 flex-wrap">

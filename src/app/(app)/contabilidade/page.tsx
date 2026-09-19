@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { AccountingTable, type CompetenciaRow } from "./accounting-table"
 import { ACCOUNTING_KINDS, type AccountingKind } from "@/lib/accounting-documents"
 import type { AccountingDocument } from "@/lib/supabase/types"
+import { PageHeader } from "@/components/page-header"
 
 export default async function ContabilidadePage() {
   const supabase = await createClient()
@@ -36,14 +37,17 @@ export default async function ContabilidadePage() {
   const rows = [...months.values()].sort((a, b) => b.competencia.localeCompare(a.competencia))
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-light tracking-tight">Contabilidade</h1>
-        <p className="text-muted-foreground text-sm">
-          {docs.length} documentos em {rows.length} competências · a guia do DAS de um mês é
-          emitida no mês seguinte, e fica na linha do mês a que se refere
-        </p>
-      </div>
+    <div className="px-8 py-6 space-y-6">
+      <PageHeader
+        eyebrow="Financeiro"
+        title="Contabilidade"
+        description={
+          <>
+            {docs.length} documentos em {rows.length} competências · a guia do DAS de um mês é
+            emitida no mês seguinte, e fica na linha do mês a que se refere
+          </>
+        }
+      />
 
       <AccountingTable rows={rows} />
     </div>

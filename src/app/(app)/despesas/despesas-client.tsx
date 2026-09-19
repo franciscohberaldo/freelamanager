@@ -17,6 +17,7 @@ import { format, parseISO, subMonths, addMonths, isValid, parse } from "date-fns
 import { ptBR } from "date-fns/locale"
 import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Download, Upload, Loader2, Receipt } from "lucide-react"
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts"
+import { PageHeader } from "@/components/page-header"
 
 interface Expense {
   id: string; user_id: string; category: string; description: string
@@ -449,34 +450,34 @@ export function DespesasClient({ expenses, expensesCount, yearExpenses, currentM
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-light tracking-tight">Despesas</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Controle de gastos do negócio</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2" onClick={exportCsv} disabled={!typedExpenses.length}>
-            <Download className="w-4 h-4" /> CSV
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportOpen(true)}>
-            <Upload className="w-4 h-4" /> Importar
-          </Button>
-          <div className="flex items-center border rounded-lg h-9">
-            <Button variant="ghost" size="icon" className="h-9 w-8" onClick={() => router.push(`/despesas?month=${prevMonth}`)}>
-              <ChevronLeft className="w-4 h-4" />
+    <div className="px-8 py-6 space-y-6 max-w-5xl">
+      <PageHeader
+        eyebrow="Financeiro"
+        title="Despesas"
+        description="Controle de gastos do negócio"
+        actions={
+          <>
+            <Button variant="outline" size="sm" className="gap-2" onClick={exportCsv} disabled={!typedExpenses.length}>
+              <Download className="w-4 h-4" /> CSV
             </Button>
-            <span className="text-sm font-medium px-2 capitalize min-w-36 text-center">{monthLabel}</span>
-            <Button variant="ghost" size="icon" className="h-9 w-8" onClick={() => router.push(`/despesas?month=${nextMonth}`)}>
-              <ChevronRight className="w-4 h-4" />
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportOpen(true)}>
+              <Upload className="w-4 h-4" /> Importar
             </Button>
-          </div>
-          <Button className="gap-2" onClick={() => { setEditing(undefined); setDialogOpen(true) }}>
-            <Plus className="w-4 h-4" /> Nova despesa
-          </Button>
-        </div>
-      </div>
+            <div className="flex items-center border rounded-lg h-9">
+              <Button variant="ghost" size="icon" className="h-9 w-8" onClick={() => router.push(`/despesas?month=${prevMonth}`)}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="text-sm font-medium px-2 capitalize min-w-36 text-center">{monthLabel}</span>
+              <Button variant="ghost" size="icon" className="h-9 w-8" onClick={() => router.push(`/despesas?month=${nextMonth}`)}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+            <Button className="gap-2" onClick={() => { setEditing(undefined); setDialogOpen(true) }}>
+              <Plus className="w-4 h-4" /> Nova despesa
+            </Button>
+          </>
+        }
+      />
 
       {/* Summary + Chart */}
       {typedExpenses.length > 0 && (

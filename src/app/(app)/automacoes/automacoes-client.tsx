@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch"
 import { Loader2, Bell, RefreshCw, Mail, CheckCircle2, XCircle, Clock } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { PageHeader } from "@/components/page-header"
 
 interface Settings {
   billing_reminder_enabled: boolean
@@ -98,13 +99,12 @@ export function AutomacoesClient({ initialSettings, jobs, logs }: Props) {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-3xl font-light tracking-tight">Automações</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">
-          Configure e-mails automáticos e ações recorrentes
-        </p>
-      </div>
+    <div className="px-8 py-6 space-y-6 max-w-3xl">
+      <PageHeader
+        eyebrow="Comunicação"
+        title="Automações"
+        description="Configure e-mails automáticos e ações recorrentes"
+      />
 
       {/* Billing Reminders */}
       <Card>
