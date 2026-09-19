@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import { format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, isToday, addMonths, subMonths } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import type { AgendaEvent } from "@/lib/supabase/types"
 import { DayDialog, type DayLog } from "./day-dialog"
@@ -164,9 +165,20 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [] }: Props
                       +{evs.length - 3} mais
                     </div>
                   )}
-                  {dayLogs.length > 0 && (
+                  {dayLogs.slice(0, 2).map(l => (
+                    <Link
+                      key={l.id}
+                      href={`/jobs/${l.job_id}`}
+                      onClick={e => e.stopPropagation()}
+                      title={`${l.jobs?.name ?? "Diária"} — ${l.hours_billed}h faturadas`}
+                      className="block text-[10px] px-1.5 py-0.5 rounded truncate bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60"
+                    >
+                      {l.jobs?.name ?? "Diária"}
+                    </Link>
+                  ))}
+                  {dayLogs.length > 2 && (
                     <div className="text-[10px] text-emerald-600 dark:text-emerald-400 px-1 font-medium">
-                      ● {dayLogs.length} diária{dayLogs.length > 1 ? "s" : ""}
+                      +{dayLogs.length - 2} diária{dayLogs.length - 2 > 1 ? "s" : ""}
                     </div>
                   )}
                 </div>

@@ -2,6 +2,7 @@
 
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import Link from "next/link"
 import { CalendarDays, Clock, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
@@ -79,12 +80,16 @@ export function DayDialog({ date, events, holds, logs, jobs, onClose }: Props) {
             </p>
             {logs.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma diária registrada nesse dia.</p>}
             {logs.map(l => (
-              <div key={l.id} className="text-sm flex items-center justify-between gap-2">
+              <Link
+                key={l.id}
+                href={`/jobs/${l.job_id}`}
+                className="text-sm flex items-center justify-between gap-2 rounded px-1 -mx-1 hover:bg-accent transition-colors"
+              >
                 <span className="truncate">{l.jobs?.name ?? "—"}</span>
                 <span className="text-xs text-muted-foreground shrink-0">
                   {l.hours_billed}h · {formatCurrency(l.total_value)}
                 </span>
-              </div>
+              </Link>
             ))}
           </div>
 
