@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { formatCurrency, formatDate, formatHours, JOB_STATUS_LABELS } from "@/lib/utils"
 import { workHoursInLocal } from "@/lib/timezone"
 import { JobForm } from "../job-form"
+import { DeleteJobButton } from "./delete-job-button"
 import { JobDocumentsPanel } from "./job-documents-panel"
 import { SectionNav } from "@/components/section-nav"
 import { NfRequestAction, type SentRequest } from "./nf-request-action"
@@ -131,6 +132,9 @@ export default async function JobPage({ params }: { params: { id: string } }) {
         <h2 className="text-lg font-semibold">Dados</h2>
         <div className="max-w-3xl">
           <JobForm clients={clients ?? []} job={typedJob} mode="edit" />
+        </div>
+        <div className="max-w-3xl pt-4 mt-2 border-t flex justify-end">
+          <DeleteJobButton jobId={typedJob.id} jobName={typedJob.name} thumbnailUrl={typedJob.thumbnail_url} />
         </div>
       </section>
 
