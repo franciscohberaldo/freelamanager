@@ -2,11 +2,16 @@ import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { generateInvoicePDF, type InvoicePDFParams } from "@/lib/invoice-pdf"
 import { itemsFromLogs } from "@/lib/invoice-items"
-import type { InvoiceLang } from "@/lib/invoice-i18n"
+import { invoiceLangFor, isInvoiceLang } from "@/lib/invoice-i18n"
 
+/**
+ * The invoice as a PDF. `lang` may be forced; left out, the invoice speaks the language of
+ * its currency. `inline=1` opens it in the browser tab instead of downloading.
+ */
 export async function GET(request: NextRequest) {
-  const id   = request.nextUrl.searchParams.get("id")
-  const lang = (request.nextUrl.searchParams.get("lang") ?? "pt") as InvoiceLang
+  const id        = request.nextUrl.searchParams.get("id")
+  const langParam = request.nextUrl.searchParams.get("lang")
+  const inline    = request.nextUrl.searchParams.get("inline") === "1"
 
   if (!id) return NextResponse.json({ error: "ID obrigatório" }, { status: 400 })
 
@@ -29,6 +34,8 @@ export async function GET(request: NextRequest) {
   ])
 
   if (!invoice) return NextResponse.json({ error: "Invoice não encontrado" }, { status: 404 })
+
+  const lang = isInvoiceLang(langParam) ? langParam : invoiceLangFor(invoice.currency)
 
   const { data: items } = await supabase
     .from("invoice_items")
@@ -70,10 +77,11 @@ export async function GET(request: NextRequest) {
     lang,
   })
 
+  const fileName = `invoice-${invoice.seq_number ?? invoice.invoice_number}.pdf`
   return new NextResponse(pdfBytes, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="invoice-${invoice.seq_number ?? invoice.invoice_number}.pdf"`,
+      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${fileName}"`,
     },
   })
 }

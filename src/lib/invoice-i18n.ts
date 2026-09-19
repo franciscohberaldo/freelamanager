@@ -1,6 +1,15 @@
 export type InvoiceLang = "pt" | "en"
 export type BillingUnit = "hour" | "day" | "project"
 
+/** An invoice speaks the client's language: reais at home, English everywhere else. */
+export function invoiceLangFor(currency: string | null | undefined): InvoiceLang {
+  return currency === "BRL" ? "pt" : "en"
+}
+
+export function isInvoiceLang(value: string | null | undefined): value is InvoiceLang {
+  return value === "pt" || value === "en"
+}
+
 /** Intl locale and date-fns pattern per invoice language */
 export const invoiceLocale: Record<InvoiceLang, { intl: string; dateFormat: string }> = {
   pt: { intl: "pt-BR", dateFormat: "dd/MM/yyyy" },

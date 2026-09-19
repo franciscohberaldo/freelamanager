@@ -13,7 +13,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Download, Send, CheckCircle2, Loader2, DollarSign, Sparkles, Copy, CreditCard, Receipt } from "lucide-react"
+import { MoreHorizontal, Download, Send, CheckCircle2, Loader2, DollarSign, Sparkles, Copy, CreditCard, Receipt, Eye } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { format } from "date-fns"
 import { formatCurrency } from "@/lib/utils"
@@ -383,6 +383,12 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
           <DropdownMenuLabel className="text-xs text-muted-foreground font-normal flex items-center gap-1.5">
             <Download className="w-3.5 h-3.5" /> PDF
           </DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={() => window.open(`/api/invoices/pdf?id=${invoice.id}&inline=1`, "_blank", "noopener")}
+            className="pl-6"
+          >
+            <Eye className="w-3.5 h-3.5" /> Visualizar
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => downloadPdf("pt")} className="pl-6">
             🇧🇷 Português
           </DropdownMenuItem>

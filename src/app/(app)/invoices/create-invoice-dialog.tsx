@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Combobox } from "@/components/ui/combobox"
 import { Loader2, AlertCircle } from "lucide-react"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { format, startOfMonth, endOfMonth } from "date-fns"
 import { HOURS_PER_DAY } from "@/lib/invoice-i18n"
 import { rateOf, BILLING_MODE_LABELS, type BillingMode } from "@/lib/billing-mode"
+import { buildDraft, draftIsEmpty, type ManualLine } from "@/lib/invoice-draft"
 import type { DailyLog } from "@/lib/supabase/types"
 import { initialNfStatus } from "@/lib/nf-status"
 
@@ -32,6 +33,13 @@ interface JobOption {
   clients: { name: string; email: string | null } | null
 }
 
+const PREVIEW_DEBOUNCE_MS = 500
+
+/**
+ * Writing an invoice with the page in view: the form on the right, and on the left the
+ * PDF exactly as it will print, redrawn as the fields change. Nothing is stored until
+ * "Criar invoice".
+ */
 export function CreateInvoiceDialog({
   children,
   jobs,
@@ -40,8 +48,7 @@ export function CreateInvoiceDialog({
   jobs: JobOption[]
 }) {
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState<"config" | "preview">("config")
+  const [creating, setCreating] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -51,95 +58,144 @@ export function CreateInvoiceDialog({
   const [periodEnd, setPeriodEnd] = useState(format(endOfMonth(now), "yyyy-MM-dd"))
   const [dueDate, setDueDate] = useState("")
   const [notes, setNotes] = useState("")
+  const [poNumber, setPoNumber] = useState(jobs[0]?.po_number ?? "")
+  const [manualLines, setManualLines] = useState<ManualLine[]>([])
+
   const [logs, setLogs] = useState<DailyLog[]>([])
   /** log_id → invoice_number of the invoice that already billed that day. */
   const [invoicedMap, setInvoicedMap] = useState<Record<string, string>>({})
-  const [poNumber, setPoNumber] = useState(jobs[0]?.po_number ?? "")
-  const [emptyWarning, setEmptyWarning] = useState(false)
-  type ManualLine = { description: string; job_number: string; quantity: number; rate: number }
-  const [manualLines, setManualLines] = useState<ManualLine[]>([])
+  const [loadingLogs, setLoadingLogs] = useState(false)
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const previewAbort = useRef<AbortController | null>(null)
+
   const addLine = () => setManualLines(ls => [...ls, { description: "", job_number: "", quantity: 1, rate: 0 }])
   const updLine = (i: number, patch: Partial<ManualLine>) => setManualLines(ls => ls.map((l, j) => j === i ? { ...l, ...patch } : l))
   const rmLine = (i: number) => setManualLines(ls => ls.filter((_, j) => j !== i))
-  const manualSubtotal = manualLines.reduce((s, l) => s + l.quantity * l.rate, 0)
 
   const selectedJob = jobs.find((j) => j.id === jobId)
   const isDaily     = selectedJob?.billing_mode === "daily"
   const isProject   = selectedJob?.billing_mode === "fixed"
-  const projectValue = rateOf(selectedJob ?? {})
   const toDays      = (hours: number) => Number((hours / HOURS_PER_DAY).toFixed(2))
-  const qtyLabel    = (hours: number) => isDaily && !isProject ? `${toDays(hours)} ${toDays(hours) === 1 ? "dia" : "dias"}` : `${hours}h`
+  const qtyLabel    = (hours: number) => isDaily ? `${toDays(hours)} ${toDays(hours) === 1 ? "dia" : "dias"}` : `${hours}h`
 
-  async function fetchLogs() {
-    if (!jobId) { toast.error("Selecione um job"); return }
-    setLoading(true)
-    const { data, error } = await supabase
-      .from("daily_logs")
-      .select("*")
-      .eq("job_id", jobId)
-      .gte("date", periodStart)
-      .lte("date", periodEnd)
-      .order("date")
-
-    if (error) { toast.error("Erro ao buscar registros"); setLoading(false); return }
-    if ((!data || data.length === 0) && manualLines.length === 0 && !isProject) {
-      setEmptyWarning(true)
-      toast.warning("Nenhum registro no período e nenhuma linha livre")
-      setLoading(false)
-      return
-    }
-    setEmptyWarning(false)
-
-    // Cross-check: which of these days were already billed on another invoice of this job
-    const fetched = data ?? []
-    const map: Record<string, string> = {}
-    if (fetched.length > 0) {
-      const { data: jobInvoices } = await supabase
-        .from("invoices")
-        .select("id, invoice_number")
-        .eq("job_id", jobId)
-      const invoiceIds = (jobInvoices ?? []).map(i => i.id)
-      if (invoiceIds.length > 0) {
-        const { data: items } = await supabase
-          .from("invoice_items")
-          .select("log_id, invoice_id")
-          .in("log_id", fetched.map(l => l.id))
-          .in("invoice_id", invoiceIds)
-        ;(items ?? []).forEach(it => {
-          if (!it.log_id) return
-          const inv = (jobInvoices ?? []).find(i => i.id === it.invoice_id)
-          if (inv) map[it.log_id] = inv.invoice_number
-        })
-      }
-    }
-    setInvoicedMap(map)
-    setLogs(fetched)
-    setStep("preview")
-    setLoading(false)
-  }
-
-  const freshLogs    = logs.filter(l => !invoicedMap[l.id])
+  const freshLogs     = logs.filter(l => !invoicedMap[l.id])
   const alreadyBilled = logs.filter(l => invoicedMap[l.id])
 
-  const totalHours = freshLogs.reduce((s, l) => s + l.hours_billed, 0)
-  const subtotal = (isProject ? projectValue : freshLogs.reduce((s, l) => s + l.total_value, 0)) + manualSubtotal
-  const taxRate = selectedJob?.tax_rate ?? 0
-  const taxAmount = subtotal * (taxRate / 100)
-  const total = subtotal + taxAmount
+  const draft = useMemo(
+    () => buildDraft(freshLogs, selectedJob ?? { name: "" }, manualLines, periodEnd),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [logs, invoicedMap, selectedJob, manualLines, periodEnd],
+  )
+  const taxRate   = selectedJob?.tax_rate ?? 0
+  const taxAmount = draft.subtotal * (taxRate / 100)
+  const total     = draft.subtotal + taxAmount
+  const empty     = !selectedJob || draftIsEmpty(draft, selectedJob)
+
+  // ── the days in the period, and which of them another invoice already took ──────────
+  useEffect(() => {
+    if (!open || !jobId || !periodStart || !periodEnd) return
+    let cancelled = false
+    setLoadingLogs(true)
+    ;(async () => {
+      const { data, error } = await supabase
+        .from("daily_logs")
+        .select("*")
+        .eq("job_id", jobId)
+        .gte("date", periodStart)
+        .lte("date", periodEnd)
+        .order("date")
+      if (cancelled) return
+      if (error) { toast.error(`Erro ao buscar registros: ${error.message}`); setLoadingLogs(false); return }
+
+      const fetched = data ?? []
+      const map: Record<string, string> = {}
+      if (fetched.length > 0) {
+        const { data: jobInvoices } = await supabase.from("invoices").select("id, invoice_number").eq("job_id", jobId)
+        const invoiceIds = (jobInvoices ?? []).map(i => i.id)
+        if (invoiceIds.length > 0) {
+          const { data: items } = await supabase
+            .from("invoice_items")
+            .select("log_id, invoice_id")
+            .in("log_id", fetched.map(l => l.id))
+            .in("invoice_id", invoiceIds)
+          ;(items ?? []).forEach(it => {
+            if (!it.log_id) return
+            const inv = (jobInvoices ?? []).find(i => i.id === it.invoice_id)
+            if (inv) map[it.log_id] = inv.invoice_number
+          })
+        }
+      }
+      if (cancelled) return
+      setInvoicedMap(map)
+      setLogs(fetched)
+      setLoadingLogs(false)
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, jobId, periodStart, periodEnd])
+
+  // ── the page, redrawn as the fields change ──────────────────────────────────────────
+  const draftKey = JSON.stringify(draft.items)
+  useEffect(() => {
+    if (!open || !selectedJob) return
+    const timer = setTimeout(async () => {
+      previewAbort.current?.abort()
+      const controller = new AbortController()
+      previewAbort.current = controller
+      setPreviewLoading(true)
+      setPreviewError(null)
+      try {
+        const res = await fetch("/api/invoices/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            jobId, periodStart, periodEnd, dueDate: dueDate || null, notes: notes || null,
+            poNumber: poNumber || null, items: draft.items, subtotal: draft.subtotal, taxRate,
+          }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error ?? `Erro ${res.status}`)
+        }
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url })
+      } catch (e) {
+        if ((e as Error).name !== "AbortError") setPreviewError((e as Error).message)
+      } finally {
+        if (!controller.signal.aborted) setPreviewLoading(false)
+      }
+    }, PREVIEW_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, jobId, periodStart, periodEnd, dueDate, notes, poNumber, draftKey, taxRate])
+
+  function reset() {
+    previewAbort.current?.abort()
+    setLogs([])
+    setInvoicedMap({})
+    setManualLines([])
+    setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null })
+    setPreviewError(null)
+    setPreviewLoading(false)
+  }
 
   async function createInvoice() {
-    setLoading(true)
+    if (!selectedJob) { toast.error("Selecione um job"); return }
+    setCreating(true)
     const { data: { user } } = await supabase.auth.getUser()
     const year = new Date().getFullYear()
 
-    // Get next invoice number via RPC
     const { data: invNumber, error: rpcError } = await supabase
       .rpc("get_next_invoice_number", { p_user_id: user!.id, p_year: year })
-
-    if (rpcError) { toast.error("Erro ao gerar número do invoice"); setLoading(false); return }
+    if (rpcError) { toast.error("Erro ao gerar número do invoice"); setCreating(false); return }
 
     const { data: seqNumber, error: seqError } = await supabase.rpc("get_next_invoice_seq", { p_user_id: user!.id })
-    if (seqError || !seqNumber) { toast.error("Erro ao gerar sequência da invoice"); setLoading(false); return }
+    if (seqError || !seqNumber) { toast.error("Erro ao gerar sequência da invoice"); setCreating(false); return }
 
     const { data: invoice, error: invError } = await supabase
       .from("invoices")
@@ -149,95 +205,78 @@ export function CreateInvoiceDialog({
         invoice_number: invNumber,
         period_start: periodStart,
         period_end: periodEnd,
-        total_hours_billed: totalHours,
-        subtotal,
+        total_hours_billed: draft.totalHours,
+        subtotal: draft.subtotal,
         tax_rate: taxRate,
         tax_amount: taxAmount,
         total,
-        currency: selectedJob!.currency,
+        currency: selectedJob.currency,
         status: "draft",
         due_date: dueDate || null,
         notes: notes || null,
         seq_number: seqNumber,
         po_number: poNumber.trim() || null,
-        nf_status: initialNfStatus(selectedJob!.currency),
-        nf_amount_brl: selectedJob!.currency === "BRL" ? total : null,
+        nf_status: initialNfStatus(selectedJob.currency),
+        nf_amount_brl: selectedJob.currency === "BRL" ? total : null,
       })
       .select()
       .single()
 
-    if (invError || !invoice) { toast.error("Erro ao criar invoice"); setLoading(false); return }
+    if (invError || !invoice) { toast.error(`Erro ao criar invoice${invError ? `: ${invError.message}` : ""}`); setCreating(false); return }
 
-    // A project lists every worked day, at no charge, and then one line at its closed price:
-    // the client sees when the work happened, and the money stays on the project line.
-    // Linking the days keeps them from being billed again on a later invoice.
-    const items = isProject ? [
-      ...freshLogs.map((l) => ({
-        invoice_id: invoice.id,
-        log_id: l.id,
-        date: l.date,
-        hours_billed: l.hours_billed,
-        quantity: l.hours_billed,
-        unit: "hour" as const,
-        rate: 0,
-        subtotal: 0,
-      })),
-      {
-        invoice_id: invoice.id,
-        log_id: null,
-        date: periodEnd,
-        description: selectedJob!.name,
-        hours_billed: totalHours,
-        quantity: 1,
-        unit: "project" as const,
-        rate: projectValue,
-        subtotal: projectValue,
-      },
-    ] : freshLogs.map((l) => ({
-      invoice_id: invoice.id,
-      log_id: l.id,
-      date: l.date,
-      hours_billed: l.hours_billed,
-      quantity: isDaily ? toDays(l.hours_billed) : l.hours_billed,
-      unit: isDaily ? "day" : "hour",
-      rate: isDaily ? selectedJob!.daily_rate : selectedJob!.hourly_rate,
-      subtotal: l.total_value,
-    }))
-
-    const manualItems = manualLines
-      .filter(l => l.description.trim() && l.quantity > 0)
-      .map(l => ({
-        invoice_id: invoice.id, log_id: null, date: periodEnd,
-        description: l.description.trim(), job_number: l.job_number.trim() || null,
-        hours_billed: 0, quantity: l.quantity, unit: "hour" as const,
-        rate: l.rate, subtotal: Number((l.quantity * l.rate).toFixed(2)), is_manual: true,
-      }))
-
-    const { error: itemsError } = await supabase.from("invoice_items").insert([...items, ...manualItems])
-    if (itemsError) { toast.error("Erro ao salvar itens do invoice"); setLoading(false); return }
+    const { error: itemsError } = await supabase
+      .from("invoice_items")
+      .insert(draft.items.map(i => ({ invoice_id: invoice.id, ...i })))
+    if (itemsError) { toast.error(`Erro ao salvar itens do invoice: ${itemsError.message}`); setCreating(false); return }
 
     toast.success(`Invoice ${seqNumber} criado!`)
     setOpen(false)
-    setStep("config")
-    setLogs([])
-    setInvoicedMap({})
-    setManualLines([])
+    reset()
     router.refresh()
-    setLoading(false)
+    setCreating(false)
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setStep("config"); setLogs([]); setInvoicedMap({}) } }}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset() }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {step === "config" ? "Gerar Invoice" : `Preview — ${selectedJob?.name}`}
-          </DialogTitle>
+      <DialogContent className="max-w-[1180px] w-[96vw] h-[92vh] p-0 gap-0 overflow-hidden flex flex-col">
+        <DialogHeader className="px-6 py-4 border-b">
+          <DialogTitle>Gerar Invoice</DialogTitle>
+          <DialogDescription>
+            A prévia à esquerda é o PDF que o cliente vai receber, atualizada conforme você edita.
+          </DialogDescription>
         </DialogHeader>
 
-        {step === "config" && (
-          <div className="space-y-4">
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px]">
+          {/* ── the page ─────────────────────────────────────────────────────────── */}
+          <div className="relative bg-muted/50 border-b lg:border-b-0 lg:border-r min-h-[320px]">
+            {previewUrl && (
+              <iframe
+                key={previewUrl}
+                src={`${previewUrl}#toolbar=0&navpanes=0&view=FitH`}
+                title="Prévia do invoice"
+                className="absolute inset-0 w-full h-full"
+              />
+            )}
+            {!previewUrl && !previewLoading && !previewError && (
+              <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground px-6 text-center">
+                {selectedJob ? "Preparando a prévia…" : "Selecione um job para ver a prévia."}
+              </div>
+            )}
+            {previewError && (
+              <div className="absolute inset-0 flex items-center justify-center px-6">
+                <p className="text-sm text-destructive text-center">Não foi possível gerar a prévia: {previewError}</p>
+              </div>
+            )}
+            {previewLoading && (
+              <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-md bg-background/90 border px-2 py-1 text-xs text-muted-foreground shadow-sm">
+                <Loader2 className="w-3 h-3 animate-spin" /> Atualizando
+              </div>
+            )}
+          </div>
+
+          {/* ── the form ─────────────────────────────────────────────────────────── */}
+          <div className="overflow-y-auto p-6 space-y-4">
             <div className="space-y-2">
               <Label>Job *</Label>
               <Combobox
@@ -246,39 +285,39 @@ export function CreateInvoiceDialog({
                   label: [j.clients?.name, j.name, BILLING_MODE_LABELS[j.billing_mode ?? "hourly"]].filter(Boolean).join(" · "),
                 }))}
                 value={jobId}
-                onChange={(v) => { setJobId(v); setEmptyWarning(false); const j = jobs.find(x => x.id === v); setPoNumber(j?.po_number ?? "") }}
+                onChange={(v) => { setJobId(v); const j = jobs.find(x => x.id === v); setPoNumber(j?.po_number ?? "") }}
                 placeholder="Selecione o job"
                 searchPlaceholder="Buscar job…"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Período início</Label>
-                <Input type="date" value={periodStart} onChange={(e) => { setPeriodStart(e.target.value); setEmptyWarning(false) }} />
+                <Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Período fim</Label>
-                <Input type="date" value={periodEnd} onChange={(e) => { setPeriodEnd(e.target.value); setEmptyWarning(false) }} />
+                <Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Data de vencimento</Label>
+                <Label>Vencimento</Label>
                 <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Nº da PO</Label>
+                <Input value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder="ex: 4702134214" />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Notas (opcional)</Label>
+              <Label>Notas</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Observações para o invoice..." rows={2} />
             </div>
 
             <div className="space-y-2">
-              <Label>Nº da PO (opcional)</Label>
-              <Input value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder="ex: 4702134214" />
-            </div>
-            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Linhas livres (opcional)</Label>
+                <Label>Linhas livres</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addLine}>+ Linha</Button>
               </div>
               {manualLines.map((l, i) => (
@@ -292,78 +331,50 @@ export function CreateInvoiceDialog({
               ))}
             </div>
 
-            {emptyWarning && (
-              <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 flex gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-700 dark:text-amber-400" />
-                <p className="text-sm text-amber-700 dark:text-amber-400">
-                  Nenhuma diária registrada para este job nesse período — por isso o invoice não é gerado.
-                  Adicione diárias clicando no dia no <strong>Calendário</strong> ou em{" "}
-                  <strong>Tracking Diário</strong>, ou inclua uma <strong>linha livre</strong> abaixo.
-                </p>
-              </div>
-            )}
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button onClick={fetchLogs} disabled={loading}>
-                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                Ver Preview
-              </Button>
-            </DialogFooter>
-          </div>
-        )}
-
-        {step === "preview" && (
-          <div className="space-y-4">
-            <div className="rounded-md border p-4 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Período</span>
-                <span>{formatDate(periodStart)} – {formatDate(periodEnd)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
+            {/* ── what goes on the page ───────────────────────────────────────────── */}
+            <div className="rounded-md border p-4 space-y-3 text-sm">
+              <div className="flex justify-between">
                 <span className="text-muted-foreground">Cliente</span>
                 <span>{selectedJob?.clients?.name ?? "—"}</span>
               </div>
-              {selectedJob?.project_code && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Projeto</span>
-                  <span>{selectedJob.project_code}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between">
                 <span className="text-muted-foreground">
                   {isProject ? "Valor do projeto" : isDaily ? "Taxa/dia" : "Taxa/hora"}
                 </span>
-                <span>
-                  {formatCurrency(
-                    isProject ? projectValue : isDaily ? (selectedJob?.daily_rate ?? 0) : (selectedJob?.hourly_rate ?? 0),
-                    selectedJob?.currency,
-                  )}
-                </span>
+                <span>{selectedJob ? formatCurrency(rateOf(selectedJob), selectedJob.currency) : "—"}</span>
               </div>
 
-              <div className="border-t pt-3 space-y-2">
-                <p className="text-sm font-medium">
-                  Registros ({freshLogs.length})
-                  {isProject && (
-                    <span className="ml-1.5 font-normal text-xs text-muted-foreground">
-                      os dias saem listados na invoice; o valor fica na linha do projeto
-                    </span>
-                  )}
+              <div className="border-t pt-3 space-y-1.5">
+                <p className="font-medium flex items-center gap-2">
+                  Diárias no período ({freshLogs.length})
+                  {loadingLogs && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
                 </p>
+                {isProject && freshLogs.length > 0 && (
+                  <p className="text-xs text-muted-foreground">Os dias saem listados; o valor fica na linha do projeto.</p>
+                )}
                 {freshLogs.map((l) => (
-                  <div key={l.id} className="flex justify-between text-sm">
+                  <div key={l.id} className="flex justify-between">
                     <span className="text-muted-foreground">{formatDate(l.date)} · {qtyLabel(l.hours_billed)}</span>
                     <span>{isProject ? "—" : formatCurrency(l.total_value, selectedJob?.currency)}</span>
                   </div>
                 ))}
+                {!loadingLogs && freshLogs.length === 0 && (
+                  <div className={`rounded-md p-3 flex gap-2 ${empty ? "border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800" : "bg-muted/50"}`}>
+                    <AlertCircle className={`w-4 h-4 shrink-0 mt-0.5 ${empty ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground"}`} />
+                    <p className={`text-xs ${empty ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground"}`}>
+                      {empty
+                        ? <>Nenhuma diária registrada para este job nesse período, então não há o que cobrar. Adicione diárias pelo <strong>Calendário</strong> ou pelo <strong>Registro Diário</strong>, ou inclua uma linha livre.</>
+                        : <>Nenhuma diária no período. {isProject ? "O invoice sai só com a linha do projeto." : "O invoice sai só com as linhas livres."}</>}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {alreadyBilled.length > 0 && (
                 <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 space-y-1.5">
-                  <p className="text-sm font-medium flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                  <p className="font-medium flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
                     <AlertCircle className="w-4 h-4" />
-                    {alreadyBilled.length} {alreadyBilled.length === 1 ? "diária já foi faturada" : "diárias já foram faturadas"} para este job
+                    {alreadyBilled.length} {alreadyBilled.length === 1 ? "diária já foi faturada" : "diárias já foram faturadas"}
                   </p>
                   {alreadyBilled.map(l => (
                     <div key={l.id} className="flex justify-between text-xs text-amber-700 dark:text-amber-400">
@@ -371,57 +382,43 @@ export function CreateInvoiceDialog({
                       <span>Invoice #{invoicedMap[l.id]}</span>
                     </div>
                   ))}
-                  <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
-                    Essas diárias ficaram de fora deste invoice para não cobrar em dobro.
-                  </p>
-                </div>
-              )}
-
-              {manualLines.length > 0 && (
-                <div className="border-t pt-3 space-y-2">
-                  <p className="text-sm font-medium">Linhas livres ({manualLines.length})</p>
-                  {manualLines.map((l, i) => (
-                    <div key={i} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{l.description}{l.job_number ? ` · ${l.job_number}` : ""} · {l.quantity} × {formatCurrency(l.rate, selectedJob?.currency)}</span>
-                      <span>{formatCurrency(l.quantity * l.rate, selectedJob?.currency)}</span>
-                    </div>
-                  ))}
+                  <p className="text-xs text-amber-700/80 dark:text-amber-400/80">Ficaram de fora deste invoice para não cobrar em dobro.</p>
                 </div>
               )}
 
               <div className="border-t pt-3 space-y-1">
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between">
                   <span className="text-muted-foreground">
-                    {isProject ? "Total de horas gastas" : isDaily ? "Total dias faturados" : "Total horas faturadas"}
+                    {isProject ? "Horas gastas" : isDaily ? "Dias faturados" : "Horas faturadas"}
                   </span>
-                  <span>{qtyLabel(totalHours)}</span>
+                  <span>{qtyLabel(draft.totalHours)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>{formatCurrency(subtotal, selectedJob?.currency)}</span>
+                  <span>{formatCurrency(draft.subtotal, selectedJob?.currency)}</span>
                 </div>
                 {taxRate > 0 && (
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between">
                     <span className="text-muted-foreground">Impostos ({taxRate}%)</span>
                     <span>{formatCurrency(taxAmount, selectedJob?.currency)}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-bold">
+                <div className="flex justify-between font-bold text-base">
                   <span>Total</span>
                   <span>{formatCurrency(total, selectedJob?.currency)}</span>
                 </div>
               </div>
             </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setStep("config")}>Voltar</Button>
-              <Button onClick={createInvoice} disabled={loading || (!isProject && freshLogs.length === 0 && manualLines.filter(l => l.description.trim() && l.quantity > 0).length === 0)}>
-                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                Criar Invoice
-              </Button>
-            </DialogFooter>
           </div>
-        )}
+        </div>
+
+        <DialogFooter className="px-6 py-4 border-t">
+          <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+          <Button onClick={createInvoice} disabled={creating || loadingLogs || empty}>
+            {creating && <Loader2 className="w-4 h-4 animate-spin" />}
+            Criar Invoice
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

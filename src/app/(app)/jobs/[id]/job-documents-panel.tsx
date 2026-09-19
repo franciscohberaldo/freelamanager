@@ -101,10 +101,8 @@ export function JobDocumentsPanel({ jobId, userId, documents, actions, done }: P
                 <FileText className={`w-4 h-4 shrink-0 ${doc ? "text-foreground" : "text-muted-foreground/30"}`} />
               </div>
 
-              {actions?.[kind]}
-
-              {doc ? (
-                <div className="space-y-2">
+              {doc && (
+                <div className="space-y-1">
                   <button
                     type="button"
                     onClick={() => onOpen(doc)}
@@ -116,33 +114,16 @@ export function JobDocumentsPanel({ jobId, userId, documents, actions, done }: P
                   <p className="text-xs text-muted-foreground">
                     {formatFileSize(doc.size_bytes)} · enviado em {formatDate(doc.uploaded_at)}
                   </p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" disabled={loading} asChild>
-                      <label className="cursor-pointer">
-                        {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                        Trocar
-                        <input
-                          type="file" className="hidden" disabled={loading}
-                          accept="application/pdf,image/png,image/jpeg"
-                          onChange={e => onPick(kind, e)}
-                        />
-                      </label>
-                    </Button>
-                    <Button
-                      variant="ghost" size="sm" disabled={loading}
-                      onClick={() => onRemove(doc)}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      Remover
-                    </Button>
-                  </div>
                 </div>
-              ) : (
+              )}
+
+              {/* Every action of the step on one line: the step's own buttons, then the file. */}
+              <div className="flex flex-wrap items-center gap-2">
+                {actions?.[kind]}
                 <Button variant="outline" size="sm" disabled={loading} asChild>
                   <label className="cursor-pointer">
                     {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                    Enviar arquivo
+                    {doc ? "Trocar arquivo" : "Enviar arquivo"}
                     <input
                       type="file" className="hidden" disabled={loading}
                       accept="application/pdf,image/png,image/jpeg"
@@ -150,7 +131,17 @@ export function JobDocumentsPanel({ jobId, userId, documents, actions, done }: P
                     />
                   </label>
                 </Button>
-              )}
+                {doc && (
+                  <Button
+                    variant="ghost" size="sm" disabled={loading}
+                    onClick={() => onRemove(doc)}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Remover
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
         )

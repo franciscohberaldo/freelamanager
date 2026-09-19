@@ -7,14 +7,16 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { CreateInvoiceDialog } from "@/app/(app)/invoices/create-invoice-dialog"
 import { DOCUMENT_BUCKET, documentPath } from "@/lib/job-documents"
+import { invoiceLangFor } from "@/lib/invoice-i18n"
 import type { BillingMode } from "@/lib/billing-mode"
-import { Loader2, FilePlus2, Send } from "lucide-react"
+import { Loader2, FilePlus2, Send, Eye } from "lucide-react"
 
 interface JobOption {
   id: string
   name: string
   hourly_rate: number
   daily_rate: number
+  contract_value?: number | null
   billing_mode?: BillingMode
   project_code?: string | null
   po_number?: string | null
@@ -33,8 +35,9 @@ interface JobInvoice {
 
 /**
  * The invoice slot on the job's documents: besides holding an uploaded file, it can
- * create the invoice here and send it to the client. A sent invoice archives its own
- * PDF into the slot, so the card always shows what the client received.
+ * create the invoice here, open it as the client will see it, and send it. A sent
+ * invoice archives its own PDF into the slot, so the card always shows what the client
+ * received. Renders its buttons bare, so the panel can lay them on one line.
  */
 export function InvoiceDocAction({
   job, invoices, userId,
@@ -47,14 +50,20 @@ export function InvoiceDocAction({
   const router = useRouter()
   const supabase = createClient()
 
-  // the invoice to send: the newest draft, else the newest one whatever its state
+  // the invoice to act on: the newest draft, else the newest one whatever its state
   const target = [...invoices].sort((a, b) => b.invoice_number.localeCompare(a.invoice_number))
     .sort((a, b) => Number(a.status !== "draft") - Number(b.status !== "draft"))[0]
+  const label = target ? (target.seq_number ?? target.invoice_number) : null
+
+  function viewInvoice() {
+    if (!target) return
+    window.open(`/api/invoices/pdf?id=${target.id}&inline=1`, "_blank", "noopener")
+  }
 
   async function sendInvoice() {
     if (!target) { toast.error("Crie um invoice primeiro"); return }
     setSending(true)
-    const lang = target.currency === "BRL" ? "pt" : "en"
+    const lang = invoiceLangFor(target.currency)
     const res = await fetch("/api/invoices/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -67,7 +76,7 @@ export function InvoiceDocAction({
     const pdfRes = await fetch(`/api/invoices/pdf?id=${target.id}&lang=${lang}`)
     if (pdfRes.ok) {
       const blob = await pdfRes.blob()
-      const fileName = `invoice-${target.seq_number ?? target.invoice_number}.pdf`
+      const fileName = `invoice-${label}.pdf`
       const path = documentPath(userId, job.id, "invoice", fileName)
       const { error: upErr } = await supabase.storage
         .from(DOCUMENT_BUCKET)
@@ -80,23 +89,27 @@ export function InvoiceDocAction({
       }
     }
 
-    toast.success(`Invoice ${target.seq_number ?? target.invoice_number} enviada!`)
+    toast.success(`Invoice ${label} enviada!`)
     setSending(false)
     router.refresh()
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <>
       <CreateInvoiceDialog jobs={[job]}>
         <Button variant="outline" size="sm">
           <FilePlus2 className="w-3 h-3" />
           Criar invoice
         </Button>
       </CreateInvoiceDialog>
+      <Button variant="outline" size="sm" onClick={viewInvoice} disabled={!target}>
+        <Eye className="w-3 h-3" />
+        {label ? `Visualizar ${label}` : "Visualizar"}
+      </Button>
       <Button variant="outline" size="sm" onClick={sendInvoice} disabled={sending || !target}>
         {sending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-        {target ? `Enviar invoice ${target.seq_number ?? target.invoice_number}` : "Enviar invoice"}
+        {label ? `Enviar ${label}` : "Enviar"}
       </Button>
-    </div>
+    </>
   )
 }

@@ -44,6 +44,15 @@ export function formatHeaderDate(date: string | Date): string {
 }
 
 /**
+ * The day the invoice was issued: when it went to the client, else when it was written.
+ * A preview that exists nowhere yet is dated today.
+ */
+export function issueDateOf(invoice: { sent_at?: string | null; created_at?: string | null }): Date {
+  const stamp = invoice.sent_at ?? invoice.created_at
+  return stamp ? parseISO(stamp) : new Date()
+}
+
+/**
  * Names and addresses are often stored in capitals (they come from the NFS-e and from
  * CNPJ lookups). The invoice reads them quietly: each piece between commas or dashes is
  * title-cased when it is all capitals, and acronyms and legal forms are left alone.
@@ -111,6 +120,8 @@ export interface InvoicePDFParams {
     period_start: string
     period_end: string
     due_date: string | null
+    created_at?: string | null
+    sent_at?: string | null
     currency: string
     subtotal: number
     tax_rate: number
@@ -234,7 +245,7 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   }
 
   // ── the date and the mark ────────────────────────────────────────────────────
-  say(`${cityOf(settings?.fiscal_address)}, ${formatHeaderDate(invoice.period_end)}`, X.label, Y.date, { style: "heavy" })
+  say(`${cityOf(settings?.fiscal_address)}, ${formatHeaderDate(issueDateOf(invoice))}`, X.label, Y.date, { style: "heavy" })
   if (settings?.logo_url) {
     const logo = await fetchImageBase64(settings.logo_url)
     if (logo) {
@@ -344,7 +355,7 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
     say(t.wireOnly, X.bank, at(Y.payment), { style: "italic" })
 
     field(`${t.intermediaryBank}:`, X.label, at(Y.intermediary))
-    say(settings?.intermediary_bank_swift ? `SWIFT: ${settings.intermediary_bank_swift}` : "", X.bankWide, at(Y.intermediary))
+    say(settings?.intermediary_bank_swift ? `SWIFT: ${settings.intermediary_bank_swift}` : "", X.bank, at(Y.intermediary))
     say(settings?.intermediary_bank_aba ? `ABA: ${settings.intermediary_bank_aba}` : "", X.bank, at(Y.aba))
     say(settings?.intermediary_bank_account ? `${t.account}: ${settings.intermediary_bank_account}` : "", X.bank, at(Y.account))
     say(settings?.intermediary_bank_name ?? "", X.bank, at(Y.bankName))
@@ -367,8 +378,9 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
     ].filter(Boolean) as string[]
     if (extras.length) {
       field(`${t.additionalInfo}:`, X.label, at(Y.additional))
+      // the model indents the first line of each block; here every value shares one column
       extras.slice(0, 2).forEach((line, i) =>
-        say(line, i === 0 ? X.bankWide : X.bank, at([Y.additional, Y.additional2][i])))
+        say(line, X.bank, at([Y.additional, Y.additional2][i])))
     }
   }
 
