@@ -23,6 +23,7 @@ interface JobOption {
   name: string
   hourly_rate: number
   daily_rate: number
+  contract_value?: number | null
   billing_mode?: BillingMode
   project_code?: string | null
   po_number?: string | null
@@ -167,18 +168,32 @@ export function CreateInvoiceDialog({
 
     if (invError || !invoice) { toast.error("Erro ao criar invoice"); setLoading(false); return }
 
-    // A project is one line at its closed price; the logs behind it are time, not money.
-    const items = isProject ? [{
-      invoice_id: invoice.id,
-      log_id: null,
-      date: periodEnd,
-      description: selectedJob!.name,
-      hours_billed: totalHours,
-      quantity: 1,
-      unit: "project" as const,
-      rate: projectValue,
-      subtotal: projectValue,
-    }] : freshLogs.map((l) => ({
+    // A project lists every worked day, at no charge, and then one line at its closed price:
+    // the client sees when the work happened, and the money stays on the project line.
+    // Linking the days keeps them from being billed again on a later invoice.
+    const items = isProject ? [
+      ...freshLogs.map((l) => ({
+        invoice_id: invoice.id,
+        log_id: l.id,
+        date: l.date,
+        hours_billed: l.hours_billed,
+        quantity: l.hours_billed,
+        unit: "hour" as const,
+        rate: 0,
+        subtotal: 0,
+      })),
+      {
+        invoice_id: invoice.id,
+        log_id: null,
+        date: periodEnd,
+        description: selectedJob!.name,
+        hours_billed: totalHours,
+        quantity: 1,
+        unit: "project" as const,
+        rate: projectValue,
+        subtotal: projectValue,
+      },
+    ] : freshLogs.map((l) => ({
       invoice_id: invoice.id,
       log_id: l.id,
       date: l.date,
@@ -332,7 +347,7 @@ export function CreateInvoiceDialog({
                   Registros ({freshLogs.length})
                   {isProject && (
                     <span className="ml-1.5 font-normal text-xs text-muted-foreground">
-                      tempo gasto; a invoice sai com uma linha só
+                      os dias saem listados na invoice; o valor fica na linha do projeto
                     </span>
                   )}
                 </p>

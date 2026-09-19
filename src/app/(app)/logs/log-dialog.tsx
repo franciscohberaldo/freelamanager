@@ -130,11 +130,11 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none", de
     if (isCreate || isDuplicate) {
       const { data: { user } } = await supabase.auth.getUser()
       const { error } = await supabase.from("daily_logs").insert({ ...payload, user_id: user!.id })
-      if (error) { toast.error("Erro ao criar registro"); setLoading(false); return }
+      if (error) { toast.error(`Erro ao criar registro: ${error.message}`); setLoading(false); return }
       toast.success("Registro criado!")
     } else {
       const { error } = await supabase.from("daily_logs").update(payload).eq("id", log!.id)
-      if (error) { toast.error("Erro ao atualizar registro"); setLoading(false); return }
+      if (error) { toast.error(`Erro ao atualizar registro: ${error.message}`); setLoading(false); return }
       toast.success("Registro atualizado!")
     }
 

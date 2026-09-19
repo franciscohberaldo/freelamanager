@@ -5,6 +5,8 @@ import {
   type InvoiceLang, type BillingUnit,
 } from "@/lib/invoice-i18n"
 import type { BillingMode } from "@/lib/billing-mode"
+import { isWorkedDayLine } from "@/lib/invoice-items"
+import { normalizeName } from "@/lib/text-case"
 import { registerJost, JOST, type JostStyle } from "@/lib/fonts"
 import {
   X, Y, ROW, BODY_PT, TOTAL_PT, INK, LOGO_W, LOGO_H, LOGO_TOP,
@@ -35,10 +37,19 @@ export function formatDatePDF(date: string | Date, lang: InvoiceLang = "pt"): st
   return format(d, invoiceLocale[lang]?.dateFormat ?? "dd/MM/yyyy")
 }
 
-/** The header's date stamp, as in the model: "SÃO PAULO, 20.07.2026". */
+/** The header's date stamp: "São Paulo, 20.07.2026". */
 export function formatHeaderDate(date: string | Date): string {
   const d = typeof date === "string" ? parseISO(date) : date
   return format(d, "dd.MM.yyyy")
+}
+
+/**
+ * Names and addresses are often stored in capitals (they come from the NFS-e and from
+ * CNPJ lookups). The invoice reads them quietly: each piece between commas or dashes is
+ * title-cased when it is all capitals, and acronyms and legal forms are left alone.
+ */
+export function quiet(text: string): string {
+  return text.split(/(\s*[,;–-]\s*)/).map(seg => normalizeName(seg)).join("")
 }
 
 /**
@@ -49,10 +60,10 @@ export function cityOf(fiscalAddress: string | null | undefined): string {
   const raw = fiscalAddress ?? ""
   // Addresses written in the model's own style carry "City: Sao Paulo" inline.
   const inline = raw.match(/city:\s*([^,]+)/i)
-  if (inline) return inline[1].trim().toUpperCase()
+  if (inline) return quiet(inline[1].trim())
   const parts = raw.split(",").map(p => p.trim()).filter(Boolean)
   const city = [...parts].reverse().find(p => /[a-zA-ZÀ-ú]/.test(p) && !/\d/.test(p))
-  return (city ?? "São Paulo").toUpperCase()
+  return quiet(city ?? "São Paulo")
 }
 
 export function hexToRgb(hex: string): [number, number, number] {
@@ -203,20 +214,20 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
     doc.text(text, px, py, opts.align ? { align: opts.align } : undefined)
   }
 
+  /** A section heading: heavy, in sentence case — nothing on this invoice shouts. */
   const heading = (text: string, px: number, py: number) =>
-    say(text.toUpperCase(), px, py, { style: "heavy" })
+    say(text, px, py, { style: "heavy" })
 
-  /** A field label in the payment blocks: heavy, but in the model's own title case. */
+  /** A field label in the payment blocks. */
   const field = (text: string, px: number, py: number) =>
     say(text, px, py, { style: "heavy" })
 
   /** A payment section title, underlined like the model's. */
   const sectionTitle = (text: string, py: number) => {
-    const upper = text.toUpperCase()
-    heading(upper, X.label, py)
+    heading(text, X.label, py)
     doc.setFont(JOST, "heavy")
     doc.setFontSize(BODY_PT)
-    const w = doc.getTextWidth(upper)
+    const w = doc.getTextWidth(text)
     doc.setDrawColor(INK.label[0], INK.label[1], INK.label[2])
     doc.setLineWidth(0.3)
     doc.line(X.label, py + 0.9, X.label + w, py + 0.9)
@@ -244,8 +255,8 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   const clientWidth = X.right - X.label - 8
   const clientName = client?.billing_entity || client?.legal_name || client?.name || ""
   const clientRaw = [
-    clientName,
-    ...(client?.billing_address || client?.address || "").split(/\s*[\n]\s*/).filter(Boolean),
+    quiet(clientName),
+    ...quiet(client?.billing_address || client?.address || "").split(/\s*[\n]\s*/).filter(Boolean),
     client?.email ?? "",
   ].filter(Boolean)
   const clientLines = clientRaw.flatMap(line => doc.splitTextToSize(line, clientWidth) as string[])
@@ -253,12 +264,12 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
 
   // the issuer, on the right: name, then how to reach them, then where they are
   const recipientLines = [
-    settings?.legal_name || settings?.company_name || "",
+    quiet(settings?.legal_name || settings?.company_name || ""),
     settings?.invoice_contact_email ?? "",
     settings?.invoice_contact_phone ?? "",
   ].filter(Boolean)
   recipientLines.forEach((line, i) => say(line, X.right, Y.header + ROW * (i + 1)))
-  const fiscal = (settings?.fiscal_address ?? "").trim()
+  const fiscal = quiet((settings?.fiscal_address ?? "").trim())
   if (fiscal) {
     const wrapped = doc.splitTextToSize(fiscal, X.edge - X.right) as string[]
     const start = recipientLines.length + 1
@@ -274,12 +285,17 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   say(job?.name ?? "", X.label, Y.serviceValue)
 
   // ── the lines ──────────────────────────────────────────────────────────────
+  // Every invoice lists the days worked. On a project they carry no amount of their own —
+  // the closed price sits on the project line — so they read as a record, not a charge.
   let y = Y.itemsStart
   for (const item of items) {
     const q = resolveItemQuantity(item, billingMode)
+    const workedDay = isWorkedDayLine(item, billingMode)
     say(format(parseISO(item.date), "dd/MM"), X.label, y, { tone: INK.figure })
-    say(item.description ?? formatQuantity(q.quantity, q.unit, lang), X.itemDesc, y, { tone: INK.figure })
-    say(cur(item.subtotal), X.itemAmount, y, { tone: INK.figure })
+    const label = item.description
+      ?? (workedDay && !(item.hours_billed > 0) ? t.workedDay : formatQuantity(q.quantity, q.unit, lang))
+    say(label, X.itemDesc, y, { tone: INK.figure })
+    if (!workedDay) say(cur(item.subtotal), X.itemAmount, y, { tone: INK.figure })
     y += ROW
   }
 

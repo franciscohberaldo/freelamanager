@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 import { invoiceT, formatInvoiceCurrency, formatQuantity, type InvoiceLang } from "@/lib/invoice-i18n"
 import { formatDatePDF, resolveItemQuantity } from "@/lib/invoice-pdf"
+import { isWorkedDayLine } from "@/lib/invoice-items"
 
 export async function POST(request: NextRequest) {
   const { invoiceId, lang: rawLang = "pt" } = await request.json()
@@ -58,12 +59,14 @@ export async function POST(request: NextRequest) {
 
   const itemsHtml = items?.map((item) => {
     const q = resolveItemQuantity(item, job?.billing_mode ?? "hourly")
+    // A worked day on a fixed-price project is listed for the record; the project line carries the money.
+    const workedDay = isWorkedDayLine(item, job?.billing_mode)
     return `
     <tr>
       <td style="padding:8px;border-bottom:1px solid #eee">${formatDatePDF(item.date, lang)}</td>
-      <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${formatQuantity(q.quantity, q.unit, lang)}</td>
-      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${formatCurrency(item.rate, invoice.currency)}</td>
-      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;font-weight:bold">${formatCurrency(item.subtotal, invoice.currency)}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${item.description ?? formatQuantity(q.quantity, q.unit, lang)}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${workedDay ? "—" : formatCurrency(item.rate, invoice.currency)}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;font-weight:bold">${workedDay ? "—" : formatCurrency(item.subtotal, invoice.currency)}</td>
     </tr>
   `}).join("") ?? ""
 

@@ -128,16 +128,30 @@ async function run(req: NextRequest) {
       continue
     }
 
-    await supabase.from("invoice_items").insert(logs.map((l) => ({
+    // Same shape the create dialog stores: on a project every worked day is listed at no
+    // charge and one line at the end carries the closed price.
+    const dayItems = logs.map((l) => ({
       invoice_id:   invoice.id,
       log_id:       l.id,
       date:         l.date,
       hours_billed: l.hours_billed,
-      quantity:     isProject ? 1 : isDaily ? Number((l.hours_billed / HOURS_PER_DAY).toFixed(2)) : l.hours_billed,
-      unit:         (isProject ? "project" : isDaily ? "day" : "hour") as "day" | "hour" | "project",
-      rate:         isProject ? (job.contract_value ?? 0) : isDaily ? job.daily_rate : job.hourly_rate,
-      subtotal:     l.total_value,
-    })))
+      quantity:     isDaily ? Number((l.hours_billed / HOURS_PER_DAY).toFixed(2)) : l.hours_billed,
+      unit:         (isDaily ? "day" : "hour") as "day" | "hour" | "project",
+      rate:         isProject ? 0 : isDaily ? job.daily_rate : job.hourly_rate,
+      subtotal:     isProject ? 0 : l.total_value,
+    }))
+    const projectItem = isProject ? [{
+      invoice_id:   invoice.id,
+      log_id:       null,
+      date:         periodEnd,
+      description:  job.name,
+      hours_billed: totalHrs,
+      quantity:     1,
+      unit:         "project" as const,
+      rate:         job.contract_value ?? 0,
+      subtotal:     job.contract_value ?? 0,
+    }] : []
+    await supabase.from("invoice_items").insert([...dayItems, ...projectItem])
 
     // Reminder on the agenda to review and send the draft
     const clientName = (job.clients as unknown as { name: string } | null)?.name
