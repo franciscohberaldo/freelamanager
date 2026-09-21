@@ -272,6 +272,34 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
     router.refresh()
   }
 
+  /** The × on a diária chip. A billed day cannot be deleted; undo re-creates the row. */
+  async function deleteLog(l: DayLog) {
+    const { data: billed } = await supabase
+      .from("invoice_items")
+      .select("invoice_id, invoices(invoice_number)")
+      .eq("log_id", l.id)
+      .limit(1)
+    const inv = billed?.[0]?.invoices as unknown as { invoice_number: string } | null
+    if (inv) { toast.warning(`Essa diária já foi faturada na invoice ${inv.invoice_number} — não dá para apagar.`); return }
+
+    const { error } = await supabase.from("daily_logs").delete().eq("id", l.id)
+    if (error) { toast.error("Erro ao apagar diária"); return }
+    toast.success("Diária apagada", {
+      duration: 10000, // tempo para alcançar o Desfazer
+      action: { label: "Desfazer", onClick: async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        await supabase.from("daily_logs").insert({
+          user_id: user.id, job_id: l.job_id, date: l.date.slice(0, 10),
+          daily_rate: l.daily_rate, hours_worked: l.hours_worked,
+          hours_billed: l.hours_billed, total_value: l.total_value,
+        })
+        router.refresh()
+      } },
+    })
+    router.refresh()
+  }
+
   // Holds active on a given day (booked wins over 1st hold over 2nd hold)
   const holdsForDay = (key: string) =>
     holds
@@ -579,6 +607,15 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                     {arrowEdge({ kind: "log-extend", id: l.id, from: key }, "left")}
                     {grip}
                     <span className="truncate">{l.jobs?.name ?? "Diária"}</span>
+                    <button
+                      type="button"
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); deleteLog(l) }}
+                      title="Apagar diária"
+                      aria-label="Apagar diária"
+                      className="shrink-0 opacity-40 hover:opacity-100 hover:text-rose-600 dark:hover:text-rose-400 transition-opacity"
+                    >
+                      <X className="w-3 h-3" strokeWidth={2.5} />
+                    </button>
                     {arrowEdge({ kind: "log-extend", id: l.id, from: key }, "right")}
                   </Link>
                 ))}
