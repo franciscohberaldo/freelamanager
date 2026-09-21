@@ -1,11 +1,14 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isToday, addMonths, subMonths } from "date-fns"
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, parseISO, isSameMonth, isToday, addMonths, subMonths } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, GripVertical } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/client"
 import type { AgendaEvent } from "@/lib/supabase/types"
 import type { JobStage } from "@/lib/job-stage"
 import { JobStageIcon, RunnerIcon } from "@/components/job-stage-icon"
@@ -83,9 +86,68 @@ const LEGEND: { tone: Tone; label: string }[] = [
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 
+/** Drag payload: what is moving and from which day it was grabbed. */
+const DND_TYPE = "application/x-freela-calendar"
+type DragItem = { kind: "log" | "hold" | "job"; id: string; from: string }
+
+const DAY_MS = 86_400_000
+
 export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJobs = [] }: Props) {
   const [month, setMonth] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null)
+  const router = useRouter()
+  const supabase = createClient()
+
+  function onDragStart(e: React.DragEvent, item: DragItem) {
+    e.dataTransfer.setData(DND_TYPE, JSON.stringify(item))
+    e.dataTransfer.effectAllowed = "move"
+    e.stopPropagation()
+  }
+
+  async function onDrop(e: React.DragEvent, day: string) {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOverDay(null)
+    const raw = e.dataTransfer.getData(DND_TYPE)
+    if (!raw) return
+    const item = JSON.parse(raw) as DragItem
+    const delta = Math.round((parseISO(day).getTime() - parseISO(item.from).getTime()) / DAY_MS)
+    if (delta === 0) return
+    const shift = (d: string) => format(addDays(parseISO(d), delta), "yyyy-MM-dd")
+
+    if (item.kind === "log") {
+      // A day already billed on an invoice cannot wander into another period.
+      const { data: billed } = await supabase
+        .from("invoice_items")
+        .select("invoice_id, invoices(invoice_number)")
+        .eq("log_id", item.id)
+        .limit(1)
+      const inv = billed?.[0]?.invoices as unknown as { invoice_number: string } | null
+      if (inv) { toast.warning(`Essa diária já foi faturada na invoice ${inv.invoice_number} — não dá para mover.`); return }
+
+      const { error } = await supabase.from("daily_logs").update({ date: day }).eq("id", item.id)
+      if (error) { toast.error("Erro ao mover diária"); return }
+      toast.success("Diária movida")
+    } else if (item.kind === "hold") {
+      const hold = holds.find(h => h.id === item.id)
+      if (!hold) return
+      const { error } = await supabase.from("availability_holds")
+        .update({ start_date: shift(hold.start_date), end_date: shift(hold.end_date) })
+        .eq("id", item.id)
+      if (error) { toast.error("Erro ao mover reserva"); return }
+      toast.success("Reserva movida")
+    } else {
+      const job = jobs.find(j => j.id === item.id)
+      if (!job?.start_date) return
+      const { error } = await supabase.from("jobs")
+        .update({ start_date: shift(job.start_date), end_date: job.end_date ? shift(job.end_date) : null })
+        .eq("id", item.id)
+      if (error) { toast.error("Erro ao mover job"); return }
+      toast.success("Job movido")
+    }
+    router.refresh()
+  }
 
   // Holds active on a given day (booked wins over 1st hold over 2nd hold)
   const holdsForDay = (key: string) =>
@@ -133,6 +195,20 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
   const chip = (tone: Tone, extra?: string) =>
     cn("block text-xs leading-5 px-2 py-0.5 rounded-md truncate transition-colors", TONE[tone].chip, extra)
 
+  /** The side handle that starts a drag; the chip itself stays clickable. */
+  const grip = (item: DragItem) => (
+    <span
+      draggable
+      onDragStart={e => onDragStart(e, item)}
+      onDragEnd={() => setDragOverDay(null)}
+      onClick={e => { e.preventDefault(); e.stopPropagation() }}
+      title="Arrastar para outro dia"
+      className="cursor-grab active:cursor-grabbing shrink-0 opacity-40 hover:opacity-100 -ml-1 -my-0.5 py-0.5"
+    >
+      <GripVertical className="w-3 h-3" />
+    </span>
+  )
+
   return (
     <div className="bg-card border rounded-xl shadow-sm overflow-hidden">
       {/* Month */}
@@ -170,6 +246,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         <span className="flex items-center gap-1.5"><RunnerIcon className="w-3.5 h-3.5" /> Em andamento</span>
         <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400"><X className="w-3.5 h-3.5" strokeWidth={2.5} /><span className="text-foreground/80">Pendência (invoice, NF, DAS, recebimento)</span></span>
         <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400"><CircleDollarSign className="w-3.5 h-3.5" /><span className="text-foreground/80">Recebido</span></span>
+        <span className="flex items-center gap-1.5 text-muted-foreground"><GripVertical className="w-3.5 h-3.5" /><span className="text-foreground/80">Arraste pela alça para mover de dia</span></span>
       </div>
 
       {/* Weekdays */}
@@ -196,10 +273,15 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
             <div
               key={i}
               onClick={() => setSelectedDay(key)}
+              onDragOver={e => {
+                if (e.dataTransfer.types.includes(DND_TYPE)) { e.preventDefault(); setDragOverDay(key) }
+              }}
+              onDragLeave={() => setDragOverDay(d => (d === key ? null : d))}
+              onDrop={e => onDrop(e, key)}
               className={cn(
                 "min-h-[140px] p-2 border-b cursor-pointer transition-colors",
                 i % 7 !== 0 && "border-l",
-                today ? "bg-accent/40" : "hover:bg-muted/40",
+                dragOverDay === key ? "bg-accent ring-2 ring-inset ring-primary" : today ? "bg-accent/40" : "hover:bg-muted/40",
               )}
               title={dayHolds.map(h => `${HOLD_TONE[h.type].label}: ${h.clients?.name ?? "—"}${h.jobs?.name ? ` · ${h.jobs.name}` : ""}`).join("\n") || undefined}
             >
@@ -211,8 +293,9 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                   {format(day, "d")}
                 </span>
                 {topHold && (
-                  <span className={chip(HOLD_TONE[topHold.type].tone, "max-w-[65%] text-[11px]")}>
-                    {topHold.clients?.name ?? HOLD_TONE[topHold.type].label}
+                  <span className={chip(HOLD_TONE[topHold.type].tone, "max-w-[65%] text-[11px] flex items-center gap-0.5")}>
+                    {grip({ kind: "hold", id: topHold.id, from: key })}
+                    <span className="truncate">{topHold.clients?.name ?? HOLD_TONE[topHold.type].label}</span>
                   </span>
                 )}
               </div>
@@ -226,6 +309,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                     title={`${j.name} — ${j.start_date}${j.end_date && j.end_date !== j.start_date ? ` a ${j.end_date}` : ""}${j.status === "completed" ? " (encerrado)" : ""}`}
                     className={cn(chip(j.status === "completed" ? "grey" : "blue"), "flex items-center gap-1.5")}
                   >
+                    {grip({ kind: "job", id: j.id, from: key })}
                     {j.stage && <JobStageIcon stage={j.stage} withLabel={false} />}
                     <span className="truncate">{j.name}</span>
                     {j.stage && j.stage !== "work" && j.stage !== "done" && (
@@ -254,9 +338,10 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                     href={`/jobs/${l.job_id}`}
                     onClick={e => e.stopPropagation()}
                     title={`${l.jobs?.name ?? "Diária"} — ${l.hours_billed}h faturadas`}
-                    className={chip("green")}
+                    className={cn(chip("green"), "flex items-center gap-1")}
                   >
-                    {l.jobs?.name ?? "Diária"}
+                    {grip({ kind: "log", id: l.id, from: key })}
+                    <span className="truncate">{l.jobs?.name ?? "Diária"}</span>
                   </Link>
                 ))}
                 {dayLogs.length > 2 && (
