@@ -297,10 +297,12 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
 
   // ── the lines ──────────────────────────────────────────────────────────────
   // Every invoice lists the days worked. On a project each day names the job and puts
-  // its hours where the money would go — the closed price sits on the project line —
-  // so the days read as a record, not a charge.
+  // its hours where the money would go; the closed price is not a line — it shows only
+  // once, as the Total below the rule.
   let y = Y.itemsStart
   for (const item of items) {
+    // The fixed-price project line repeats the Total, so it stays off the list.
+    if (billingMode === "fixed" && item.unit === "project" && !item.is_manual) continue
     const q = resolveItemQuantity(item, billingMode)
     const workedDay = isWorkedDayLine(item, billingMode)
     say(format(parseISO(item.date), "dd/MM"), X.label, y, { tone: INK.figure })
