@@ -369,11 +369,8 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
           const inMonth  = isSameMonth(day, month)
           const today    = isToday(day)
           const dayHolds = holdsForDay(key)
-          const topHold  = dayHolds[0]
           // A day with a diária shows the worked-day chip only — not the job bar too.
           const dayJobs  = jobsForDay(key).filter(j => !dayLogs.some(l => l.job_id === j.id))
-          const showHoldStartEdge = !!topHold && (key === topHold.start_date || (key === firstKey && topHold.start_date < firstKey))
-          const showHoldEndEdge   = !!topHold && (key === topHold.end_date || (key === lastKey && topHold.end_date > lastKey))
           return (
             <div
               key={i}
@@ -397,20 +394,49 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                 )}>
                   {format(day, "d")}
                 </span>
-                {topHold && (
-                  <span
-                    {...dragProps({ kind: "hold", id: topHold.id, from: key })}
-                    className={chip(HOLD_TONE[topHold.type].tone, "max-w-[65%] text-[11px] flex items-center gap-0.5 cursor-grab active:cursor-grabbing")}
-                  >
-                    {showHoldStartEdge && edge({ kind: "hold-start", id: topHold.id, from: key }, "left")}
-                    {grip}
-                    <span className="truncate">{topHold.clients?.name ?? HOLD_TONE[topHold.type].label}</span>
-                    {showHoldEndEdge && edge({ kind: "hold-end", id: topHold.id, from: key }, "right")}
-                  </span>
-                )}
               </div>
 
               <div className="space-y-1">
+                {dayHolds.slice(0, 2).map(h => {
+                  // Holds draw as continuous bars too, same spanning rules as jobs.
+                  const continuesLeft  = h.start_date < key
+                  const continuesRight = h.end_date > key
+                  const showLabel = !continuesLeft || day.getDay() === 0
+                  const showStartEdge = key === h.start_date || (key === firstKey && h.start_date < firstKey)
+                  const showEndEdge   = key === h.end_date || (key === lastKey && h.end_date > lastKey)
+                  return (
+                    <div
+                      key={h.id}
+                      {...dragProps({ kind: "hold", id: h.id, from: key })}
+                      title={`${HOLD_TONE[h.type].label}: ${h.clients?.name ?? "—"}${h.jobs?.name ? ` · ${h.jobs.name}` : ""} — ${h.start_date} a ${h.end_date}`}
+                      className={cn(
+                        chip(HOLD_TONE[h.type].tone),
+                        "flex items-center gap-1.5 cursor-grab active:cursor-grabbing relative z-10",
+                        continuesLeft  && "rounded-l-none -ml-[9px]",
+                        continuesRight && "rounded-r-none -mr-[9px]",
+                      )}
+                    >
+                      {showStartEdge && edge({ kind: "hold-start", id: h.id, from: key }, "left")}
+                      {showLabel ? (
+                        <>
+                          {grip}
+                          <span className="truncate">{h.clients?.name ?? HOLD_TONE[h.type].label}</span>
+                          <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide opacity-60 shrink-0">
+                            {HOLD_TONE[h.type].label}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="flex-1" aria-hidden />
+                      )}
+                      {showEndEdge && edge({ kind: "hold-end", id: h.id, from: key }, "right")}
+                    </div>
+                  )
+                })}
+                {dayHolds.length > 2 && (
+                  <p className="text-[11px] text-muted-foreground px-1 font-medium">
+                    +{dayHolds.length - 2} reserva{dayHolds.length - 2 > 1 ? "s" : ""}
+                  </p>
+                )}
                 {dayJobs.slice(0, 2).map(j => {
                   // Jobs draw as one continuous bar across their span: each day's piece
                   // bleeds over the cell padding and border to meet its neighbours, and
