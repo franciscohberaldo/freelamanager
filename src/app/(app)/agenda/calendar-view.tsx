@@ -88,7 +88,7 @@ const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 
 /** Drag payload: what is moving and from which day it was grabbed. */
 const DND_TYPE = "application/x-freela-calendar"
-type DragItem = { kind: "log" | "hold" | "job"; id: string; from: string }
+type DragItem = { kind: "log" | "hold" | "job" | "event"; id: string; from: string }
 
 const DAY_MS = 86_400_000
 
@@ -137,6 +137,10 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         .eq("id", item.id)
       if (error) { toast.error("Erro ao mover reserva"); return }
       toast.success("Reserva movida")
+    } else if (item.kind === "event") {
+      const { error } = await supabase.from("agenda_events").update({ event_date: day }).eq("id", item.id)
+      if (error) { toast.error("Erro ao mover tarefa"); return }
+      toast.success("Tarefa movida")
     } else {
       const job = jobs.find(j => j.id === item.id)
       if (!job?.start_date) return
@@ -325,8 +329,11 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                   </p>
                 )}
                 {evs.slice(0, 3).map(e => (
-                  <div key={e.id} className={chip(TASK_TONE[e.task_status] ?? "blue")} title={e.title}>
-                    {e.title}{e.jobs?.name ? <span className="opacity-70"> • {e.jobs.name}</span> : null}
+                  <div key={e.id} className={cn(chip(TASK_TONE[e.task_status] ?? "blue"), "flex items-center gap-1")} title={e.title}>
+                    {grip({ kind: "event", id: e.id, from: key })}
+                    <span className="truncate">
+                      {e.title}{e.jobs?.name ? <span className="opacity-70"> • {e.jobs.name}</span> : null}
+                    </span>
                   </div>
                 ))}
                 {evs.length > 3 && (
