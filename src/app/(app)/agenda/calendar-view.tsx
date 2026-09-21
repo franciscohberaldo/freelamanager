@@ -86,9 +86,13 @@ const LEGEND: { tone: Tone; label: string }[] = [
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 
-/** Drag payload: what is moving and from which day it was grabbed. */
+/** Drag payload: what is moving (or which edge is stretching) and from which day it was grabbed. */
 const DND_TYPE = "application/x-freela-calendar"
-type DragItem = { kind: "log" | "hold" | "job" | "event"; id: string; from: string }
+type DragItem = {
+  kind: "log" | "hold" | "job" | "event" | "job-start" | "job-end" | "hold-start" | "hold-end"
+  id: string
+  from: string
+}
 
 const DAY_MS = 86_400_000
 
@@ -115,6 +119,56 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
     const delta = Math.round((parseISO(day).getTime() - parseISO(item.from).getTime()) / DAY_MS)
     if (delta === 0) return
     const shift = (d: string) => format(addDays(parseISO(d), delta), "yyyy-MM-dd")
+
+    if (item.kind === "job-start" || item.kind === "job-end") {
+      const job = jobs.find(j => j.id === item.id)
+      if (!job?.start_date) return
+      if (item.kind === "job-start" && job.end_date && day > job.end_date) {
+        toast.warning("O início não pode ficar depois do fim do job"); return
+      }
+      if (item.kind === "job-end" && day < job.start_date) {
+        toast.warning("O fim não pode ficar antes do início do job"); return
+      }
+      const patch = item.kind === "job-start" ? { start_date: day } : { end_date: day }
+      const { error } = await supabase.from("jobs").update(patch).eq("id", item.id)
+      if (error) { toast.error("Erro ao ajustar período do job"); return }
+      toast.success("Período do job atualizado", {
+        duration: 10000, // tempo para alcançar o Desfazer
+        action: { label: "Desfazer", onClick: async () => {
+          await supabase.from("jobs")
+            .update({ start_date: job.start_date, end_date: job.end_date })
+            .eq("id", item.id)
+          router.refresh()
+        } },
+      })
+      router.refresh()
+      return
+    }
+
+    if (item.kind === "hold-start" || item.kind === "hold-end") {
+      const hold = holds.find(h => h.id === item.id)
+      if (!hold) return
+      if (item.kind === "hold-start" && day > hold.end_date) {
+        toast.warning("O início não pode ficar depois do fim da reserva"); return
+      }
+      if (item.kind === "hold-end" && day < hold.start_date) {
+        toast.warning("O fim não pode ficar antes do início da reserva"); return
+      }
+      const patch = item.kind === "hold-start" ? { start_date: day } : { end_date: day }
+      const { error } = await supabase.from("availability_holds").update(patch).eq("id", item.id)
+      if (error) { toast.error("Erro ao ajustar período da reserva"); return }
+      toast.success("Período da reserva atualizado", {
+        duration: 10000,
+        action: { label: "Desfazer", onClick: async () => {
+          await supabase.from("availability_holds")
+            .update({ start_date: hold.start_date, end_date: hold.end_date })
+            .eq("id", item.id)
+          router.refresh()
+        } },
+      })
+      router.refresh()
+      return
+    }
 
     if (item.kind === "log") {
       // A day already billed on an invoice cannot wander into another period.
@@ -227,19 +281,30 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
   const chip = (tone: Tone, extra?: string) =>
     cn("block text-xs leading-5 px-2 py-0.5 rounded-md truncate transition-colors", TONE[tone].chip, extra)
 
-  /** The side handle that starts a drag; the chip itself stays clickable. */
-  const grip = (item: DragItem) => (
+  /** Visual hint that the chip can be dragged — the whole chip is the drag source. */
+  const grip = <GripVertical className="w-3 h-3 shrink-0 opacity-40 -ml-1" />
+
+  /** The stretchable edge of a job/hold chip, offered on the span's first/last day. */
+  const edge = (item: DragItem, side: "left" | "right") => (
     <span
       draggable
       onDragStart={e => onDragStart(e, item)}
       onDragEnd={() => setDragOverDay(null)}
       onClick={e => { e.preventDefault(); e.stopPropagation() }}
-      title="Arrastar para outro dia"
-      className="cursor-grab active:cursor-grabbing shrink-0 opacity-40 hover:opacity-100 -ml-1 -my-0.5 py-0.5"
-    >
-      <GripVertical className="w-3 h-3" />
-    </span>
+      title={side === "left" ? "Arrastar para mudar o início" : "Arrastar para mudar o fim"}
+      className={cn(
+        "cursor-ew-resize shrink-0 self-stretch w-1.5 my-0.5 rounded-full bg-current opacity-30 hover:opacity-70",
+        side === "left" ? "-ml-1" : "-mr-1",
+      )}
+    />
   )
+
+  /** Chip-level drag props: grab anywhere on the chip to move it. */
+  const dragProps = (item: DragItem) => ({
+    draggable: true,
+    onDragStart: (e: React.DragEvent) => onDragStart(e, item),
+    onDragEnd: () => setDragOverDay(null),
+  })
 
   return (
     <div className="bg-card border rounded-xl shadow-sm overflow-hidden">
@@ -278,7 +343,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         <span className="flex items-center gap-1.5"><RunnerIcon className="w-3.5 h-3.5" /> Em andamento</span>
         <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400"><X className="w-3.5 h-3.5" strokeWidth={2.5} /><span className="text-foreground/80">Pendência (invoice, NF, DAS, recebimento)</span></span>
         <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400"><CircleDollarSign className="w-3.5 h-3.5" /><span className="text-foreground/80">Recebido</span></span>
-        <span className="flex items-center gap-1.5 text-muted-foreground"><GripVertical className="w-3.5 h-3.5" /><span className="text-foreground/80">Arraste pela alça para mover de dia</span></span>
+        <span className="flex items-center gap-1.5 text-muted-foreground"><GripVertical className="w-3.5 h-3.5" /><span className="text-foreground/80">Arraste o chip para mover · puxe a borda do job/reserva para esticar o período</span></span>
       </div>
 
       {/* Weekdays */}
@@ -325,9 +390,14 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                   {format(day, "d")}
                 </span>
                 {topHold && (
-                  <span className={chip(HOLD_TONE[topHold.type].tone, "max-w-[65%] text-[11px] flex items-center gap-0.5")}>
-                    {grip({ kind: "hold", id: topHold.id, from: key })}
+                  <span
+                    {...dragProps({ kind: "hold", id: topHold.id, from: key })}
+                    className={chip(HOLD_TONE[topHold.type].tone, "max-w-[65%] text-[11px] flex items-center gap-0.5 cursor-grab active:cursor-grabbing")}
+                  >
+                    {key === topHold.start_date && edge({ kind: "hold-start", id: topHold.id, from: key }, "left")}
+                    {grip}
                     <span className="truncate">{topHold.clients?.name ?? HOLD_TONE[topHold.type].label}</span>
+                    {key === topHold.end_date && edge({ kind: "hold-end", id: topHold.id, from: key }, "right")}
                   </span>
                 )}
               </div>
@@ -338,10 +408,12 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                     key={j.id}
                     href={`/jobs/${j.id}`}
                     onClick={e => e.stopPropagation()}
+                    {...dragProps({ kind: "job", id: j.id, from: key })}
                     title={`${j.name} — ${j.start_date}${j.end_date && j.end_date !== j.start_date ? ` a ${j.end_date}` : ""}${j.status === "completed" ? " (encerrado)" : ""}`}
-                    className={cn(chip(j.status === "completed" ? "grey" : "blue"), "flex items-center gap-1.5")}
+                    className={cn(chip(j.status === "completed" ? "grey" : "blue"), "flex items-center gap-1.5 cursor-grab active:cursor-grabbing")}
                   >
-                    {grip({ kind: "job", id: j.id, from: key })}
+                    {key === j.start_date && edge({ kind: "job-start", id: j.id, from: key }, "left")}
+                    {grip}
                     {j.stage && <JobStageIcon stage={j.stage} withLabel={false} />}
                     <span className="truncate">{j.name}</span>
                     {j.stage && j.stage !== "work" && j.stage !== "done" && (
@@ -349,6 +421,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                         {JOB_STAGE_LABELS[j.stage]}
                       </span>
                     )}
+                    {key === (j.end_date ?? j.start_date) && edge({ kind: "job-end", id: j.id, from: key }, "right")}
                   </Link>
                 ))}
                 {dayJobs.length > 2 && (
@@ -357,8 +430,13 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                   </p>
                 )}
                 {evs.slice(0, 3).map(e => (
-                  <div key={e.id} className={cn(chip(TASK_TONE[e.task_status] ?? "blue"), "flex items-center gap-1")} title={e.title}>
-                    {grip({ kind: "event", id: e.id, from: key })}
+                  <div
+                    key={e.id}
+                    {...dragProps({ kind: "event", id: e.id, from: key })}
+                    className={cn(chip(TASK_TONE[e.task_status] ?? "blue"), "flex items-center gap-1 cursor-grab active:cursor-grabbing")}
+                    title={e.title}
+                  >
+                    {grip}
                     <span className="truncate">
                       {e.title}{e.jobs?.name ? <span className="opacity-70"> • {e.jobs.name}</span> : null}
                     </span>
@@ -372,10 +450,11 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                     key={l.id}
                     href={`/jobs/${l.job_id}`}
                     onClick={e => e.stopPropagation()}
+                    {...dragProps({ kind: "log", id: l.id, from: key })}
                     title={`${l.jobs?.name ?? "Diária"} — ${l.hours_billed}h faturadas`}
-                    className={cn(chip("green"), "flex items-center gap-1")}
+                    className={cn(chip("green"), "flex items-center gap-1 cursor-grab active:cursor-grabbing")}
                   >
-                    {grip({ kind: "log", id: l.id, from: key })}
+                    {grip}
                     <span className="truncate">{l.jobs?.name ?? "Diária"}</span>
                   </Link>
                 ))}
