@@ -103,12 +103,30 @@ export function CreateInvoiceDialog({
   const total     = draft.subtotal + taxAmount
   const empty     = !selectedJob || draftIsEmpty(draft, selectedJob)
 
-  // ── a project is invoiced whole: its period is the job's, and its days exist ────────
+  // ── the period opens on what is left to bill ────────────────────────────────────────
+  // A project is invoiced whole: its period is the job's, and its days exist. Any other
+  // job opens on the span of its days no invoice has taken yet, so days logged in an
+  // earlier month are not hidden behind the current one.
   const [projectReady, setProjectReady] = useState<string | null>(null)
   useEffect(() => {
     if (!open || !selectedJob) return
-    if (selectedJob.billing_mode !== "fixed") { setProjectReady(jobId); return }
     let cancelled = false
+    if (selectedJob.billing_mode !== "fixed") {
+      ;(async () => {
+        const { data: all } = await supabase.from("daily_logs").select("id, date").eq("job_id", jobId)
+        const rows = all ?? []
+        let billed = new Set<string>()
+        if (rows.length > 0) {
+          const { data: items } = await supabase.from("invoice_items").select("log_id").in("log_id", rows.map(r => r.id))
+          billed = new Set((items ?? []).map(i => i.log_id as string))
+        }
+        if (cancelled) return
+        const span = spanOf(rows.filter(r => !billed.has(r.id)).map(r => r.date as string))
+        if (span) { setPeriodStart(span.start); setPeriodEnd(span.end) }
+        setProjectReady(jobId)
+      })()
+      return () => { cancelled = true }
+    }
     ;(async () => {
       const { data: all } = await supabase.from("daily_logs").select("date").eq("job_id", jobId).order("date")
       let dates = (all ?? []).map(l => l.date as string)
