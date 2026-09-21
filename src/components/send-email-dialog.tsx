@@ -123,7 +123,9 @@ export function SendEmailDialog({
                   className={!extraCheck.ok ? "border-destructive" : undefined}
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  {extraCheck.ok ? "Só neste envio; vários separados por vírgula." : extraCheck.error}
+                  {extraCheck.ok
+                    ? "Vários separados por vírgula. Ao enviar, viram contatos do cliente marcados para invoices."
+                    : extraCheck.error}
                 </p>
               </div>
             </div>

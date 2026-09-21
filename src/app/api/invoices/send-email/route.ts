@@ -66,6 +66,23 @@ export async function POST(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // A one-off recipient earned its keep: save it as a contact flagged for invoices, so the
+  // next send lists it automatically. Never let housekeeping undo a delivered e-mail.
+  const clientId = job?.clients?.id
+  if (clientId && extras.length > 0) {
+    const { data: existing } = await supabase
+      .from("client_contacts")
+      .select("email")
+      .eq("client_id", clientId)
+    const known = new Set((existing ?? []).flatMap(c => parseEmails(c.email)))
+    for (const email of extras) {
+      if (known.has(email)) continue
+      const name = email.split("@")[0].split(/[._-]+/).filter(Boolean)
+        .map(p => p[0].toUpperCase() + p.slice(1)).join(" ") || email
+      await supabase.from("client_contacts").insert({ client_id: clientId, name, email, cc_invoices: true })
+    }
+  }
+
   await supabase
     .from("invoices")
     .update({ status: "sent", sent_at: new Date().toISOString() })
