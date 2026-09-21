@@ -171,9 +171,10 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
     }
 
     if (item.kind === "log-extend") {
-      // Dragging a diária's arrow to another day marks every day in between as
-      // worked too, copying hours/rate from the original. Days that already have
-      // a log for this job are skipped.
+      // Dragging a diária's arrow to another day marks every weekday in between as
+      // worked too, copying hours/rate from the original. Weekends are skipped (work
+      // on a weekend? drag the chip there by hand). Days that already have a log for
+      // this job are skipped as well.
       const log = logs.find(l => l.id === item.id)
       if (!log) return
       const { data: { user } } = await supabase.auth.getUser()
@@ -184,6 +185,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
       const taken = new Set(logs.filter(l => l.job_id === log.job_id).map(l => l.date.slice(0, 10)))
       const rows = []
       for (let cur = addDays(from, step); step > 0 ? cur <= to : cur >= to; cur = addDays(cur, step)) {
+        if (cur.getDay() === 0 || cur.getDay() === 6) continue // fins de semana ficam de fora
         const k = format(cur, "yyyy-MM-dd")
         if (taken.has(k)) continue
         taken.add(k)
@@ -193,7 +195,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
           hours_billed: log.hours_billed, total_value: log.total_value,
         })
       }
-      if (rows.length === 0) { toast.info("Esses dias já têm diária registrada"); return }
+      if (rows.length === 0) { toast.info("Nenhum dia útil novo nesse intervalo — fins de semana ficam de fora"); return }
       const { data: created, error } = await supabase.from("daily_logs").insert(rows).select("id")
       if (error) { toast.error("Erro ao marcar os dias trabalhados"); return }
       toast.success(rows.length === 1 ? "1 diária adicionada" : `${rows.length} diárias adicionadas`, {
@@ -384,8 +386,8 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
       onDragEnd={() => setDragOverDay(null)}
       onClick={e => { e.preventDefault(); e.stopPropagation() }}
       title={side === "left"
-        ? "Arrastar para marcar os dias anteriores como trabalhados"
-        : "Arrastar para marcar os dias seguintes como trabalhados"}
+        ? "Arrastar para marcar os dias úteis anteriores como trabalhados"
+        : "Arrastar para marcar os dias úteis seguintes como trabalhados"}
       className={cn(
         "cursor-ew-resize shrink-0 self-stretch flex items-center opacity-40 hover:opacity-90",
         side === "left" ? "-ml-1" : "-mr-1 ml-auto",
@@ -439,7 +441,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         <span className="flex items-center gap-1.5"><RunnerIcon className="w-3.5 h-3.5" /> Em andamento</span>
         <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400"><X className="w-3.5 h-3.5" strokeWidth={2.5} /><span className="text-foreground/80">Pendência (invoice, recebimento, NF, DAS)</span></span>
         <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400"><CircleDollarSign className="w-3.5 h-3.5" /><span className="text-foreground/80">Recebido</span></span>
-        <span className="flex items-center gap-1.5 text-muted-foreground"><GripVertical className="w-3.5 h-3.5" /><span className="text-foreground/80">Arraste o chip para mover · puxe a borda do job/reserva para esticar · puxe a seta da diária para marcar mais dias</span></span>
+        <span className="flex items-center gap-1.5 text-muted-foreground"><GripVertical className="w-3.5 h-3.5" /><span className="text-foreground/80">Arraste o chip para mover · puxe a borda do job/reserva para esticar · puxe a seta da diária para marcar mais dias úteis</span></span>
       </div>
 
       {/* Weekdays */}
