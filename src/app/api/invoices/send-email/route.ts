@@ -3,10 +3,16 @@ import { NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 import { type InvoiceLang } from "@/lib/invoice-i18n"
 import { buildInvoiceEmail, resolveRecipients } from "@/lib/invoice-email"
+import { parseEmails, isValidEmail } from "@/lib/emails"
 
 export async function POST(request: NextRequest) {
-  const { invoiceId, lang: rawLang = "pt" } = await request.json()
+  const { invoiceId, lang: rawLang = "pt", subject: subjectOverride, extraTo } = await request.json()
   const lang: InvoiceLang = rawLang === "en" ? "en" : "pt"
+
+  // One-off recipients typed in the send dialog, comma-separated like the client's field.
+  const extras = parseEmails(typeof extraTo === "string" ? extraTo : "")
+  const bad = extras.find(e => !isValidEmail(e))
+  if (bad) return NextResponse.json({ error: `"${bad}" não parece um e-mail` }, { status: 400 })
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -30,6 +36,9 @@ export async function POST(request: NextRequest) {
     .eq("cc_invoices", true)
 
   const { to, cc } = resolveRecipients(job?.clients?.email, (contacts ?? []).map(c => c.email))
+  for (const e of extras) {
+    if (!to.includes(e) && !cc.includes(e)) to.push(e)
+  }
 
   if (to.length === 0) {
     return NextResponse.json({ error: "Nenhum destinatário para a invoice: preencha o e-mail do cliente ou marque um contato para receber as invoices" }, { status: 400 })
@@ -42,13 +51,16 @@ export async function POST(request: NextRequest) {
     .order("date")
 
   const { subject, html } = buildInvoiceEmail({ invoice, items: items ?? [], job, lang })
+  const finalSubject = typeof subjectOverride === "string" && subjectOverride.trim()
+    ? subjectOverride.trim()
+    : subject
 
   const resend = new Resend(process.env.RESEND_API_KEY)
   const { error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL ?? "invoices@freelamanager.com",
     to,
     ...(cc.length > 0 ? { cc } : {}),
-    subject,
+    subject: finalSubject,
     html,
   })
 
