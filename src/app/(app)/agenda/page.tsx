@@ -34,7 +34,7 @@ export default async function AgendaPage() {
       .gte("end_date", `${year - 1}-01-01`),
     supabase
       .from("daily_logs")
-      .select("id, job_id, date, hours_worked, hours_billed, total_value, jobs(name)")
+      .select("id, job_id, date, daily_rate, hours_worked, hours_billed, total_value, jobs(name)")
       .eq("user_id", user!.id)
       .gte("date", `${year - 1}-01-01`)
       .lte("date", `${year + 1}-12-31`)

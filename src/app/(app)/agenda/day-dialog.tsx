@@ -11,7 +11,7 @@ import { LogDialog, type JobOption } from "../logs/log-dialog"
 import type { AgendaEvent, DailyLog } from "@/lib/supabase/types"
 import type { CalendarHold } from "./calendar-view"
 
-export type DayLog = Pick<DailyLog, "id" | "job_id" | "date" | "hours_worked" | "hours_billed" | "total_value"> & {
+export type DayLog = Pick<DailyLog, "id" | "job_id" | "date" | "daily_rate" | "hours_worked" | "hours_billed" | "total_value"> & {
   jobs: { name: string } | null
 }
 

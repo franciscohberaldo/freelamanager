@@ -89,7 +89,7 @@ const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 /** Drag payload: what is moving (or which edge is stretching) and from which day it was grabbed. */
 const DND_TYPE = "application/x-freela-calendar"
 type DragItem = {
-  kind: "log" | "hold" | "job" | "event" | "job-start" | "job-end" | "hold-start" | "hold-end"
+  kind: "log" | "log-extend" | "hold" | "job" | "event" | "job-start" | "job-end" | "hold-start" | "hold-end"
   id: string
   from: string
 }
@@ -163,6 +163,43 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
           await supabase.from("availability_holds")
             .update({ start_date: hold.start_date, end_date: hold.end_date })
             .eq("id", item.id)
+          router.refresh()
+        } },
+      })
+      router.refresh()
+      return
+    }
+
+    if (item.kind === "log-extend") {
+      // Dragging a diária's arrow to another day marks every day in between as
+      // worked too, copying hours/rate from the original. Days that already have
+      // a log for this job are skipped.
+      const log = logs.find(l => l.id === item.id)
+      if (!log) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { toast.error("Sessão expirada — entre de novo"); return }
+      const from = parseISO(log.date.slice(0, 10))
+      const to = parseISO(day)
+      const step = to > from ? 1 : -1
+      const taken = new Set(logs.filter(l => l.job_id === log.job_id).map(l => l.date.slice(0, 10)))
+      const rows = []
+      for (let cur = addDays(from, step); step > 0 ? cur <= to : cur >= to; cur = addDays(cur, step)) {
+        const k = format(cur, "yyyy-MM-dd")
+        if (taken.has(k)) continue
+        taken.add(k)
+        rows.push({
+          user_id: user.id, job_id: log.job_id, date: k,
+          daily_rate: log.daily_rate, hours_worked: log.hours_worked,
+          hours_billed: log.hours_billed, total_value: log.total_value,
+        })
+      }
+      if (rows.length === 0) { toast.info("Esses dias já têm diária registrada"); return }
+      const { data: created, error } = await supabase.from("daily_logs").insert(rows).select("id")
+      if (error) { toast.error("Erro ao marcar os dias trabalhados"); return }
+      toast.success(rows.length === 1 ? "1 diária adicionada" : `${rows.length} diárias adicionadas`, {
+        duration: 10000, // tempo para alcançar o Desfazer
+        action: { label: "Desfazer", onClick: async () => {
+          await supabase.from("daily_logs").delete().in("id", (created ?? []).map(r => r.id))
           router.refresh()
         } },
       })
@@ -283,6 +320,13 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
     return map
   }, [logs])
 
+  // A closed job's day shows the grey job bar with its post-delivery stage instead
+  // of the green diária chip — the stage is what matters once the work is over.
+  const completedJobIds = useMemo(
+    () => new Set(jobs.filter(j => j.status === "completed").map(j => j.id)),
+    [jobs],
+  )
+
   const chip = (tone: Tone, extra?: string) =>
     cn("block text-xs leading-5 px-2 py-0.5 rounded-md truncate transition-colors", TONE[tone].chip, extra)
 
@@ -302,6 +346,25 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         side === "left" ? "-ml-1" : "-mr-1",
       )}
     />
+  )
+
+  /** Arrow handle on a diária chip: drag it to another day to mark the days in between as worked too. */
+  const arrowEdge = (item: DragItem, side: "left" | "right") => (
+    <span
+      draggable
+      onDragStart={e => onDragStart(e, item)}
+      onDragEnd={() => setDragOverDay(null)}
+      onClick={e => { e.preventDefault(); e.stopPropagation() }}
+      title={side === "left"
+        ? "Arrastar para marcar os dias anteriores como trabalhados"
+        : "Arrastar para marcar os dias seguintes como trabalhados"}
+      className={cn(
+        "cursor-ew-resize shrink-0 self-stretch flex items-center opacity-40 hover:opacity-90",
+        side === "left" ? "-ml-1" : "-mr-1 ml-auto",
+      )}
+    >
+      {side === "left" ? <ChevronLeft className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+    </span>
   )
 
   /** Chip-level drag props: grab anywhere on the chip to move it. */
@@ -348,7 +411,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         <span className="flex items-center gap-1.5"><RunnerIcon className="w-3.5 h-3.5" /> Em andamento</span>
         <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400"><X className="w-3.5 h-3.5" strokeWidth={2.5} /><span className="text-foreground/80">Pendência (invoice, recebimento, NF, DAS)</span></span>
         <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400"><CircleDollarSign className="w-3.5 h-3.5" /><span className="text-foreground/80">Recebido</span></span>
-        <span className="flex items-center gap-1.5 text-muted-foreground"><GripVertical className="w-3.5 h-3.5" /><span className="text-foreground/80">Arraste o chip para mover · puxe a borda do job/reserva para esticar o período</span></span>
+        <span className="flex items-center gap-1.5 text-muted-foreground"><GripVertical className="w-3.5 h-3.5" /><span className="text-foreground/80">Arraste o chip para mover · puxe a borda do job/reserva para esticar · puxe a seta da diária para marcar mais dias</span></span>
       </div>
 
       {/* Weekdays */}
@@ -369,8 +432,11 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
           const inMonth  = isSameMonth(day, month)
           const today    = isToday(day)
           const dayHolds = holdsForDay(key)
-          // A day with a diária shows the worked-day chip only — not the job bar too.
-          const dayJobs  = jobsForDay(key).filter(j => !dayLogs.some(l => l.job_id === j.id))
+          // One entry per job per day: an open job with a diária shows the green chip
+          // only; a closed job shows the grey bar with its stage, and its diária chips
+          // are the ones hidden.
+          const dayJobs  = jobsForDay(key).filter(j => completedJobIds.has(j.id) || !dayLogs.some(l => l.job_id === j.id))
+          const visibleLogs = dayLogs.filter(l => !completedJobIds.has(l.job_id))
           return (
             <div
               key={i}
@@ -501,7 +567,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                 {evs.length > 3 && (
                   <p className="text-[11px] text-muted-foreground px-1">+{evs.length - 3} mais</p>
                 )}
-                {dayLogs.slice(0, 2).map(l => (
+                {visibleLogs.slice(0, 2).map(l => (
                   <Link
                     key={l.id}
                     href={`/jobs/${l.job_id}`}
@@ -510,13 +576,15 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                     title={`${l.jobs?.name ?? "Diária"} — ${l.hours_billed}h faturadas`}
                     className={cn(chip("green"), "flex items-center gap-1 cursor-grab active:cursor-grabbing")}
                   >
+                    {arrowEdge({ kind: "log-extend", id: l.id, from: key }, "left")}
                     {grip}
                     <span className="truncate">{l.jobs?.name ?? "Diária"}</span>
+                    {arrowEdge({ kind: "log-extend", id: l.id, from: key }, "right")}
                   </Link>
                 ))}
-                {dayLogs.length > 2 && (
+                {visibleLogs.length > 2 && (
                   <p className="text-[11px] text-emerald-700 dark:text-emerald-400 px-1 font-medium">
-                    +{dayLogs.length - 2} diária{dayLogs.length - 2 > 1 ? "s" : ""}
+                    +{visibleLogs.length - 2} diária{visibleLogs.length - 2 > 1 ? "s" : ""}
                   </p>
                 )}
               </div>
