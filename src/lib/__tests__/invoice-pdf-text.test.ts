@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { quiet, cityOf } from "@/lib/invoice-pdf"
+import { quiet, cityOf, itemLabel } from "@/lib/invoice-pdf"
 
 describe("quiet", () => {
   it("title-cases a shouting legal name but keeps the legal form in capitals", () => {
@@ -24,5 +24,25 @@ describe("cityOf", () => {
 
   it("falls back to São Paulo when every piece of the address carries digits", () => {
     expect(cityOf("R COLONIA DA GLORIA 00453, AP 192 - CEP: 04113-001")).toBe("São Paulo")
+  })
+})
+
+describe("itemLabel", () => {
+  const day = { quantity: 1, unit: "day" as const }
+
+  it("names the project on a billed day instead of \"1 day\"", () => {
+    expect(itemLabel({ description: null }, day, "Phantom", "en")).toBe("Phantom")
+  })
+
+  it("keeps a line's own description", () => {
+    expect(itemLabel({ description: "Storyboard" }, day, "Phantom", "en")).toBe("Storyboard")
+  })
+
+  it("falls back to the quantity when there is no project name", () => {
+    expect(itemLabel({ description: null }, day, null, "en")).toBe("1 day")
+  })
+
+  it("leaves hourly lines showing their hours", () => {
+    expect(itemLabel({ description: null }, { quantity: 8, unit: "hour" }, "Phantom", "en")).not.toBe("Phantom")
   })
 })

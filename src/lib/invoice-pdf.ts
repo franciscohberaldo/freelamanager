@@ -188,6 +188,22 @@ export function resolveItemQuantity(
   return { quantity: item.hours_billed, unit: "hour" }
 }
 
+/**
+ * The words on a priced line. A billed day names the project it was worked on (the
+ * amount already carries the rate); any other line without a description shows its
+ * quantity.
+ */
+export function itemLabel(
+  item: { description?: string | null; is_manual?: boolean | null },
+  q: { quantity: number; unit: BillingUnit },
+  jobName: string | null | undefined,
+  lang: InvoiceLang,
+): string {
+  if (item.description) return item.description
+  if (q.unit === "day" && !item.is_manual && jobName) return jobName
+  return formatQuantity(q.quantity, q.unit, lang)
+}
+
 const has = (v: string | null | undefined): v is string => !!v && v.trim().length > 0
 
 /**
@@ -310,7 +326,7 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
       say(item.description ?? job?.name ?? t.workedDay, X.itemDesc, y, { tone: INK.figure })
       say(item.hours_billed > 0 ? formatQuantity(item.hours_billed, "hour", lang) : t.workedDay, X.itemAmount, y, { tone: INK.figure })
     } else {
-      say(item.description ?? formatQuantity(q.quantity, q.unit, lang), X.itemDesc, y, { tone: INK.figure })
+      say(itemLabel(item, q, job?.name, lang), X.itemDesc, y, { tone: INK.figure })
       say(cur(item.subtotal), X.itemAmount, y, { tone: INK.figure })
     }
     y += ROW
