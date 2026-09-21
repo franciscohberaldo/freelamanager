@@ -129,6 +129,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
       const { error } = await supabase.from("daily_logs").update({ date: day }).eq("id", item.id)
       if (error) { toast.error("Erro ao mover diária"); return }
       toast.success("Diária movida", {
+        duration: 10000, // tempo para alcançar o Desfazer
         action: { label: "Desfazer", onClick: async () => {
           await supabase.from("daily_logs").update({ date: item.from }).eq("id", item.id)
           router.refresh()
@@ -142,6 +143,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         .eq("id", item.id)
       if (error) { toast.error("Erro ao mover reserva"); return }
       toast.success("Reserva movida", {
+        duration: 10000, // tempo para alcançar o Desfazer
         action: { label: "Desfazer", onClick: async () => {
           await supabase.from("availability_holds")
             .update({ start_date: hold.start_date, end_date: hold.end_date })
@@ -153,6 +155,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
       const { error } = await supabase.from("agenda_events").update({ event_date: day }).eq("id", item.id)
       if (error) { toast.error("Erro ao mover tarefa"); return }
       toast.success("Tarefa movida", {
+        duration: 10000, // tempo para alcançar o Desfazer
         action: { label: "Desfazer", onClick: async () => {
           await supabase.from("agenda_events").update({ event_date: item.from }).eq("id", item.id)
           router.refresh()
@@ -166,6 +169,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         .eq("id", item.id)
       if (error) { toast.error("Erro ao mover job"); return }
       toast.success("Job movido", {
+        duration: 10000, // tempo para alcançar o Desfazer
         action: { label: "Desfazer", onClick: async () => {
           await supabase.from("jobs")
             .update({ start_date: job.start_date, end_date: job.end_date })
