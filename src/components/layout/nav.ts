@@ -22,7 +22,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/emails",          label: "E-mails",         icon: Mail },
   { href: "/despesas",        label: "Despesas",        icon: Wallet },
   { href: "/contabilidade",   label: "Contabilidade",   icon: Calculator },
-  { href: "/agenda",          label: "Agenda",          icon: CalendarDays },
+  { href: "/agenda",          label: "Calendário",      icon: CalendarDays },
   { href: "/disponibilidade", label: "Disponibilidade", icon: Clock },
   { href: "/folgas",          label: "Folgas",          icon: CalendarOff },
   { href: "/reports",         label: "Relatórios",      icon: TrendingUp },

@@ -36,7 +36,7 @@ export function AgendaClient({ events, jobs, holds, logs }: Props) {
     <div className="px-8 py-6">
       <PageHeader
         eyebrow="Planejamento"
-        title="Agenda de projetos"
+        title="Calendário"
         description="Organize entregas, tarefas e períodos de trabalho em uma visão única."
         actions={
           <TaskDialog jobs={openJobs} open={dialogOpen} onOpenChange={setDialogOpen}>
