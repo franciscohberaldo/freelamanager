@@ -403,27 +403,47 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
               </div>
 
               <div className="space-y-1">
-                {dayJobs.slice(0, 2).map(j => (
-                  <Link
-                    key={j.id}
-                    href={`/jobs/${j.id}`}
-                    onClick={e => e.stopPropagation()}
-                    {...dragProps({ kind: "job", id: j.id, from: key })}
-                    title={`${j.name} — ${j.start_date}${j.end_date && j.end_date !== j.start_date ? ` a ${j.end_date}` : ""}${j.status === "completed" ? " (encerrado)" : ""}`}
-                    className={cn(chip(j.status === "completed" ? "grey" : "blue"), "flex items-center gap-1.5 cursor-grab active:cursor-grabbing")}
-                  >
-                    {key === j.start_date && edge({ kind: "job-start", id: j.id, from: key }, "left")}
-                    {grip}
-                    {j.stage && <JobStageIcon stage={j.stage} withLabel={false} />}
-                    <span className="truncate">{j.name}</span>
-                    {j.stage && j.stage !== "work" && j.stage !== "done" && (
-                      <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-400 shrink-0">
-                        {JOB_STAGE_LABELS[j.stage]}
-                      </span>
-                    )}
-                    {key === (j.end_date ?? j.start_date) && edge({ kind: "job-end", id: j.id, from: key }, "right")}
-                  </Link>
-                ))}
+                {dayJobs.slice(0, 2).map(j => {
+                  // Jobs draw as one continuous bar across their span: each day's piece
+                  // bleeds over the cell padding and border to meet its neighbours, and
+                  // only the first piece of the week carries the name.
+                  const spanEnd = j.end_date ?? j.start_date!
+                  const continuesLeft  = j.start_date! < key
+                  const continuesRight = spanEnd > key
+                  const showLabel = !continuesLeft || day.getDay() === 0
+                  return (
+                    <Link
+                      key={j.id}
+                      href={`/jobs/${j.id}`}
+                      onClick={e => e.stopPropagation()}
+                      {...dragProps({ kind: "job", id: j.id, from: key })}
+                      title={`${j.name} — ${j.start_date}${j.end_date && j.end_date !== j.start_date ? ` a ${j.end_date}` : ""}${j.status === "completed" ? " (encerrado)" : ""}`}
+                      className={cn(
+                        chip(j.status === "completed" ? "grey" : "blue"),
+                        "flex items-center gap-1.5 cursor-grab active:cursor-grabbing relative z-10",
+                        continuesLeft  && "rounded-l-none -ml-[9px]",
+                        continuesRight && "rounded-r-none -mr-[9px]",
+                      )}
+                    >
+                      {key === j.start_date && edge({ kind: "job-start", id: j.id, from: key }, "left")}
+                      {showLabel ? (
+                        <>
+                          {grip}
+                          {j.stage && <JobStageIcon stage={j.stage} withLabel={false} />}
+                          <span className="truncate">{j.name}</span>
+                          {j.stage && j.stage !== "work" && j.stage !== "done" && (
+                            <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-400 shrink-0">
+                              {JOB_STAGE_LABELS[j.stage]}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="flex-1" aria-hidden />
+                      )}
+                      {key === spanEnd && edge({ kind: "job-end", id: j.id, from: key }, "right")}
+                    </Link>
+                  )
+                })}
                 {dayJobs.length > 2 && (
                   <p className="text-[11px] text-sky-700 dark:text-sky-400 px-1 font-medium">
                     +{dayJobs.length - 2} job{dayJobs.length - 2 > 1 ? "s" : ""}
