@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
@@ -355,12 +355,114 @@ function AiDescriptionDialog({
   )
 }
 
+/**
+ * Before anything leaves, show exactly what will be sent: who gets it (to/cc), the
+ * subject and the rendered body — the same HTML the send route uses.
+ */
+function SendEmailDialog({
+  invoiceId, lang, open, onClose,
+}: { invoiceId: string; lang: InvoiceLang; open: boolean; onClose: () => void }) {
+  const router = useRouter()
+  const [preview, setPreview] = useState<{ to: string[]; cc: string[]; subject: string; html: string } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setPreview(null)
+    setLoading(true)
+    fetch(`/api/invoices/send-preview?invoiceId=${invoiceId}&lang=${lang}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) { toast.error(d.error); onClose(); return }
+        setPreview(d)
+      })
+      .catch(() => { toast.error("Erro ao carregar o preview"); onClose() })
+      .finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, invoiceId, lang])
+
+  async function send() {
+    setSending(true)
+    const res = await fetch("/api/invoices/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invoiceId, lang }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      toast.success("Invoice enviado por e-mail!")
+      onClose()
+      router.refresh()
+    } else {
+      toast.error(data.error ?? "Erro ao enviar e-mail")
+    }
+    setSending(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Enviar invoice — {lang === "pt" ? "Português" : "English"}</DialogTitle>
+          <DialogDescription className="sr-only">Confirme os destinatários e o conteúdo antes de enviar</DialogDescription>
+        </DialogHeader>
+
+        {loading && (
+          <div className="flex items-center justify-center py-10 gap-3 text-muted-foreground">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-sm">Montando o e-mail...</span>
+          </div>
+        )}
+
+        {preview && (
+          <div className="space-y-3">
+            <div className="text-sm space-y-1 rounded-md border bg-muted/30 px-4 py-3">
+              <p><span className="text-muted-foreground">Para: </span>
+                {preview.to.length > 0
+                  ? <span className="font-medium">{preview.to.join(", ")}</span>
+                  : <span className="text-destructive font-medium">nenhum destinatário</span>}
+              </p>
+              {preview.cc.length > 0 && (
+                <p><span className="text-muted-foreground">Cc: </span>{preview.cc.join(", ")}</p>
+              )}
+              <p><span className="text-muted-foreground">Assunto: </span>{preview.subject}</p>
+            </div>
+
+            {preview.to.length === 0 && (
+              <p className="text-xs text-destructive">
+                Preencha o e-mail do cliente ou marque um contato para receber as invoices antes de enviar.
+              </p>
+            )}
+
+            <iframe
+              sandbox=""
+              srcDoc={preview.html}
+              title="Preview do e-mail"
+              className="w-full h-96 rounded-md border bg-white"
+            />
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={sending}>Cancelar</Button>
+          <Button onClick={send} disabled={sending || loading || !preview || preview.to.length === 0}>
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Enviar agora
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) {
   const [loading, setLoading]         = useState(false)
   const [payOpen, setPayOpen]         = useState(false)
   const [aiOpen, setAiOpen]           = useState(false)
   const [nfOpen, setNfOpen]           = useState(false)
   const [nfRegisterOpen, setNfRegisterOpen] = useState(false)
+  const [sendLang, setSendLang]       = useState<InvoiceLang | null>(null)
   const [deleteOpen, setDeleteOpen]   = useState(false)
   const nfStatus = (invoice.nf_status ?? "not_required") as NfStatus
   const [linkLoading, setLinkLoading] = useState(false)
@@ -381,23 +483,6 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
       .eq("id", invoice.id)
     if (error) toast.error("Erro ao atualizar")
     else { toast.success("Marcado como pago!"); router.refresh() }
-    setLoading(false)
-  }
-
-  async function sendByEmail(lang: InvoiceLang) {
-    setLoading(true)
-    const res = await fetch("/api/invoices/send-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ invoiceId: invoice.id, lang }),
-    })
-    const data = await res.json()
-    if (res.ok) {
-      toast.success("Invoice enviado por e-mail!")
-      router.refresh()
-    } else {
-      toast.error(data.error ?? "Erro ao enviar e-mail")
-    }
     setLoading(false)
   }
 
@@ -464,10 +549,10 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
           <DropdownMenuLabel className="text-xs text-muted-foreground font-normal flex items-center gap-1.5">
             <Send className="w-3.5 h-3.5" /> E-mail
           </DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => sendByEmail("pt")} className="pl-6">
+          <DropdownMenuItem onClick={() => setSendLang("pt")} className="pl-6">
             🇧🇷 Português
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => sendByEmail("en")} className="pl-6">
+          <DropdownMenuItem onClick={() => setSendLang("en")} className="pl-6">
             🇺🇸 English
           </DropdownMenuItem>
 
@@ -534,6 +619,13 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
         paidAmount={paidAmount}
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
+      />
+
+      <SendEmailDialog
+        invoiceId={invoice.id}
+        lang={sendLang ?? "pt"}
+        open={sendLang !== null}
+        onClose={() => setSendLang(null)}
       />
 
       <PaymentDialog

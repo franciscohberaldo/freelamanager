@@ -1,12 +1,13 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
-import { Resend } from "resend"
 import { type InvoiceLang } from "@/lib/invoice-i18n"
 import { buildInvoiceEmail, resolveRecipients } from "@/lib/invoice-email"
 
-export async function POST(request: NextRequest) {
-  const { invoiceId, lang: rawLang = "pt" } = await request.json()
-  const lang: InvoiceLang = rawLang === "en" ? "en" : "pt"
+/** What the send dialog shows before anything leaves: recipients, subject and body. */
+export async function GET(request: NextRequest) {
+  const invoiceId = request.nextUrl.searchParams.get("invoiceId")
+  const lang: InvoiceLang = request.nextUrl.searchParams.get("lang") === "en" ? "en" : "pt"
+  if (!invoiceId) return NextResponse.json({ error: "invoiceId obrigatório" }, { status: 400 })
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -31,10 +32,6 @@ export async function POST(request: NextRequest) {
 
   const { to, cc } = resolveRecipients(job?.clients?.email, (contacts ?? []).map(c => c.email))
 
-  if (to.length === 0) {
-    return NextResponse.json({ error: "Nenhum destinatário para a invoice: preencha o e-mail do cliente ou marque um contato para receber as invoices" }, { status: 400 })
-  }
-
   const { data: items } = await supabase
     .from("invoice_items")
     .select("*")
@@ -43,21 +40,5 @@ export async function POST(request: NextRequest) {
 
   const { subject, html } = buildInvoiceEmail({ invoice, items: items ?? [], job, lang })
 
-  const resend = new Resend(process.env.RESEND_API_KEY)
-  const { error } = await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL ?? "invoices@freelamanager.com",
-    to,
-    ...(cc.length > 0 ? { cc } : {}),
-    subject,
-    html,
-  })
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  await supabase
-    .from("invoices")
-    .update({ status: "sent", sent_at: new Date().toISOString() })
-    .eq("id", invoiceId)
-
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ to, cc, subject, html })
 }

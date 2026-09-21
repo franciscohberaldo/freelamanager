@@ -33,6 +33,7 @@ interface Invoice {
   tax_amount: number
   total: number
   currency: string
+  sent_at: string | null
   paid_at: string | null
   created_at: string
   jobs: { name: string; currency: string; clients: { name: string; email: string | null } | null } | null
@@ -142,6 +143,11 @@ export function InvoicesClient({ invoices, invoicesCount, paidMap, jobs }: Props
                   <p className="text-xs text-muted-foreground">
                     {formatDate(inv.period_start)} – {formatDate(inv.period_end)} · {inv.total_hours_billed}h faturadas
                   </p>
+                  {inv.sent_at && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                      Enviado em {formatDate(inv.sent_at)}
+                    </p>
+                  )}
                   {inv.paid_at && (
                     <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">
                       Pago em {formatDate(inv.paid_at)}
