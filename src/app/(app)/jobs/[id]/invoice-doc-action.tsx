@@ -1,15 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { CreateInvoiceDialog } from "@/app/(app)/invoices/create-invoice-dialog"
+import { SendEmailDialog } from "@/components/send-email-dialog"
 import { DOCUMENT_BUCKET, documentPath } from "@/lib/job-documents"
 import { invoiceLangFor } from "@/lib/invoice-i18n"
 import type { BillingMode } from "@/lib/billing-mode"
-import { Loader2, FilePlus2, Send, Eye } from "lucide-react"
+import { FilePlus2, Send, Eye } from "lucide-react"
 
 interface JobOption {
   id: string
@@ -48,52 +48,36 @@ export function InvoiceDocAction({
   invoices: JobInvoice[]
   userId: string
 }) {
-  const [sending, setSending] = useState(false)
-  const router = useRouter()
+  const [sendOpen, setSendOpen] = useState(false)
   const supabase = createClient()
 
   // the invoice to act on: the newest draft, else the newest one whatever its state
   const target = [...invoices].sort((a, b) => b.invoice_number.localeCompare(a.invoice_number))
     .sort((a, b) => Number(a.status !== "draft") - Number(b.status !== "draft"))[0]
   const label = target ? (target.seq_number ?? target.invoice_number) : null
+  const lang = target ? invoiceLangFor(target.currency) : "pt"
 
   function viewInvoice() {
     if (!target) return
     window.open(`/api/invoices/pdf?id=${target.id}&inline=1`, "_blank", "noopener")
   }
 
-  async function sendInvoice() {
-    if (!target) { toast.error("Crie um invoice primeiro"); return }
-    setSending(true)
-    const lang = invoiceLangFor(target.currency)
-    const res = await fetch("/api/invoices/send-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ invoiceId: target.id, lang }),
-    })
-    const data = await res.json()
-    if (!res.ok) { toast.error(data.error ?? "Erro ao enviar e-mail"); setSending(false); return }
-
-    // archive the exact PDF the client received into this document slot
+  // After a successful send, archive the exact PDF the client received into this slot.
+  async function archiveSentPdf() {
+    if (!target) return
     const pdfRes = await fetch(`/api/invoices/pdf?id=${target.id}&lang=${lang}`)
-    if (pdfRes.ok) {
-      const blob = await pdfRes.blob()
-      const fileName = `invoice-${label}.pdf`
-      const path = documentPath(userId, job.id, "invoice", fileName)
-      const { error: upErr } = await supabase.storage
-        .from(DOCUMENT_BUCKET)
-        .upload(path, blob, { upsert: true, contentType: "application/pdf" })
-      if (!upErr) {
-        await supabase.from("job_documents").upsert({
-          user_id: userId, job_id: job.id, kind: "invoice",
-          path, file_name: fileName, mime_type: "application/pdf", size_bytes: blob.size,
-        }, { onConflict: "job_id,kind" })
-      }
-    }
-
-    toast.success(`Invoice ${label} enviada!`)
-    setSending(false)
-    router.refresh()
+    if (!pdfRes.ok) return
+    const blob = await pdfRes.blob()
+    const fileName = `invoice-${label}.pdf`
+    const path = documentPath(userId, job.id, "invoice", fileName)
+    const { error: upErr } = await supabase.storage
+      .from(DOCUMENT_BUCKET)
+      .upload(path, blob, { upsert: true, contentType: "application/pdf" })
+    if (upErr) { toast.error("Invoice enviada, mas o PDF não foi anexado aos documentos"); return }
+    await supabase.from("job_documents").upsert({
+      user_id: userId, job_id: job.id, kind: "invoice",
+      path, file_name: fileName, mime_type: "application/pdf", size_bytes: blob.size,
+    }, { onConflict: "job_id,kind" })
   }
 
   return (
@@ -108,10 +92,19 @@ export function InvoiceDocAction({
         <Eye className="w-3 h-3" />
         {label ? `Visualizar ${label}` : "Visualizar"}
       </Button>
-      <Button variant="outline" size="sm" onClick={sendInvoice} disabled={sending || !target}>
-        {sending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+      <Button variant="outline" size="sm" onClick={() => setSendOpen(true)} disabled={!target}>
+        <Send className="w-3 h-3" />
         {label ? `Enviar ${label}` : "Enviar"}
       </Button>
+      {target && (
+        <SendEmailDialog
+          invoiceId={target.id}
+          lang={lang}
+          open={sendOpen}
+          onClose={() => setSendOpen(false)}
+          onSent={archiveSentPdf}
+        />
+      )}
     </>
   )
 }
