@@ -1,18 +1,19 @@
 /**
  * Where a job is in its life, read off what already exists: the work itself, then the
- * invoice, the nota fiscal, the DAS and the money. Nothing is stored — the stage is a
- * fact about the records the job already has, so it can never fall out of date.
+ * invoice, the money, the nota fiscal (issued once the money is in) and the DAS. Nothing
+ * is stored — the stage is a fact about the records the job already has, so it can never
+ * fall out of date.
  */
 
-export const JOB_STAGES = ["work", "invoice", "nf", "das", "payment", "done"] as const
+export const JOB_STAGES = ["work", "invoice", "payment", "nf", "das", "done"] as const
 export type JobStage = (typeof JOB_STAGES)[number]
 
 export const JOB_STAGE_LABELS: Record<JobStage, string> = {
   work:    "Em andamento",
   invoice: "Invoice",
+  payment: "Recebimento",
   nf:      "NF",
   das:     "DAS",
-  payment: "Recebimento",
   done:    "Recebido",
 }
 
@@ -49,7 +50,7 @@ const NF_DONE = new Set(["issued", "sent"])
 const earliest = (dates: (string | null | undefined)[]) =>
   dates.filter((d): d is string => !!d).sort()[0] ?? null
 
-/** The five steps in order, each settled by an invoice state or an attached document. */
+/** The five steps in order — the money comes before the NF, which is issued after it. */
 export function jobSteps(job: StageJob, invoices: StageInvoice[], documents: StageDocument[]): StageStep[] {
   const doc = (kind: string) => documents.find(d => d.kind === kind)
   const workDone = job.status === "completed"
@@ -60,9 +61,9 @@ export function jobSteps(job: StageJob, invoices: StageInvoice[], documents: Sta
   return [
     { stage: "work",    label: "Trabalho",    done: workDone,                              at: workDone ? job.end_date ?? null : null },
     { stage: "invoice", label: "Invoice",     done: sent.length > 0 || !!doc("invoice"),   at: earliest([...sent.map(i => i.sent_at ?? i.created_at), doc("invoice")?.uploaded_at]) },
+    { stage: "payment", label: "Recebimento", done: paid.length > 0 || !!doc("payment_proof"), at: earliest([...paid.map(i => i.paid_at), doc("payment_proof")?.uploaded_at]) },
     { stage: "nf",      label: "NF",          done: nfs.length > 0 || !!doc("nf"),         at: earliest([...nfs.map(i => i.nf_issued_at), doc("nf")?.uploaded_at]) },
     { stage: "das",     label: "DAS",         done: !!doc("das_paid"),                     at: doc("das_paid")?.uploaded_at ?? null },
-    { stage: "payment", label: "Recebimento", done: paid.length > 0 || !!doc("payment_proof"), at: earliest([...paid.map(i => i.paid_at), doc("payment_proof")?.uploaded_at]) },
   ]
 }
 

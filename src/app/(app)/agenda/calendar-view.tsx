@@ -258,6 +258,11 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
     return result
   }, [month])
 
+  // First/last visible day — spans that start before or end after the window still
+  // offer their stretch edge on the window's boundary day.
+  const firstKey = format(days[0], "yyyy-MM-dd")
+  const lastKey = format(days[days.length - 1], "yyyy-MM-dd")
+
   const eventsByDate = useMemo(() => {
     const map: Record<string, (AgendaEvent & { jobs: { name: string } | null })[]> = {}
     events.forEach(e => {
@@ -341,7 +346,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         ))}
         <span className="hidden sm:inline-block w-px h-4 bg-border" aria-hidden />
         <span className="flex items-center gap-1.5"><RunnerIcon className="w-3.5 h-3.5" /> Em andamento</span>
-        <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400"><X className="w-3.5 h-3.5" strokeWidth={2.5} /><span className="text-foreground/80">Pendência (invoice, NF, DAS, recebimento)</span></span>
+        <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400"><X className="w-3.5 h-3.5" strokeWidth={2.5} /><span className="text-foreground/80">Pendência (invoice, recebimento, NF, DAS)</span></span>
         <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400"><CircleDollarSign className="w-3.5 h-3.5" /><span className="text-foreground/80">Recebido</span></span>
         <span className="flex items-center gap-1.5 text-muted-foreground"><GripVertical className="w-3.5 h-3.5" /><span className="text-foreground/80">Arraste o chip para mover · puxe a borda do job/reserva para esticar o período</span></span>
       </div>
@@ -365,7 +370,10 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
           const today    = isToday(day)
           const dayHolds = holdsForDay(key)
           const topHold  = dayHolds[0]
-          const dayJobs  = jobsForDay(key)
+          // A day with a diária shows the worked-day chip only — not the job bar too.
+          const dayJobs  = jobsForDay(key).filter(j => !dayLogs.some(l => l.job_id === j.id))
+          const showHoldStartEdge = !!topHold && (key === topHold.start_date || (key === firstKey && topHold.start_date < firstKey))
+          const showHoldEndEdge   = !!topHold && (key === topHold.end_date || (key === lastKey && topHold.end_date > lastKey))
           return (
             <div
               key={i}
@@ -394,10 +402,10 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                     {...dragProps({ kind: "hold", id: topHold.id, from: key })}
                     className={chip(HOLD_TONE[topHold.type].tone, "max-w-[65%] text-[11px] flex items-center gap-0.5 cursor-grab active:cursor-grabbing")}
                   >
-                    {key === topHold.start_date && edge({ kind: "hold-start", id: topHold.id, from: key }, "left")}
+                    {showHoldStartEdge && edge({ kind: "hold-start", id: topHold.id, from: key }, "left")}
                     {grip}
                     <span className="truncate">{topHold.clients?.name ?? HOLD_TONE[topHold.type].label}</span>
-                    {key === topHold.end_date && edge({ kind: "hold-end", id: topHold.id, from: key }, "right")}
+                    {showHoldEndEdge && edge({ kind: "hold-end", id: topHold.id, from: key }, "right")}
                   </span>
                 )}
               </div>
@@ -411,6 +419,8 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                   const continuesLeft  = j.start_date! < key
                   const continuesRight = spanEnd > key
                   const showLabel = !continuesLeft || day.getDay() === 0
+                  const showStartEdge = key === j.start_date || (key === firstKey && j.start_date! < firstKey)
+                  const showEndEdge   = key === spanEnd || (key === lastKey && spanEnd > lastKey)
                   return (
                     <Link
                       key={j.id}
@@ -425,7 +435,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                         continuesRight && "rounded-r-none -mr-[9px]",
                       )}
                     >
-                      {key === j.start_date && edge({ kind: "job-start", id: j.id, from: key }, "left")}
+                      {showStartEdge && edge({ kind: "job-start", id: j.id, from: key }, "left")}
                       {showLabel ? (
                         <>
                           {grip}
@@ -440,7 +450,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                       ) : (
                         <span className="flex-1" aria-hidden />
                       )}
-                      {key === spanEnd && edge({ kind: "job-end", id: j.id, from: key }, "right")}
+                      {showEndEdge && edge({ kind: "job-end", id: j.id, from: key }, "right")}
                     </Link>
                   )
                 })}

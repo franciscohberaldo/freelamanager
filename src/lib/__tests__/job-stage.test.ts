@@ -14,24 +14,24 @@ describe("jobStage", () => {
     expect(jobStage(finished, [{ status: "draft" }], [])).toBe("invoice")
   })
 
-  it("moves on to the NF when the invoice went out", () => {
-    expect(jobStage(finished, [{ status: "sent" }], [])).toBe("nf")
+  it("asks for the money once the invoice went out — the NF only comes after it", () => {
+    expect(jobStage(finished, [{ status: "sent" }], [])).toBe("payment")
   })
 
   it("counts an attached invoice file as sent", () => {
-    expect(jobStage(finished, [], [{ kind: "invoice" }])).toBe("nf")
+    expect(jobStage(finished, [], [{ kind: "invoice" }])).toBe("payment")
   })
 
-  it("then the DAS, then the money", () => {
-    expect(jobStage(finished, [{ status: "sent", nf_status: "issued" }], [])).toBe("das")
-    expect(jobStage(finished, [{ status: "sent", nf_status: "issued" }], [{ kind: "das_paid" }])).toBe("payment")
+  it("then the NF, then the DAS", () => {
+    expect(jobStage(finished, [{ status: "paid" }], [])).toBe("nf")
+    expect(jobStage(finished, [{ status: "paid", nf_status: "issued" }], [])).toBe("das")
   })
 
   it("is done when the invoice is paid and everything before it is settled", () => {
     expect(jobStage(finished, [{ status: "paid", nf_status: "sent" }], [{ kind: "das_paid" }])).toBe("done")
   })
 
-  it("still flags the DAS when the money arrived before the tax was paid", () => {
+  it("still flags the DAS when the NF was issued before the tax was paid", () => {
     expect(jobStage(finished, [{ status: "paid", nf_status: "issued" }], [])).toBe("das")
   })
 })
@@ -44,9 +44,9 @@ describe("jobSteps", () => {
     expect(steps.map(s => [s.stage, s.done, s.at])).toEqual([
       ["work", true, "2026-07-31"],
       ["invoice", true, "2026-08-02T10:00:00Z"],
+      ["payment", true, "2026-08-20T10:00:00Z"],
       ["nf", true, "2026-08-05"],
       ["das", true, "2026-09-10T10:00:00Z"],
-      ["payment", true, "2026-08-20T10:00:00Z"],
     ])
   })
 })
