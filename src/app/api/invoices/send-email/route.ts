@@ -31,20 +31,22 @@ export async function POST(request: NextRequest) {
   const isProject   = job?.billing_mode === "fixed"
 
   // Some clients want more than one person on the invoice: the contacts marked for it are
-  // copied, the client's own address stays the recipient.
+  // copied, the client's own address stays the recipient. When the client has no address
+  // of its own, the marked contacts become the recipients.
   const { data: contacts } = await supabase
     .from("client_contacts")
     .select("email")
     .eq("client_id", job?.clients?.id ?? "")
     .eq("cc_invoices", true)
 
-  const cc = [...new Set([
-    ...extraEmails(job?.clients?.email),
-    ...(contacts ?? []).flatMap(c => parseEmails(c.email)),
-  ])].filter(e => e !== clientEmail)
+  const markedContacts = [...new Set((contacts ?? []).flatMap(c => parseEmails(c.email)))]
+  const to = clientEmail ? [clientEmail] : markedContacts
+  const cc = clientEmail
+    ? [...new Set([...extraEmails(job?.clients?.email), ...markedContacts])].filter(e => e !== clientEmail)
+    : []
 
-  if (!clientEmail) {
-    return NextResponse.json({ error: "Cliente sem e-mail cadastrado" }, { status: 400 })
+  if (to.length === 0) {
+    return NextResponse.json({ error: "Nenhum destinatário para a invoice: preencha o e-mail do cliente ou marque um contato para receber as invoices" }, { status: 400 })
   }
 
   const { data: items } = await supabase
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
   const resend = new Resend(process.env.RESEND_API_KEY)
   const { error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL ?? "invoices@freelamanager.com",
-    to: [clientEmail],
+    to,
     ...(cc.length > 0 ? { cc } : {}),
     subject: t.subject(invoice.invoice_number, job?.name ?? "Freela Manager"),
     html,
