@@ -128,7 +128,12 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
 
       const { error } = await supabase.from("daily_logs").update({ date: day }).eq("id", item.id)
       if (error) { toast.error("Erro ao mover diária"); return }
-      toast.success("Diária movida")
+      toast.success("Diária movida", {
+        action: { label: "Desfazer", onClick: async () => {
+          await supabase.from("daily_logs").update({ date: item.from }).eq("id", item.id)
+          router.refresh()
+        } },
+      })
     } else if (item.kind === "hold") {
       const hold = holds.find(h => h.id === item.id)
       if (!hold) return
@@ -136,11 +141,23 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         .update({ start_date: shift(hold.start_date), end_date: shift(hold.end_date) })
         .eq("id", item.id)
       if (error) { toast.error("Erro ao mover reserva"); return }
-      toast.success("Reserva movida")
+      toast.success("Reserva movida", {
+        action: { label: "Desfazer", onClick: async () => {
+          await supabase.from("availability_holds")
+            .update({ start_date: hold.start_date, end_date: hold.end_date })
+            .eq("id", item.id)
+          router.refresh()
+        } },
+      })
     } else if (item.kind === "event") {
       const { error } = await supabase.from("agenda_events").update({ event_date: day }).eq("id", item.id)
       if (error) { toast.error("Erro ao mover tarefa"); return }
-      toast.success("Tarefa movida")
+      toast.success("Tarefa movida", {
+        action: { label: "Desfazer", onClick: async () => {
+          await supabase.from("agenda_events").update({ event_date: item.from }).eq("id", item.id)
+          router.refresh()
+        } },
+      })
     } else {
       const job = jobs.find(j => j.id === item.id)
       if (!job?.start_date) return
@@ -148,7 +165,14 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         .update({ start_date: shift(job.start_date), end_date: job.end_date ? shift(job.end_date) : null })
         .eq("id", item.id)
       if (error) { toast.error("Erro ao mover job"); return }
-      toast.success("Job movido")
+      toast.success("Job movido", {
+        action: { label: "Desfazer", onClick: async () => {
+          await supabase.from("jobs")
+            .update({ start_date: job.start_date, end_date: job.end_date })
+            .eq("id", item.id)
+          router.refresh()
+        } },
+      })
     }
     router.refresh()
   }
