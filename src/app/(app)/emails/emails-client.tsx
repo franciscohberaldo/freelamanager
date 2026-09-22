@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn, formatDate } from "@/lib/utils"
+import { RefreshEmailsButton } from "./refresh-button"
 import { AlertCircle, CheckCircle2, FileCheck, Inbox, Loader2, Paperclip, Search, Send, X } from "lucide-react"
 
 export type EmailAttachment = {
@@ -382,6 +383,7 @@ export function EmailsClient({ emails, jobs }: { emails: InboundEmail[]; jobs: {
         <span className="text-xs text-muted-foreground ml-auto">
           {folderLabel(folder)} · {visible.length} e-mail{visible.length === 1 ? "" : "s"}
         </span>
+        <RefreshEmailsButton />
       </div>
 
       {received.length === 0 ? (
@@ -391,6 +393,7 @@ export function EmailsClient({ emails, jobs }: { emails: InboundEmail[]; jobs: {
           <p className="text-xs max-w-sm text-center">
             Quando um e-mail chegar em nf@nf.chico.cx, ele aparece aqui — com ou sem vínculo a um pedido de NF.
           </p>
+          <RefreshEmailsButton />
         </div>
       ) : (
         <div className="flex-1 flex gap-4 min-h-0">

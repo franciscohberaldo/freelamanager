@@ -384,7 +384,10 @@ export async function processReceivedEmail(emailId: string): Promise<{ ok: boole
  */
 export async function pollNewEmails(limit = 50): Promise<{ listed: number; imported: number; errors: string[] }> {
   const res = await fetch(`${RESEND_API}/emails/receiving?limit=${limit}`, { headers: auth() })
-  if (!res.ok) return { listed: 0, imported: 0, errors: [`Resend respondeu ${res.status}`] }
+  if (!res.ok) {
+    const detail = await res.json().then((d: { message?: string }) => d.message).catch(() => null)
+    return { listed: 0, imported: 0, errors: [`Resend respondeu ${res.status}${detail ? ` (${detail})` : ""}`] }
+  }
 
   const body = await res.json() as { data?: { id: string }[] }
   const ids = (body.data ?? []).map(e => e.id)

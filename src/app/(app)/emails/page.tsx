@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { DOCUMENT_BUCKET } from "@/lib/job-documents"
 import { EmailsClient, type InboundEmail, type EmailAttachment } from "./emails-client"
-import { RefreshEmailsButton } from "./refresh-button"
 import { PageHeader } from "@/components/page-header"
 
 /** The links expire in an hour; opening the page again mints fresh ones. */
@@ -54,7 +53,6 @@ export default async function EmailsPage() {
         className="mb-0"
         title="Caixa de entrada"
         description={<>{emails.length} e-mails recebidos em nf@nf.chico.cx</>}
-        actions={<RefreshEmailsButton />}
       />
 
       <EmailsClient emails={emails} jobs={jobs ?? []} />
