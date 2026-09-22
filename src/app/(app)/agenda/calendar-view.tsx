@@ -357,8 +357,10 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
     [jobs],
   )
 
+  // Every chip is one fixed height, so a span's unlabelled middle days read as the same
+  // bar as its labelled first day rather than collapsing to a sliver.
   const chip = (tone: Tone, extra?: string) =>
-    cn("block text-xs leading-5 px-2 py-0.5 rounded-md truncate transition-colors", TONE[tone].chip, extra)
+    cn("block h-6 text-xs leading-5 px-2 py-0.5 rounded-md truncate transition-colors", TONE[tone].chip, extra)
 
   /** Visual hint that the chip can be dragged — the whole chip is the drag source. */
   const grip = <GripVertical className="w-3 h-3 shrink-0 opacity-40 -ml-1" />
