@@ -2,8 +2,10 @@ import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { type InvoiceLang } from "@/lib/invoice-i18n"
 import { buildInvoiceEmail, resolveRecipients } from "@/lib/invoice-email"
+import { invoicePdfFileName } from "@/lib/invoice-pdf-server"
+import { quiet } from "@/lib/invoice-pdf"
 
-/** What the send dialog shows before anything leaves: recipients, subject and body. */
+/** What the send dialog opens with: recipients, subject, the editable message and the PDF's name. */
 export async function GET(request: NextRequest) {
   const invoiceId = request.nextUrl.searchParams.get("invoiceId")
   const lang: InvoiceLang = request.nextUrl.searchParams.get("lang") === "en" ? "en" : "pt"
@@ -32,13 +34,14 @@ export async function GET(request: NextRequest) {
 
   const { to, cc } = resolveRecipients(job?.clients?.email, (contacts ?? []).map(c => c.email))
 
-  const { data: items } = await supabase
-    .from("invoice_items")
-    .select("*")
-    .eq("invoice_id", invoiceId)
-    .order("date")
+  const { data: settings } = await supabase
+    .from("user_settings")
+    .select("legal_name, company_name")
+    .eq("user_id", user.id)
+    .single()
+  const senderName = quiet(settings?.legal_name || settings?.company_name || "") || null
 
-  const { subject, html } = buildInvoiceEmail({ invoice, items: items ?? [], job, lang })
+  const { subject, text } = buildInvoiceEmail({ invoice, job, lang, senderName })
 
-  return NextResponse.json({ to, cc, subject, html })
+  return NextResponse.json({ to, cc, subject, text, fileName: invoicePdfFileName(invoice) })
 }

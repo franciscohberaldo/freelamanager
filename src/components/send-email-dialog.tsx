@@ -1,17 +1,18 @@
 "use client"
 
 /**
- * Before anything leaves, show exactly what will be sent: who gets it (to/cc), the
- * subject and the rendered body — the same HTML the send route uses.
+ * Before anything leaves, show what will be sent: who gets it (to/cc), the subject, the
+ * message (editable, opened on a default text) and the invoice PDF that goes attached.
  */
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
-import { Loader2, Send } from "lucide-react"
+import { Loader2, Send, Paperclip, Eye } from "lucide-react"
 import { validateEmailList } from "@/lib/emails"
 import type { InvoiceLang } from "@/lib/invoice-i18n"
 
@@ -26,8 +27,9 @@ export function SendEmailDialog({
   onSent?: () => void | Promise<void>
 }) {
   const router = useRouter()
-  const [preview, setPreview] = useState<{ to: string[]; cc: string[]; subject: string; html: string } | null>(null)
+  const [preview, setPreview] = useState<{ to: string[]; cc: string[]; subject: string; text: string; fileName: string } | null>(null)
   const [subject, setSubject] = useState("")
+  const [body, setBody] = useState("")
   const [extraTo, setExtraTo] = useState("")
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
@@ -36,6 +38,7 @@ export function SendEmailDialog({
     if (!open) return
     setPreview(null)
     setSubject("")
+    setBody("")
     setExtraTo("")
     setLoading(true)
     fetch(`/api/invoices/send-preview?invoiceId=${invoiceId}&lang=${lang}`)
@@ -44,6 +47,7 @@ export function SendEmailDialog({
         if (d.error) { toast.error(d.error); onClose(); return }
         setPreview(d)
         setSubject(d.subject)
+        setBody(d.text)
       })
       .catch(() => { toast.error("Erro ao carregar o preview"); onClose() })
       .finally(() => setLoading(false))
@@ -55,11 +59,12 @@ export function SendEmailDialog({
   async function send() {
     if (!extraCheck.ok) { toast.error(extraCheck.error); return }
     if (!subject.trim()) { toast.error("O assunto não pode ficar vazio"); return }
+    if (!body.trim()) { toast.error("O texto do e-mail não pode ficar vazio"); return }
     setSending(true)
     const res = await fetch("/api/invoices/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ invoiceId, lang, subject: subject.trim(), extraTo }),
+      body: JSON.stringify({ invoiceId, lang, subject: subject.trim(), body, extraTo }),
     })
     const data = await res.json()
     if (!res.ok) {
@@ -130,12 +135,32 @@ export function SendEmailDialog({
               </div>
             </div>
 
-            <iframe
-              sandbox=""
-              srcDoc={preview.html}
-              title="Preview do e-mail"
-              className="w-full h-96 rounded-md border bg-white"
-            />
+            <div className="space-y-1.5">
+              <Label htmlFor="send-body" className="text-xs">Texto do e-mail</Label>
+              <Textarea
+                id="send-body"
+                value={body}
+                onChange={e => setBody(e.target.value)}
+                rows={11}
+                className="text-sm leading-relaxed"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+              <span className="flex items-center gap-2 min-w-0">
+                <Paperclip className="w-4 h-4 shrink-0 text-muted-foreground" />
+                <span className="truncate font-medium">{preview.fileName}</span>
+                <span className="text-muted-foreground shrink-0">anexado</span>
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => window.open(`/api/invoices/pdf?id=${invoiceId}&lang=${lang}&inline=1`, "_blank", "noopener")}
+              >
+                <Eye className="w-3 h-3" />
+                Ver PDF
+              </Button>
+            </div>
           </div>
         )}
 

@@ -2,11 +2,12 @@ import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 import { type InvoiceLang } from "@/lib/invoice-i18n"
-import { buildInvoiceEmail, resolveRecipients } from "@/lib/invoice-email"
+import { buildInvoiceEmail, emailHtmlFromText, resolveRecipients } from "@/lib/invoice-email"
+import { renderInvoicePdf } from "@/lib/invoice-pdf-server"
 import { parseEmails, isValidEmail } from "@/lib/emails"
 
 export async function POST(request: NextRequest) {
-  const { invoiceId, lang: rawLang = "pt", subject: subjectOverride, extraTo } = await request.json()
+  const { invoiceId, lang: rawLang = "pt", subject: subjectOverride, body: bodyOverride, extraTo } = await request.json()
   const lang: InvoiceLang = rawLang === "en" ? "en" : "pt"
 
   // One-off recipients typed in the send dialog, comma-separated like the client's field.
@@ -44,16 +45,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Nenhum destinatário para a invoice: preencha o e-mail do cliente ou marque um contato para receber as invoices" }, { status: 400 })
   }
 
-  const { data: items } = await supabase
-    .from("invoice_items")
-    .select("*")
-    .eq("invoice_id", invoiceId)
-    .order("date")
-
-  const { subject, html } = buildInvoiceEmail({ invoice, items: items ?? [], job, lang })
+  const { subject, text } = buildInvoiceEmail({ invoice, job, lang })
   const finalSubject = typeof subjectOverride === "string" && subjectOverride.trim()
     ? subjectOverride.trim()
     : subject
+  const finalText = typeof bodyOverride === "string" && bodyOverride.trim() ? bodyOverride : text
+
+  // The invoice travels as the same PDF "Visualizar" opens, in the language being sent.
+  const pdf = await renderInvoicePdf(supabase, user.id, invoiceId, lang)
+  if (!pdf) return NextResponse.json({ error: "Não foi possível gerar o PDF da invoice" }, { status: 500 })
 
   const resend = new Resend(process.env.RESEND_API_KEY)
   const { error } = await resend.emails.send({
@@ -61,7 +61,9 @@ export async function POST(request: NextRequest) {
     to,
     ...(cc.length > 0 ? { cc } : {}),
     subject: finalSubject,
-    html,
+    html: emailHtmlFromText(finalText),
+    text: finalText,
+    attachments: [{ filename: pdf.fileName, content: Buffer.from(pdf.bytes) }],
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
