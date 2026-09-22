@@ -54,6 +54,7 @@ export function HoldsPanel({ holds, clients, jobs }: Props) {
     e.preventDefault()
     if (!form.start_date || !form.end_date) { toast.error("Informe início e fim"); return }
     if (form.end_date < form.start_date) { toast.error("Fim antes do início"); return }
+    if (form.end_date < format(new Date(), "yyyy-MM-dd")) { toast.error("Reserva é só para datas futuras"); return }
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     const { error } = await supabase.from("availability_holds").insert({
@@ -163,11 +164,11 @@ export function HoldsPanel({ holds, clients, jobs }: Props) {
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Início</Label>
-            <Input type="date" value={form.start_date} onChange={e => set("start_date", e.target.value)} />
+            <Input type="date" value={form.start_date} min={today} onChange={e => set("start_date", e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Fim</Label>
-            <Input type="date" value={form.end_date} min={form.start_date || undefined} onChange={e => set("end_date", e.target.value)} />
+            <Input type="date" value={form.end_date} min={form.start_date && form.start_date > today ? form.start_date : today} onChange={e => set("end_date", e.target.value)} />
           </div>
           <div className="sm:col-span-2">
             <Button type="submit" size="sm" disabled={loading}>

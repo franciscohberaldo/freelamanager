@@ -302,10 +302,15 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
     router.refresh()
   }
 
+  // A hold reserves time still to come: past days don't show it, so a hold that began
+  // before today is drawn from today on.
+  const todayKey = format(new Date(), "yyyy-MM-dd")
+  const holdVisibleStart = (h: CalendarHold) => (h.start_date > todayKey ? h.start_date : todayKey)
+
   // Holds active on a given day (booked wins over 1st hold over 2nd hold)
   const holdsForDay = (key: string) =>
     holds
-      .filter(h => h.start_date <= key && h.end_date >= key)
+      .filter(h => key >= todayKey && h.start_date <= key && h.end_date >= key)
       .sort((a, b) => ["booked", "1st_hold", "2nd_hold"].indexOf(a.type) - ["booked", "1st_hold", "2nd_hold"].indexOf(b.type))
 
   // Jobs whose start→end span covers the day (a missing end reads as a single day)
@@ -497,10 +502,11 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
               <div className="space-y-1">
                 {dayHolds.slice(0, 2).map(h => {
                   // Holds draw as continuous bars too, same spanning rules as jobs.
-                  const continuesLeft  = h.start_date < key
+                  const visibleStart   = holdVisibleStart(h)
+                  const continuesLeft  = visibleStart < key
                   const continuesRight = h.end_date > key
                   const showLabel = !continuesLeft || day.getDay() === 0
-                  const showStartEdge = key === h.start_date || (key === firstKey && h.start_date < firstKey)
+                  const showStartEdge = key === visibleStart || (key === firstKey && visibleStart < firstKey)
                   const showEndEdge   = key === h.end_date || (key === lastKey && h.end_date > lastKey)
                   return (
                     <div
