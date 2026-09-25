@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -71,7 +71,7 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
   const router = useRouter()
   const supabase = createClient()
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<JobFormValues>({
+  const { register, handleSubmit, setValue, watch, resetField, formState: { errors } } = useForm<JobFormValues>({
     resolver: zodResolver(jobSchema),
     defaultValues: {
       client_id:      job?.client_id ?? "",
@@ -98,6 +98,11 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
       notes:          job?.notes ?? "",
     },
   })
+
+  // Adding or removing a diária moves the job's dates in the database; pick them up
+  // after the refresh so the fields show them and a later Salvar doesn't write them back.
+  useEffect(() => { resetField("start_date", { defaultValue: job?.start_date ?? "" }) }, [job?.start_date, resetField])
+  useEffect(() => { resetField("end_date",   { defaultValue: job?.end_date ?? "" }) },   [job?.end_date, resetField])
 
   const billingMode = watch("billing_mode")
   const tzValue     = watch("timezone")
