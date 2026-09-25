@@ -37,10 +37,10 @@ export function formatDatePDF(date: string | Date, lang: InvoiceLang = "pt"): st
   return format(d, invoiceLocale[lang]?.dateFormat ?? "dd/MM/yyyy")
 }
 
-/** The header's date stamp: "São Paulo, 20.07.2026". */
-export function formatHeaderDate(date: string | Date): string {
+/** The header's date stamp: "São Paulo, 20.07.2026" — month first on an English invoice. */
+export function formatHeaderDate(date: string | Date, lang: InvoiceLang = "pt"): string {
   const d = typeof date === "string" ? parseISO(date) : date
-  return format(d, "dd.MM.yyyy")
+  return format(d, lang === "en" ? "MM.dd.yyyy" : "dd.MM.yyyy")
 }
 
 /**
@@ -261,7 +261,7 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   }
 
   // ── the date and the mark ────────────────────────────────────────────────────
-  say(`${cityOf(settings?.fiscal_address)}, ${formatHeaderDate(issueDateOf(invoice))}`, X.label, Y.date, { style: "heavy" })
+  say(`${cityOf(settings?.fiscal_address)}, ${formatHeaderDate(issueDateOf(invoice), lang)}`, X.label, Y.date, { style: "heavy" })
   if (settings?.logo_url) {
     const logo = await fetchImageBase64(settings.logo_url)
     if (logo) {
