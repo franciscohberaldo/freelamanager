@@ -116,7 +116,7 @@ async function insertInvoice(row) {
 // 1) Paulínia NFs (series "paulinia"), seq prefixed NFP so they never collide with the invoice sequence
 for (const r of csv("MaterialCliente/nf_historico_paulinia.csv").filter((r) => r.tipo === "nfse" && r.nf)) {
   const name = canon(r.tomador)
-  const cid = await upsertClient({ name, legal_name: r.tomador, cnpj: r.cnpj_tomador || null, address: null, notes: "Importado do histórico de NFs (Paulínia)" })
+  const cid = await upsertClient({ name, legal_name: r.tomador, cnpj: r.cnpj_tomador || null, address: null, notes: "Imported from NF history (Paulínia)" })
   const jid = await historyJob(cid, name, "BRL")
   const date = isoFromBr(r.data) ?? "2016-01-01"
   const nf = r.nf.padStart(3, "0")
@@ -139,7 +139,7 @@ const INTL = [
   ["0089", "2025-05-08", "Steelhead (Deutsch)", "USD", 7000, "4702134214"], ["0100", "2025-04-10", "Lobo", "BRL", 19200, null], ["0101", "2025-04-10", "Lobo", "BRL", 19200, null],
 ]
 for (const [seq, date, client, currency, total, po] of INTL) {
-  const cid = await upsertClient({ name: client, legal_name: null, cnpj: null, address: null, notes: "Importado do histórico de invoices" })
+  const cid = await upsertClient({ name: client, legal_name: null, cnpj: null, address: null, notes: "Imported from invoice history" })
   const jid = await historyJob(cid, client, currency)
   await insertInvoice({
     job_id: jid, invoice_number: `H-${seq}`, seq_number: seq, po_number: po, period_start: date, period_end: date, total_hours_billed: 0,

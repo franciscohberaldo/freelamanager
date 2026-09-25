@@ -97,7 +97,7 @@ const jobPayload = {
   hourly_rate: 0, daily_rate: 0, tax_rate: 0, is_recurring: false, is_confidential: false,
   start_date: NF.periodStart, end_date: NF.periodEnd,
   contract_value: NF.total,
-  notes: `Cadastrado a partir da NFS-e ${NF.number} de ${NF.issuedAt}.`,
+  notes: `Created from NFS-e ${NF.number} issued ${NF.issuedAt}.`,
 }
 
 let jobId = existingJob?.id

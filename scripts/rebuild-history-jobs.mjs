@@ -128,7 +128,7 @@ for (const g of groups.values()) {
     const { data, error } = await sb.from("jobs").insert({
       user_id: uid, client_id: g.client_id, name: g.name, currency: g.currency, status: "completed",
       hourly_rate: 0, daily_rate: 0, is_recurring: false, tax_rate: 0,
-      notes: "Importado do histórico",
+      notes: "Imported from history",
     }).select("id").single()
     if (error) throw error
     jobId = data.id

@@ -167,7 +167,7 @@ async function createJobFromDraft(
     start_date: draft.startDate, end_date: draft.endDate,
     po_number: draft.poNumber,
     is_recurring: false, tax_rate: 0,
-    notes: `Criado automaticamente a partir do e-mail "${email.subject ?? "sem assunto"}" de ${email.from}. Revise os dados.`,
+    notes: `Created automatically from the e-mail "${email.subject ?? "no subject"}" from ${email.from}. Review the details.`,
   }).select("id").single()
 
   return job?.id ?? null

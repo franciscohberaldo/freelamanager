@@ -84,7 +84,7 @@ for (const [fileName, kind, label] of ORPHANS) {
     currency: "BRL", billing_mode: "hourly",
     hourly_rate: 0, daily_rate: 0, tax_rate: 0,
     is_recurring: false, is_confidential: false,
-    notes: `Placeholder criado do arquivo ${fileName}. Falta identificar cliente, job e invoice.`,
+    notes: `Placeholder created from file ${fileName}. Client, job and invoice still to be identified.`,
   }
 
   let jobId = existing?.id
