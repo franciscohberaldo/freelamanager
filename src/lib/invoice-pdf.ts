@@ -321,7 +321,7 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
     if (billingMode === "fixed" && item.unit === "project" && !item.is_manual) continue
     const q = resolveItemQuantity(item, billingMode)
     const workedDay = isWorkedDayLine(item, billingMode)
-    say(format(parseISO(item.date), "dd/MM"), X.label, y, { tone: INK.figure })
+    say(format(parseISO(item.date), invoiceLocale[lang]?.dayFormat ?? "dd/MM"), X.label, y, { tone: INK.figure })
     if (workedDay) {
       say(item.description ?? job?.name ?? t.workedDay, X.itemDesc, y, { tone: INK.figure })
       say(item.hours_billed > 0 ? formatQuantity(item.hours_billed, "hour", lang) : t.workedDay, X.itemAmount, y, { tone: INK.figure })

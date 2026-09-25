@@ -10,10 +10,10 @@ export function isInvoiceLang(value: string | null | undefined): value is Invoic
   return value === "pt" || value === "en"
 }
 
-/** Intl locale and date-fns pattern per invoice language */
-export const invoiceLocale: Record<InvoiceLang, { intl: string; dateFormat: string }> = {
-  pt: { intl: "pt-BR", dateFormat: "dd/MM/yyyy" },
-  en: { intl: "en-US", dateFormat: "MM/dd/yyyy" },
+/** Intl locale and date-fns patterns (full date, and day without year) per invoice language */
+export const invoiceLocale: Record<InvoiceLang, { intl: string; dateFormat: string; dayFormat: string }> = {
+  pt: { intl: "pt-BR", dateFormat: "dd/MM/yyyy", dayFormat: "dd/MM" },
+  en: { intl: "en-US", dateFormat: "MM/dd/yyyy", dayFormat: "MM/dd" },
 }
 
 export const invoiceT = {
