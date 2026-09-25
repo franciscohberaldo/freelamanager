@@ -84,6 +84,11 @@ const LEGEND: { tone: Tone; label: string }[] = [
   { tone: "violet", label: "Booked" },
 ]
 
+/** A day inside a job's span that has no diária: the bar goes faint and striped. */
+const OFF_DAY_STYLE: React.CSSProperties = {
+  backgroundImage: "repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in oklab, currentColor 12%, transparent) 4px 8px)",
+}
+
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 
 /** Drag payload: what is moving (or which edge is stretching) and from which day it was grabbed. */
@@ -357,6 +362,10 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
 
   // A closed job's day shows the grey job bar with its post-delivery stage instead
   // of the green diária chip — the stage is what matters once the work is over.
+  // Jobs whose days are tracked as diárias: on those, a past day in the span with no
+  // diária was a day off. Jobs with no diárias at all are drawn as a plain span.
+  const jobsWithLogs = useMemo(() => new Set(logs.map(l => l.job_id)), [logs])
+
   const completedJobIds = useMemo(
     () => new Set(jobs.filter(j => j.status === "completed").map(j => j.id)),
     [jobs],
@@ -444,6 +453,9 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
             <span className={cn("w-2 h-2 rounded-full", TONE[l.tone].dot)} /> {l.label}
           </span>
         ))}
+        <span className="flex items-center gap-2">
+          <span className="w-4 h-2.5 rounded-sm border border-muted-foreground/30 text-muted-foreground" style={OFF_DAY_STYLE} /> Dia sem diária
+        </span>
         <span className="hidden sm:inline-block w-px h-4 bg-border" aria-hidden />
         <span className="flex items-center gap-1.5"><RunnerIcon className="w-3.5 h-3.5" /> Em andamento</span>
         <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400"><X className="w-3.5 h-3.5" strokeWidth={2.5} /><span className="text-foreground/80">Pendência (invoice, recebimento, NF, DAS)</span></span>
@@ -551,15 +563,19 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                   const showLabel = !continuesLeft || day.getDay() === 0
                   const showStartEdge = key === j.start_date || (key === firstKey && j.start_date! < firstKey)
                   const showEndEdge   = key === spanEnd || (key === lastKey && spanEnd > lastKey)
+                  const offDay = jobsWithLogs.has(j.id) && key <= todayKey && !dayLogs.some(l => l.job_id === j.id)
                   return (
                     <Link
                       key={j.id}
                       href={`/jobs/${j.id}`}
                       onClick={e => e.stopPropagation()}
                       {...dragProps({ kind: "job", id: j.id, from: key })}
-                      title={`${j.name} — ${j.start_date}${j.end_date && j.end_date !== j.start_date ? ` a ${j.end_date}` : ""}${j.status === "completed" ? " (encerrado)" : ""}`}
+                      title={`${j.name} — ${j.start_date}${j.end_date && j.end_date !== j.start_date ? ` a ${j.end_date}` : ""}${j.status === "completed" ? " (encerrado)" : ""}${offDay ? " · sem diária neste dia" : ""}`}
+                      style={offDay ? OFF_DAY_STYLE : undefined}
                       className={cn(
-                        chip(j.status === "completed" ? "grey" : "blue"),
+                        offDay
+                          ? chip("grey", "bg-transparent hover:bg-muted/60 text-muted-foreground/70")
+                          : chip(j.status === "completed" ? "grey" : "blue"),
                         "flex items-center gap-1.5 cursor-grab active:cursor-grabbing relative z-10",
                         continuesLeft  && "rounded-l-none -ml-[9px]",
                         continuesRight && "rounded-r-none -mr-[9px]",
