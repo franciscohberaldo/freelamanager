@@ -618,7 +618,10 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                       title={`${j.name} — ${j.start_date}${j.end_date && j.end_date !== j.start_date ? ` a ${j.end_date}` : ""}${j.status === "completed" ? " (encerrado)" : ""}${offDay ? " · sem diária neste dia" : ""}`}
                       style={offDay ? OFF_DAY_STYLE : undefined}
                       className={cn(
-                        offDay
+                        // Days off take the job's colour, striped: grey on a closed job, green on an open one.
+                        offDay && j.status === "completed"
+                          ? chip("grey", "bg-transparent hover:bg-muted/60 text-muted-foreground/70")
+                          : offDay
                           ? chip("green", "bg-emerald-50/50 hover:bg-emerald-50 text-emerald-700/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 dark:text-emerald-300/60")
                           : chip(j.status === "completed" ? "grey" : "blue"),
                         "flex items-center gap-1.5 cursor-grab active:cursor-grabbing relative z-10",
