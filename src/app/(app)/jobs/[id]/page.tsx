@@ -158,6 +158,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
                   billing_mode: typedJob.billing_mode,
                   project_code: typedJob.project_code,
                   po_number: typedJob.po_number,
+                  notes: typedJob.notes,
                   start_date: typedJob.start_date,
                   end_date: typedJob.end_date,
                   currency: typedJob.currency,

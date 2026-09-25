@@ -25,7 +25,7 @@ export default async function InvoicesPage() {
 
   const { data: jobs } = await supabase
     .from("jobs")
-    .select("id, name, hourly_rate, daily_rate, contract_value, billing_mode, project_code, po_number, start_date, end_date, currency, tax_rate, clients(name, email)")
+    .select("id, name, hourly_rate, daily_rate, contract_value, billing_mode, project_code, po_number, notes, start_date, end_date, currency, tax_rate, clients(name, email)")
     .eq("user_id", user!.id)
     .in("status", ["active", "paused", "completed"])
     .order("name")

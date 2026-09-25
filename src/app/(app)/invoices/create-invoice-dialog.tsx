@@ -29,6 +29,8 @@ interface JobOption {
   billing_mode?: BillingMode
   project_code?: string | null
   po_number?: string | null
+  /** The job's notes: they start the invoice's notes, editable per invoice. */
+  notes?: string | null
   start_date?: string | null
   end_date?: string | null
   currency: string
@@ -66,7 +68,7 @@ export function CreateInvoiceDialog({
   const [periodStart, setPeriodStart] = useState(format(startOfMonth(now), "yyyy-MM-dd"))
   const [periodEnd, setPeriodEnd] = useState(format(endOfMonth(now), "yyyy-MM-dd"))
   const [dueDate, setDueDate] = useState("")
-  const [notes, setNotes] = useState("")
+  const [notes, setNotes] = useState(jobs[0]?.notes ?? "")
   const [poNumber, setPoNumber] = useState(jobs[0]?.po_number ?? "")
   const [manualLines, setManualLines] = useState<ManualLine[]>([])
 
@@ -292,7 +294,7 @@ export function CreateInvoiceDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset() }}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) setNotes(selectedJob?.notes ?? ""); else reset() }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-[1180px] w-[96vw] h-[92vh] p-0 gap-0 overflow-hidden flex flex-col">
         <DialogHeader className="px-6 py-4 border-b">
@@ -340,7 +342,7 @@ export function CreateInvoiceDialog({
                   label: [j.clients?.name, j.name, BILLING_MODE_LABELS[j.billing_mode ?? "hourly"]].filter(Boolean).join(" · "),
                 }))}
                 value={jobId}
-                onChange={(v) => { setJobId(v); const j = jobs.find(x => x.id === v); setPoNumber(j?.po_number ?? "") }}
+                onChange={(v) => { setJobId(v); const j = jobs.find(x => x.id === v); setPoNumber(j?.po_number ?? ""); setNotes(j?.notes ?? "") }}
                 placeholder="Selecione o job"
                 searchPlaceholder="Buscar job…"
               />
