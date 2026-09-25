@@ -84,7 +84,7 @@ const LEGEND: { tone: Tone; label: string }[] = [
   { tone: "violet", label: "Booked" },
 ]
 
-/** A day inside a job's span that has no diária: the bar goes faint and striped. */
+/** A day inside a job's span that has no diária: the bar goes a faint, striped green. */
 const OFF_DAY_STYLE: React.CSSProperties = {
   backgroundImage: "repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in oklab, currentColor 12%, transparent) 4px 8px)",
 }
@@ -454,7 +454,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
           </span>
         ))}
         <span className="flex items-center gap-2">
-          <span className="w-4 h-2.5 rounded-sm border border-muted-foreground/30 text-muted-foreground" style={OFF_DAY_STYLE} /> Dia sem diária
+          <span className="w-4 h-2.5 rounded-sm border border-emerald-600/20 bg-emerald-50/50 text-emerald-700/60 dark:bg-emerald-950/20 dark:text-emerald-300/60" style={OFF_DAY_STYLE} /> Dia sem diária
         </span>
         <span className="hidden sm:inline-block w-px h-4 bg-border" aria-hidden />
         <span className="flex items-center gap-1.5"><RunnerIcon className="w-3.5 h-3.5" /> Em andamento</span>
@@ -619,7 +619,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                       style={offDay ? OFF_DAY_STYLE : undefined}
                       className={cn(
                         offDay
-                          ? chip("grey", "bg-transparent hover:bg-muted/60 text-muted-foreground/70")
+                          ? chip("green", "bg-emerald-50/50 hover:bg-emerald-50 text-emerald-700/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 dark:text-emerald-300/60")
                           : chip(j.status === "completed" ? "grey" : "blue"),
                         "flex items-center gap-1.5 cursor-grab active:cursor-grabbing relative z-10",
                         continuesLeft  && "rounded-l-none -ml-[9px]",
