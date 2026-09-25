@@ -128,7 +128,7 @@ const invoicePayload = {
   nf_status: "issued", nf_series: NF.series, nf_number: NF.number,
   nf_issued_at: NF.issuedAt, nf_amount_brl: NF.total,
   po_number: NF.po,
-  notes: `Serviços prestados de ${NF.service} · código do serviço ${NF.serviceCode} · NFS-e ${NF.number}`,
+  notes: `${NF.service} services rendered · service code ${NF.serviceCode} · NFS-e ${NF.number}`,
 }
 
 let invoiceId = existingInv?.id

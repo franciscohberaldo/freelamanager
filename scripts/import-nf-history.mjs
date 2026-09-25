@@ -145,7 +145,7 @@ for (const [seq, date, client, currency, total, po] of INTL) {
     job_id: jid, invoice_number: `H-${seq}`, seq_number: seq, po_number: po, period_start: date, period_end: date, total_hours_billed: 0,
     subtotal: total ?? 0, tax_rate: 0, tax_amount: 0, total: total ?? 0, currency, sent_at: date, paid_at: date,
     nf_status: currency === "BRL" ? "issued" : "not_required", nf_amount_brl: currency === "BRL" ? total : null,
-    notes: total == null ? "Valor não lido do PDF; completar" : null,
+    notes: total == null ? "Amount not read from the PDF; fill in" : null,
   })
 }
 
@@ -168,7 +168,7 @@ for (const r of csv("MaterialCliente/Acompanhamento de projetos - Sheet1.csv").f
     subtotal: value, tax_rate: 0, tax_amount: 0, total: value, currency,
     nf_status: foreign ? "not_required" : (issued ? "issued" : "pending"),
     nf_series: issued ? "sao_paulo" : null, nf_issued_at: issued, nf_amount_brl: !foreign && value ? value : null,
-    notes: [intermediary && `Via: ${intermediary}`, r.Cliente && `Cliente final: ${r.Cliente}`, r.Job && `Job: ${r.Job}`, r["Descrição do Job"], !value && "Valor não informado; completar"]
+    notes: [intermediary && `Via: ${intermediary}`, r.Cliente && `End client: ${r.Cliente}`, r.Job && `Job: ${r.Job}`, r["Descrição do Job"], !value && "Amount not provided; fill in"]
       .filter(Boolean).join(" · ") || null,
   })
 }
