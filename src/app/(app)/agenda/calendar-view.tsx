@@ -481,11 +481,15 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
           const inMonth  = isSameMonth(day, month)
           const today    = isToday(day)
           const dayHolds = holdsForDay(key)
-          // One entry per job per day: an open job with a diária shows the green chip
-          // only; a closed job shows the grey bar with its stage, and its diária chips
-          // are the ones hidden.
-          const dayJobs  = jobsForDay(key).filter(j => completedJobIds.has(j.id) || !dayLogs.some(l => l.job_id === j.id))
-          const visibleLogs = dayLogs.filter(l => !completedJobIds.has(l.job_id))
+          // One entry per job per day, all in the job's lane so its days read as one
+          // continuous line: an open job with a diária shows the green piece, a closed
+          // job the grey bar with its stage (its diárias hidden), and a past day with no
+          // diária the striped piece. Diárias of jobs not drawn here fall to the end.
+          const dayJobs  = jobsForDay(key)
+          const visibleLogs = dayLogs.filter(l => !completedJobIds.has(l.job_id) && !dayJobs.some(j => j.id === l.job_id))
+          const prevKey  = format(addDays(day, -1), "yyyy-MM-dd")
+          const nextKey  = format(addDays(day, 1), "yyyy-MM-dd")
+          const loggedOn = (jobId: string, k: string) => (logsByDate[k] ?? []).some(l => l.job_id === jobId)
           return (
             <div
               key={i}
@@ -564,6 +568,47 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                   const showStartEdge = key === j.start_date || (key === firstKey && j.start_date! < firstKey)
                   const showEndEdge   = key === spanEnd || (key === lastKey && spanEnd > lastKey)
                   const offDay = jobsWithLogs.has(j.id) && key <= todayKey && !dayLogs.some(l => l.job_id === j.id)
+                  const log = completedJobIds.has(j.id) ? undefined : dayLogs.find(l => l.job_id === j.id)
+                  if (log) {
+                    // A run of worked days is one green stretch: name and arrows on its ends.
+                    const runStart = !continuesLeft || !loggedOn(j.id, prevKey)
+                    const runEnd   = !continuesRight || !loggedOn(j.id, nextKey)
+                    return (
+                      <Link
+                        key={log.id}
+                        href={`/jobs/${log.job_id}`}
+                        onClick={e => e.stopPropagation()}
+                        {...dragProps({ kind: "log", id: log.id, from: key })}
+                        title={`${log.jobs?.name ?? "Diária"} — ${log.hours_billed}h faturadas`}
+                        className={cn(
+                          chip("green"),
+                          "flex items-center gap-1 cursor-grab active:cursor-grabbing relative z-10",
+                          continuesLeft  && "rounded-l-none -ml-[9px]",
+                          continuesRight && "rounded-r-none -mr-[9px]",
+                        )}
+                      >
+                        {runStart && arrowEdge({ kind: "log-extend", id: log.id, from: key }, "left")}
+                        {(runStart || day.getDay() === 0) ? (
+                          <>
+                            {grip}
+                            <span className="truncate">{log.jobs?.name ?? j.name}</span>
+                          </>
+                        ) : (
+                          <span className="flex-1" aria-hidden />
+                        )}
+                        <button
+                          type="button"
+                          onClick={e => { e.preventDefault(); e.stopPropagation(); deleteLog(log) }}
+                          title="Apagar diária"
+                          aria-label="Apagar diária"
+                          className="shrink-0 opacity-30 hover:opacity-100 hover:text-rose-600 dark:hover:text-rose-400 transition-opacity"
+                        >
+                          <X className="w-3 h-3" strokeWidth={2.5} />
+                        </button>
+                        {runEnd && arrowEdge({ kind: "log-extend", id: log.id, from: key }, "right")}
+                      </Link>
+                    )
+                  }
                   return (
                     <Link
                       key={j.id}
@@ -605,22 +650,6 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                     +{dayJobs.length - 2} job{dayJobs.length - 2 > 1 ? "s" : ""}
                   </p>
                 )}
-                {evs.slice(0, 3).map(e => (
-                  <div
-                    key={e.id}
-                    {...dragProps({ kind: "event", id: e.id, from: key })}
-                    className={cn(chip(TASK_TONE[e.task_status] ?? "blue"), "flex items-center gap-1 cursor-grab active:cursor-grabbing")}
-                    title={e.title}
-                  >
-                    {grip}
-                    <span className="truncate">
-                      {e.title}{e.jobs?.name ? <span className="opacity-70"> • {e.jobs.name}</span> : null}
-                    </span>
-                  </div>
-                ))}
-                {evs.length > 3 && (
-                  <p className="text-[11px] text-muted-foreground px-1">+{evs.length - 3} mais</p>
-                )}
                 {visibleLogs.slice(0, 2).map(l => (
                   <Link
                     key={l.id}
@@ -649,6 +678,22 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                   <p className="text-[11px] text-emerald-700 dark:text-emerald-400 px-1 font-medium">
                     +{visibleLogs.length - 2} diária{visibleLogs.length - 2 > 1 ? "s" : ""}
                   </p>
+                )}
+                {evs.slice(0, 3).map(e => (
+                  <div
+                    key={e.id}
+                    {...dragProps({ kind: "event", id: e.id, from: key })}
+                    className={cn(chip(TASK_TONE[e.task_status] ?? "blue"), "flex items-center gap-1 cursor-grab active:cursor-grabbing")}
+                    title={e.title}
+                  >
+                    {grip}
+                    <span className="truncate">
+                      {e.title}{e.jobs?.name ? <span className="opacity-70"> • {e.jobs.name}</span> : null}
+                    </span>
+                  </div>
+                ))}
+                {evs.length > 3 && (
+                  <p className="text-[11px] text-muted-foreground px-1">+{evs.length - 3} mais</p>
                 )}
               </div>
             </div>
