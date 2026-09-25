@@ -559,18 +559,21 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                 )}
                 {dayJobs.slice(0, 2).map(j => {
                   // Jobs draw as one continuous bar across their span: each day's piece
-                  // bleeds over the cell padding and border to meet its neighbours, and
-                  // only the first piece of the week carries the name.
+                  // bleeds over the cell padding and border to meet its neighbours. Every
+                  // worked day carries the name, a day off never does; days not yet
+                  // tracked name only the first piece of the week.
                   const spanEnd = j.end_date ?? j.start_date!
                   const continuesLeft  = j.start_date! < key
                   const continuesRight = spanEnd > key
-                  const showLabel = !continuesLeft || day.getDay() === 0
+                  const worked = dayLogs.some(l => l.job_id === j.id)
+                  const offDay = jobsWithLogs.has(j.id) && key <= todayKey && !worked
+                  const showLabel = !offDay && (worked || !continuesLeft || day.getDay() === 0)
                   const showStartEdge = key === j.start_date || (key === firstKey && j.start_date! < firstKey)
                   const showEndEdge   = key === spanEnd || (key === lastKey && spanEnd > lastKey)
-                  const offDay = jobsWithLogs.has(j.id) && key <= todayKey && !dayLogs.some(l => l.job_id === j.id)
                   const log = completedJobIds.has(j.id) ? undefined : dayLogs.find(l => l.job_id === j.id)
                   if (log) {
-                    // A run of worked days is one green stretch: name and arrows on its ends.
+                    // A run of worked days is one green stretch, named on every day; the
+                    // arrows sit on its ends.
                     const runStart = !continuesLeft || !loggedOn(j.id, prevKey)
                     const runEnd   = !continuesRight || !loggedOn(j.id, nextKey)
                     return (
@@ -588,14 +591,8 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                         )}
                       >
                         {runStart && arrowEdge({ kind: "log-extend", id: log.id, from: key }, "left")}
-                        {(runStart || day.getDay() === 0) ? (
-                          <>
-                            {grip}
-                            <span className="truncate">{log.jobs?.name ?? j.name}</span>
-                          </>
-                        ) : (
-                          <span className="flex-1" aria-hidden />
-                        )}
+                        {grip}
+                        <span className="truncate">{log.jobs?.name ?? j.name}</span>
                         <button
                           type="button"
                           onClick={e => { e.preventDefault(); e.stopPropagation(); deleteLog(log) }}
