@@ -13,7 +13,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Download, Send, CheckCircle2, Loader2, DollarSign, Sparkles, Copy, CreditCard, Receipt, Eye, Trash2 } from "lucide-react"
+import { MoreHorizontal, Download, Send, CheckCircle2, Loader2, DollarSign, Sparkles, Copy, CreditCard, Receipt, Eye, Trash2, Rows3 } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { format } from "date-fns"
 import { formatCurrency } from "@/lib/utils"
@@ -375,6 +375,13 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
     else { toast.success(okMsg); router.refresh() }
   }
 
+  /** Worked days on the PDF: one line each, or folded into one line. Only the page changes. */
+  async function toggleGroupDays() {
+    const { error } = await supabase.from("invoices").update({ group_days: !invoice.group_days }).eq("id", invoice.id)
+    if (error) toast.error("Erro ao atualizar")
+    else { toast.success(invoice.group_days ? "Dias separados, um por linha" : "Dias juntados em uma linha"); router.refresh() }
+  }
+
   async function markPaid() {
     setLoading(true)
     const { error } = await supabase
@@ -442,6 +449,9 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => downloadPdf("en")} className="pl-6">
             🇺🇸 English
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={toggleGroupDays} className="pl-6">
+            <Rows3 className="w-3.5 h-3.5" /> {invoice.group_days ? "Separar os dias" : "Juntar dias em uma linha"}
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />

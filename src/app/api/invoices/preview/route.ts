@@ -14,6 +14,7 @@ interface PreviewBody {
   items: DraftItem[]
   subtotal: number
   taxRate: number
+  groupDays?: boolean
 }
 
 /**
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
       total: subtotal + taxAmount,
       notes: body.notes?.trim() || null,
       created_at: null,   // dated today, like an invoice issued now
+      group_days: !!body.groupDays,
     },
     items: (body.items ?? []).map(i => ({
       date: i.date, hours_billed: i.hours_billed, rate: i.rate, subtotal: i.subtotal,

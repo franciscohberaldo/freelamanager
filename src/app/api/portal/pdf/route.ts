@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
       tax_amount: invoice.tax_amount,
       total: invoice.total,
       notes: invoice.notes,
+      group_days: invoice.group_days,
     },
     items: itemRows,
     job: {

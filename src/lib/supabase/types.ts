@@ -66,6 +66,7 @@ type InvoiceRow = {
   nf_status: 'not_required' | 'pending' | 'requested' | 'issued' | 'sent';
   nf_series: 'paulinia' | 'sao_paulo' | null; nf_number: string | null; nf_issued_at: string | null;
   nf_amount_brl: number | null; nf_requested_at: string | null; nf_sent_at: string | null
+  group_days: boolean
 }
 type InvoiceInsert = {
   user_id: string; job_id: string; invoice_number: string; period_start: string;
@@ -78,6 +79,7 @@ type InvoiceInsert = {
   nf_status?: 'not_required' | 'pending' | 'requested' | 'issued' | 'sent';
   nf_series?: 'paulinia' | 'sao_paulo' | null; nf_number?: string | null; nf_issued_at?: string | null;
   nf_amount_brl?: number | null; nf_requested_at?: string | null; nf_sent_at?: string | null
+  group_days?: boolean
 }
 
 type InvoiceItemRow = { id: string; invoice_id: string; log_id: string | null; date: string; description: string | null; hours_billed: number; rate: number; subtotal: number; quantity: number | null; unit: 'hour' | 'day' | 'project' | null; job_number: string | null; is_manual: boolean }

@@ -5,7 +5,7 @@ import {
   type InvoiceLang, type BillingUnit,
 } from "@/lib/invoice-i18n"
 import type { BillingMode } from "@/lib/billing-mode"
-import { isWorkedDayLine } from "@/lib/invoice-items"
+import { isWorkedDayLine, groupDayLines } from "@/lib/invoice-items"
 import { normalizeName } from "@/lib/text-case"
 import { registerJost, JOST, type JostStyle } from "@/lib/fonts"
 import {
@@ -128,6 +128,8 @@ export interface InvoicePDFParams {
     tax_amount: number
     total: number
     notes: string | null
+    /** Print the worked days as one line instead of one line per day. */
+    group_days?: boolean | null
   }
   items: Array<{
     date: string
@@ -202,6 +204,21 @@ export function itemLabel(
   if (item.description) return item.description
   if (q.unit === "day" && !item.is_manual && jobName) return jobName
   return formatQuantity(q.quantity, q.unit, lang)
+}
+
+/**
+ * The date column of a line. A folded run of days shows its span, as short as the column
+ * allows: "01–30/10" (pt) or "10/01–30" (en) within one month, both days in full across two.
+ */
+export function lineDate(date: string, dateEnd: string | null | undefined, lang: InvoiceLang): string {
+  const dayFormat = invoiceLocale[lang]?.dayFormat ?? "dd/MM"
+  const start = parseISO(date)
+  if (!dateEnd || dateEnd === date) return format(start, dayFormat)
+  const end = parseISO(dateEnd)
+  if (date.slice(0, 7) !== dateEnd.slice(0, 7)) return `${format(start, dayFormat)}–${format(end, dayFormat)}`
+  return lang === "en"
+    ? `${format(start, "MM/dd")}–${format(end, "dd")}`
+    : `${format(start, "dd")}–${format(end, "dd/MM")}`
 }
 
 const has = (v: string | null | undefined): v is string => !!v && v.trim().length > 0
@@ -315,13 +332,16 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   // Every invoice lists the days worked. On a project each day names the job and puts
   // its hours where the money would go; the closed price is not a line — it shows only
   // once, as the Total below the rule.
+  // Asked for, the worked days fold into one line: their span, their summed hours or money.
+  const lines: Array<InvoicePDFParams["items"][number] & { date_end?: string }> =
+    invoice.group_days ? groupDayLines(items) : items
   let y = Y.itemsStart
-  for (const item of items) {
+  for (const item of lines) {
     // The fixed-price project line repeats the Total, so it stays off the list.
     if (billingMode === "fixed" && item.unit === "project" && !item.is_manual) continue
     const q = resolveItemQuantity(item, billingMode)
     const workedDay = isWorkedDayLine(item, billingMode)
-    say(format(parseISO(item.date), invoiceLocale[lang]?.dayFormat ?? "dd/MM"), X.label, y, { tone: INK.figure })
+    say(lineDate(item.date, item.date_end, lang), X.label, y, { tone: INK.figure })
     if (workedDay) {
       say(item.description ?? job?.name ?? t.workedDay, X.itemDesc, y, { tone: INK.figure })
       say(item.hours_billed > 0 ? formatQuantity(item.hours_billed, "hour", lang) : t.workedDay, X.itemAmount, y, { tone: INK.figure })

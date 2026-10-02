@@ -71,6 +71,8 @@ export function CreateInvoiceDialog({
   const [notes, setNotes] = useState(jobs[0]?.notes ?? "")
   const [poNumber, setPoNumber] = useState(jobs[0]?.po_number ?? "")
   const [manualLines, setManualLines] = useState<ManualLine[]>([])
+  /** The worked days print as one line: their span, their summed hours or money. */
+  const [groupDays, setGroupDays] = useState(false)
 
   const [logs, setLogs] = useState<DailyLog[]>([])
   /** log_id → invoice_number of the invoice that already billed that day. */
@@ -210,7 +212,7 @@ export function CreateInvoiceDialog({
           signal: controller.signal,
           body: JSON.stringify({
             jobId, periodStart, periodEnd, dueDate: dueDate || null, notes: notes || null,
-            poNumber: poNumber || null, items: draft.items, subtotal: draft.subtotal, taxRate,
+            poNumber: poNumber || null, items: draft.items, subtotal: draft.subtotal, taxRate, groupDays,
           }),
         })
         if (!res.ok) {
@@ -228,7 +230,7 @@ export function CreateInvoiceDialog({
     }, PREVIEW_DEBOUNCE_MS)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, jobId, periodStart, periodEnd, dueDate, notes, poNumber, draftKey, taxRate])
+  }, [open, jobId, periodStart, periodEnd, dueDate, notes, poNumber, draftKey, taxRate, groupDays])
 
   function reset() {
     previewAbort.current?.abort()
@@ -236,6 +238,7 @@ export function CreateInvoiceDialog({
     setLogs([])
     setInvoicedMap({})
     setManualLines([])
+    setGroupDays(false)
     setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null })
     setPreviewError(null)
     setPreviewLoading(false)
@@ -273,6 +276,7 @@ export function CreateInvoiceDialog({
         notes: notes || null,
         seq_number: seqNumber,
         po_number: poNumber.trim() || null,
+        group_days: groupDays,
         nf_status: initialNfStatus(selectedJob.currency),
         nf_amount_brl: selectedJob.currency === "BRL" ? total : null,
       })
@@ -411,6 +415,17 @@ export function CreateInvoiceDialog({
                   Diárias no período ({freshLogs.length})
                   {loadingLogs && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
                 </p>
+                {freshLogs.length > 1 && (
+                  <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 accent-primary"
+                      checked={groupDays}
+                      onChange={(e) => setGroupDays(e.target.checked)}
+                    />
+                    Juntar os dias em uma linha só no PDF ({qtyLabel(draft.totalHours)} somados)
+                  </label>
+                )}
                 {isProject && freshLogs.length > 0 && (
                   <p className="text-xs text-muted-foreground">Os dias saem listados; o valor fica na linha do projeto.</p>
                 )}

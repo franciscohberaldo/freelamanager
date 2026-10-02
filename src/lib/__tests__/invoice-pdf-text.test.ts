@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { quiet, cityOf, itemLabel } from "@/lib/invoice-pdf"
+import { quiet, cityOf, itemLabel, lineDate } from "@/lib/invoice-pdf"
 
 describe("quiet", () => {
   it("title-cases a shouting legal name but keeps the legal form in capitals", () => {
@@ -44,5 +44,21 @@ describe("itemLabel", () => {
 
   it("leaves hourly lines showing their hours", () => {
     expect(itemLabel({ description: null }, { quantity: 8, unit: "hour" }, "Phantom", "en")).not.toBe("Phantom")
+  })
+})
+
+describe("lineDate", () => {
+  it("prints a single day in the language's order", () => {
+    expect(lineDate("2026-10-01", null, "en")).toBe("10/01")
+    expect(lineDate("2026-10-01", null, "pt")).toBe("01/10")
+  })
+
+  it("prints a folded run within one month as a short span", () => {
+    expect(lineDate("2026-10-01", "2026-10-30", "en")).toBe("10/01–30")
+    expect(lineDate("2026-10-01", "2026-10-30", "pt")).toBe("01–30/10")
+  })
+
+  it("prints both days in full when the run crosses a month", () => {
+    expect(lineDate("2026-09-28", "2026-10-03", "en")).toBe("09/28–10/03")
   })
 })
