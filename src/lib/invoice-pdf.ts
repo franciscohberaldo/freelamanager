@@ -383,8 +383,17 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
     settings?.pix_key, settings?.br_bank_name, settings?.br_bank_agency, settings?.br_bank_account,
   ].some(has)
 
+  // The notes describe the work, so they follow the Total and come before how to pay.
+  let contentEnd = totalY
+  if (invoice.notes) {
+    const lines = doc.splitTextToSize(`${t.notes}: ${invoice.notes}`, X.edge - X.label) as string[]
+    const notesY = totalY + ROW * 2
+    lines.forEach((line, i) => say(line, X.label, notesY + ROW * i, { tone: INK.figure }))
+    contentEnd = notesY + ROW * (lines.length - 1)
+  }
+
   let base = Y.paymentTitle
-  if ((hasInternational || hasBrazilian) && totalY > Y.paymentTitle - 20) {
+  if ((hasInternational || hasBrazilian) && contentEnd > Y.paymentTitle - 20) {
     doc.addPage()
     base = 30
   }
@@ -441,12 +450,6 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
       field(t.bankBranchAccount, X.label, at(Y.brBank))
       say(brParts.join(", "), X.bank, at(Y.brBank))
     }
-  }
-
-  if (invoice.notes) {
-    const anchor = hasBrazilian ? Y.brBank : hasInternational ? Y.additional2 : Y.paymentTitle
-    const lines = doc.splitTextToSize(`${t.notes}: ${invoice.notes}`, X.edge - X.label) as string[]
-    say(lines.join("\n"), X.label, at(anchor) + ROW * 2, { tone: INK.figure })
   }
 
   return doc.output("arraybuffer")
