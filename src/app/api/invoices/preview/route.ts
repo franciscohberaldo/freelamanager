@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
   const pdfBytes = await generateInvoicePDF({
     invoice: {
-      invoice_number: "preview",
+      invoice_number: "",
       seq_number: null,
       po_number: body.poNumber?.trim() || typedJob.project_code || null,
       period_start: body.periodStart,

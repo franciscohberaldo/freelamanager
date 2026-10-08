@@ -7,6 +7,7 @@ import {
 import type { BillingMode } from "@/lib/billing-mode"
 import { isWorkedDayLine, groupDayLines } from "@/lib/invoice-items"
 import { normalizeName } from "@/lib/text-case"
+import { formatSeqNumber } from "@/lib/nf-sequence"
 import { registerJost, JOST, type JostStyle } from "@/lib/fonts"
 import {
   X, Y, ROW, BODY_PT, TOTAL_PT, INK, LOGO_W, LOGO_H, LOGO_TOP,
@@ -322,6 +323,10 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
   }
 
   // ── what was ordered ───────────────────────────────────────────────────────
+  // The issuer's own number heads the block; a preview has none yet.
+  heading(`${t.invoiceNumber}:`, X.label, Y.invoiceNo)
+  say(invoice.seq_number ? formatSeqNumber(invoice.seq_number) : invoice.invoice_number, X.mid, Y.invoiceNo)
+
   heading(`${t.purchaseOrder}:`, X.label, Y.purchase)
   say(invoice.po_number ?? job?.project_code ?? "", X.mid, Y.purchase)
 

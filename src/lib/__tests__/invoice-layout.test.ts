@@ -18,7 +18,9 @@ describe("invoice layout", () => {
 
   it("runs the document down the page in the order it reads", () => {
     expect(Y.date).toBeLessThan(Y.header)
-    expect(Y.header).toBeLessThan(Y.service)
+    expect(Y.header).toBeLessThan(Y.invoiceNo)
+    expect(Y.invoiceNo).toBeLessThan(Y.purchase)
+    expect(Y.purchase).toBeLessThan(Y.service)
     expect(Y.service).toBeLessThan(Y.serviceValue)
     expect(Y.serviceValue).toBeLessThan(Y.itemsStart)
     expect(Y.itemsStart).toBeLessThan(Y.rule)

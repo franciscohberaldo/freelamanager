@@ -41,9 +41,10 @@ export const X = {
 export const Y = {
   date:        fromBottom(1121),  // city-date stamp, top left
   header:      fromBottom(1039),  // BILLED TO / RECIPIENT INFO
-  purchase:    fromBottom(940),
-  service:     fromBottom(923),
-  serviceValue:fromBottom(907),   // the service named under SERVICE ORDERED
+  invoiceNo:   fromBottom(940),   // the issuer's own invoice number, above the purchase order
+  purchase:    fromBottom(923),
+  service:     fromBottom(907),
+  serviceValue:fromBottom(890),   // the service named under SERVICE ORDERED
   itemsStart:  fromBottom(860),
   rule:        fromBottom(811),
   total:       fromBottom(794),
