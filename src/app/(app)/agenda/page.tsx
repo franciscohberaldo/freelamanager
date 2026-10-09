@@ -41,7 +41,7 @@ export default async function AgendaPage() {
       .order("date"),
     supabase
       .from("invoices")
-      .select("job_id, status, nf_status")
+      .select("job_id, invoice_number, status, nf_status")
       .eq("user_id", user!.id),
     supabase
       .from("job_documents")
@@ -56,6 +56,7 @@ export default async function AgendaPage() {
   for (const d of documents ?? []) docsByJob.set(d.job_id, [...(docsByJob.get(d.job_id) ?? []), d])
   const jobsWithStage = (jobs ?? []).map(j => ({
     ...j,
+    invoice_numbers: [...new Set((invoices ?? []).filter(i => i.job_id === j.id).map(i => i.invoice_number))],
     stage: jobStage(j, invoicesByJob.get(j.id) ?? [], docsByJob.get(j.id) ?? []),
   }))
 

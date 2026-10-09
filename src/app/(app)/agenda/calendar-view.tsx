@@ -30,6 +30,7 @@ export interface CalendarHold {
 export interface CalendarJob {
   id: string
   name: string
+  invoice_numbers?: string[]
   start_date: string | null
   end_date: string | null
   status: string
@@ -107,6 +108,10 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
   const [dragOverDay, setDragOverDay] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
+  const jobLabels = useMemo(() => new Map(jobs.map(j => [
+    j.id,
+    j.invoice_numbers?.length ? `${j.invoice_numbers.join(", ")} · ${j.name}` : j.name,
+  ])), [jobs])
 
   function onDragStart(e: React.DragEvent, item: DragItem) {
     e.dataTransfer.setData(DND_TYPE, JSON.stringify(item))
@@ -500,7 +505,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
               onDragLeave={() => setDragOverDay(d => (d === key ? null : d))}
               onDrop={e => onDrop(e, key)}
               className={cn(
-                "min-h-[140px] p-2 border-b cursor-pointer transition-colors",
+                "min-h-[240px] min-w-0 p-2 border-b cursor-pointer transition-colors",
                 i % 7 !== 0 && "border-l",
                 dragOverDay === key ? "bg-accent ring-2 ring-inset ring-primary" : today ? "bg-accent/40" : "hover:bg-muted/40",
               )}
@@ -516,7 +521,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
               </div>
 
               <div className="space-y-1">
-                {dayHolds.slice(0, 2).map(h => {
+                {dayHolds.map(h => {
                   // Holds draw as continuous bars too, same spanning rules as jobs.
                   const visibleStart   = holdVisibleStart(h)
                   const continuesLeft  = visibleStart < key
@@ -552,12 +557,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                     </div>
                   )
                 })}
-                {dayHolds.length > 2 && (
-                  <p className="text-[11px] text-muted-foreground px-1 font-medium">
-                    +{dayHolds.length - 2} reserva{dayHolds.length - 2 > 1 ? "s" : ""}
-                  </p>
-                )}
-                {dayJobs.slice(0, 2).map(j => {
+                {dayJobs.map(j => {
                   // Jobs draw as one continuous bar across their span: each day's piece
                   // bleeds over the cell padding and border to meet its neighbours. Every
                   // worked day carries the name, a day off never does; days not yet
@@ -582,7 +582,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                         href={`/jobs/${log.job_id}`}
                         onClick={e => e.stopPropagation()}
                         {...dragProps({ kind: "log", id: log.id, from: key })}
-                        title={`${log.jobs?.name ?? "Diária"} — ${log.hours_billed}h faturadas`}
+                        title={`${jobLabels.get(j.id) ?? j.name} — ${log.hours_billed}h faturadas`}
                         className={cn(
                           chip("green"),
                           "flex items-center gap-1 cursor-grab active:cursor-grabbing relative z-10",
@@ -592,7 +592,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                       >
                         {runStart && arrowEdge({ kind: "log-extend", id: log.id, from: key }, "left")}
                         {grip}
-                        <span className="truncate">{log.jobs?.name ?? j.name}</span>
+                        <span className="truncate">{jobLabels.get(j.id) ?? j.name}</span>
                         <button
                           type="button"
                           onClick={e => { e.preventDefault(); e.stopPropagation(); deleteLog(log) }}
@@ -612,7 +612,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                       href={`/jobs/${j.id}`}
                       onClick={e => e.stopPropagation()}
                       {...dragProps({ kind: "job", id: j.id, from: key })}
-                      title={`${j.name} — ${j.start_date}${j.end_date && j.end_date !== j.start_date ? ` a ${j.end_date}` : ""}${j.status === "completed" ? " (encerrado)" : ""}${offDay ? " · sem diária neste dia" : ""}`}
+                      title={`${jobLabels.get(j.id) ?? j.name} — ${j.start_date}${j.end_date && j.end_date !== j.start_date ? ` a ${j.end_date}` : ""}${j.status === "completed" ? " (encerrado)" : ""}${offDay ? " · sem diária neste dia" : ""}`}
                       style={offDay ? OFF_DAY_STYLE : undefined}
                       className={cn(
                         // Days off take the job's colour, striped: grey on a closed job, green on an open one.
@@ -631,7 +631,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                         <>
                           {grip}
                           {j.stage && <JobStageIcon stage={j.stage} withLabel={false} />}
-                          <span className="truncate">{j.name}</span>
+                          <span className="truncate">{jobLabels.get(j.id) ?? j.name}</span>
                           {j.stage && j.stage !== "work" && j.stage !== "done" && (
                             <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-400 shrink-0">
                               {JOB_STAGE_LABELS[j.stage]}
@@ -645,23 +645,18 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                     </Link>
                   )
                 })}
-                {dayJobs.length > 2 && (
-                  <p className="text-[11px] text-sky-700 dark:text-sky-400 px-1 font-medium">
-                    +{dayJobs.length - 2} job{dayJobs.length - 2 > 1 ? "s" : ""}
-                  </p>
-                )}
-                {visibleLogs.slice(0, 2).map(l => (
+                {visibleLogs.map(l => (
                   <Link
                     key={l.id}
                     href={`/jobs/${l.job_id}`}
                     onClick={e => e.stopPropagation()}
                     {...dragProps({ kind: "log", id: l.id, from: key })}
-                    title={`${l.jobs?.name ?? "Diária"} — ${l.hours_billed}h faturadas`}
+                    title={`${jobLabels.get(l.job_id) ?? l.jobs?.name ?? "Diária"} — ${l.hours_billed}h faturadas`}
                     className={cn(chip("green"), "flex items-center gap-1 cursor-grab active:cursor-grabbing")}
                   >
                     {arrowEdge({ kind: "log-extend", id: l.id, from: key }, "left")}
                     {grip}
-                    <span className="truncate">{l.jobs?.name ?? "Diária"}</span>
+                    <span className="truncate">{jobLabels.get(l.job_id) ?? l.jobs?.name ?? "Diária"}</span>
                     <button
                       type="button"
                       onClick={e => { e.preventDefault(); e.stopPropagation(); deleteLog(l) }}
@@ -674,12 +669,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                     {arrowEdge({ kind: "log-extend", id: l.id, from: key }, "right")}
                   </Link>
                 ))}
-                {visibleLogs.length > 2 && (
-                  <p className="text-[11px] text-emerald-700 dark:text-emerald-400 px-1 font-medium">
-                    +{visibleLogs.length - 2} diária{visibleLogs.length - 2 > 1 ? "s" : ""}
-                  </p>
-                )}
-                {evs.slice(0, 3).map(e => (
+                {evs.map(e => (
                   <div
                     key={e.id}
                     {...dragProps({ kind: "event", id: e.id, from: key })}
@@ -692,9 +682,6 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                     </span>
                   </div>
                 ))}
-                {evs.length > 3 && (
-                  <p className="text-[11px] text-muted-foreground px-1">+{evs.length - 3} mais</p>
-                )}
               </div>
             </div>
           )
