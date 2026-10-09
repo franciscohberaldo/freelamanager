@@ -114,6 +114,14 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none", de
     e.preventDefault()
     if (!form.job_id) { toast.error("Selecione um job"); return }
     setLoading(true)
+    const { data: existing, error: checkError } = await supabase.from("daily_logs")
+      .select("id").eq("job_id", form.job_id).eq("date", form.date)
+    if (checkError) { toast.error("Erro ao verificar a data"); setLoading(false); return }
+    if (existing?.some(d => (isCreate || isDuplicate) || d.id !== log?.id)) {
+      toast.error("Este job já tem uma diária nesta data. Edite o registro existente.")
+      setLoading(false)
+      return
+    }
 
     const roundedHours = roundHours(form.hours_worked, hourRounding)
     const payload = {

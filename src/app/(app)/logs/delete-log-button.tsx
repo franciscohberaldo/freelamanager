@@ -12,13 +12,14 @@ interface Props {
   logId: string
   logDate: string
   jobName: string
+  className?: string
 }
 
 /**
  * Deletes a daily-log entry. A log already billed on an invoice (invoice_items.log_id)
  * cannot be deleted — removing it would silently break the invoice's audit trail.
  */
-export function DeleteLogButton({ logId, logDate, jobName }: Props) {
+export function DeleteLogButton({ logId, logDate, jobName, className = "" }: Props) {
   const [open, setOpen] = useState(false)
   const [checking, setChecking] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -65,7 +66,8 @@ export function DeleteLogButton({ logId, logDate, jobName }: Props) {
     <>
       <Button
         variant="ghost" size="sm"
-        className="h-7 w-7 px-0 text-muted-foreground hover:text-destructive"
+        className={`h-7 w-7 px-0 text-muted-foreground hover:text-destructive ${className}`}
+        aria-label={`Excluir diária de ${logDate}`}
         title="Excluir registro"
         onClick={openDialog}
       >

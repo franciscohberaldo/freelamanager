@@ -33,10 +33,13 @@ export function GenerateDaysButton({ job, userId, existing }: Props) {
   if (allDays.length === 0) return null
 
   async function generate(includeWeekends: boolean) {
-    const dates = includeWeekends ? allDays : weekdays
-    if (dates.length === 0) { toast.info("Todos os dias úteis do período já têm diária."); return }
+    if (busy) return
     setBusy(true)
     const supabase = createClient()
+    const { data: saved, error: readError } = await supabase.from("daily_logs").select("date").eq("job_id", job.id)
+    if (readError) { toast.error("Erro ao verificar diárias existentes"); setBusy(false); return }
+    const dates = missingDays(job, (saved ?? []).map(d => d.date), includeWeekends)
+    if (dates.length === 0) { toast.info("Todos os dias do período já têm diária."); setBusy(false); router.refresh(); return }
     const { error } = await supabase.from("daily_logs").insert(dates.map(d => logForDay(job, d, userId)))
     if (error) { toast.error(`Erro ao gerar diárias: ${error.message}`); setBusy(false); return }
     toast.success(`${dates.length} ${dates.length === 1 ? "diária criada" : "diárias criadas"}`)
