@@ -28,15 +28,18 @@ export function NfRequestDialog({ invoiceId, jobId, open, onClose }: {
   const [body, setBody] = useState("")
   const [bankBlock, setBankBlock] = useState<string | null>(null)
   const [withBank, setWithBank] = useState(false)
+  const [amountBrl, setAmountBrl] = useState("")
 
   useEffect(() => {
     if (!open) return
     setLoading(true)
+    setTo(null); setSubject(""); setBody(""); setAmountBrl("")
     fetch(`/api/invoices/nf-request?${target}`)
       .then(r => r.json())
       .then(d => {
         if (d.error) { toast.error(d.error); return }
         setTo(d.to); setSubject(d.subject); setBody(d.body)
+        setAmountBrl(d.amountBrl > 0 ? String(d.amountBrl) : "")
         setBankBlock(d.bankBlock ?? null); setWithBank(false)
       })
       .catch(() => toast.error("Erro ao montar o pedido"))
@@ -53,11 +56,13 @@ export function NfRequestDialog({ invoiceId, jobId, open, onClose }: {
   }
 
   async function send() {
+    const receivedBrl = Number(amountBrl)
+    if (!Number.isFinite(receivedBrl) || receivedBrl <= 0) { toast.error("Informe o valor recebido em reais"); return }
     setSending(true)
     const res = await fetch("/api/invoices/nf-request", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ invoiceId, jobId, subject, body }),
+      body: JSON.stringify({ invoiceId, jobId, subject, body, amountBrl: receivedBrl }),
     })
     const d = await res.json()
     if (res.ok) { toast.success("Pedido enviado ao contador"); router.refresh(); onClose() }
@@ -69,13 +74,26 @@ export function NfRequestDialog({ invoiceId, jobId, open, onClose }: {
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Pedir NF ao contador</DialogTitle>
+          <DialogTitle>Pedir NF e guia de imposto ao contador</DialogTitle>
           <DialogDescription>{to ? `Para: ${to}` : "Cadastre o e-mail do contador em Configurações."}</DialogDescription>
         </DialogHeader>
         {loading ? (
           <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /></div>
         ) : (
           <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="nf-received-brl">Valor recebido em reais (R$)</Label>
+              <Input id="nf-received-brl" type="number" step="0.01" min="0.01" value={amountBrl} placeholder="Ex.: 4439,84" onChange={e => {
+                const value = e.target.value
+                setAmountBrl(value)
+                const number = Number(value)
+                if (value && Number.isFinite(number) && number > 0) {
+                  const line = `Valor: ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(number).replace(/\u00a0/g, " ")}`
+                  setBody(text => /^Valor:.*$/m.test(text) ? text.replace(/^Valor:.*$/m, line) : `${text.trimEnd()}\n\n${line}`)
+                }
+              }} />
+              <p className="text-xs text-muted-foreground">Informe o valor recebido após o câmbio. O pedido solicita ao contador a emissão da NF e da guia de imposto em reais.</p>
+            </div>
             <div className="space-y-1">
               <Label>Assunto</Label>
               <Input value={subject} onChange={e => setSubject(e.target.value)} />
@@ -104,7 +122,7 @@ export function NfRequestDialog({ invoiceId, jobId, open, onClose }: {
         )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={send} disabled={sending || loading || !to}>
+          <Button onClick={send} disabled={sending || loading || !to || !amountBrl || Number(amountBrl) <= 0}>
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Enviar
           </Button>
         </DialogFooter>

@@ -489,7 +489,7 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
           <DropdownMenuLabel className="text-xs text-muted-foreground font-normal flex items-center gap-1.5">
             <Receipt className="w-3.5 h-3.5" /> Nota fiscal · {NF_STATUS_LABELS[nfStatus] ?? nfStatus}
           </DropdownMenuLabel>
-          {canTransition(nfStatus, "requested") && (
+          {(canTransition(nfStatus, "requested") || nfStatus === "not_required") && (
             <DropdownMenuItem onClick={() => setNfOpen(true)} className="pl-6">Pedir NF ao contador</DropdownMenuItem>
           )}
           {canTransition(nfStatus, "issued") && (

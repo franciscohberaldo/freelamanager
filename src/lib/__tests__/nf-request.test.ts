@@ -16,6 +16,11 @@ const base = {
 }
 
 describe("buildNfRequest", () => {
+  it("asks the accountant for the tax payment guide in reais when requested", () => {
+    const { body } = buildNfRequest({ ...base, requestTaxGuide: true })
+    expect(body).toContain("guia de arrecadação de imposto em reais")
+    expect(body).toContain("Valor: R$ 15.000,00")
+  })
   it("is the e-mail the accountant already reads", () => {
     const { subject, body } = buildNfRequest(base)
     expect(subject).toBe("[Estudio Judite] Emissão de Nota Fiscal")

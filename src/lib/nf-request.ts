@@ -12,6 +12,7 @@ export type NfRequestInput = {
   amountBrl: number
   dueDate: string | null
   nfRules: string | null
+  requestTaxGuide?: boolean
 }
 
 const brl = (v: number) =>
@@ -83,6 +84,7 @@ export function buildNfRequest(i: NfRequestInput): { subject: string; body: stri
   if (i.poNumber) lines.push(`"Número de PO: ${i.poNumber}"`)
 
   if (i.nfRules?.trim()) lines.push("", "Observações:", i.nfRules.trim())
+  if (i.requestTaxGuide) lines.push("", "Por favor, emitir também a guia de arrecadação de imposto em reais referente ao valor recebido informado acima e encaminhá-la para pagamento.")
 
   const company = shortCompany(i.companyName)
   const subject = company ? `[${company}] Emissão de Nota Fiscal` : "Emissão de Nota Fiscal"

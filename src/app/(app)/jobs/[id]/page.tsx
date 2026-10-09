@@ -73,7 +73,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
   // only an invoice still waiting on its NF can be sent to the accountant
   const nfCandidates = jobInvoices
     .filter(i => i.status !== "cancelled")
-    .filter(i => canTransition((i.nf_status ?? "not_required") as NfStatus, "requested"))
+    .filter(i => i.nf_status === "not_required" || canTransition((i.nf_status ?? "not_required") as NfStatus, "requested"))
     .map(i => ({ id: i.id, label: i.seq_number ?? i.invoice_number }))
 
   return (

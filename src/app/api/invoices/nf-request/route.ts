@@ -51,9 +51,9 @@ async function loadJob(jobId: string, userId: string) {
 }
 
 /** A job pays for its own request: the closed price and the end date stand in for an invoice. */
-function buildFromJob(job: JobRow, settings: UserSettings | null) {
+function buildFromJob(job: JobRow, settings: UserSettings | null, receivedBrl?: number) {
   const client = job.clients
-  const amountBrl = job.currency === "BRL" ? (job.contract_value ?? 0) : 0
+  const amountBrl = receivedBrl ?? (job.currency === "BRL" ? (job.contract_value ?? 0) : 0)
   const built = buildNfRequest({
     companyName: settings?.company_name ?? settings?.legal_name ?? null,
     clientName: client?.name ?? job.name,
@@ -66,14 +66,15 @@ function buildFromJob(job: JobRow, settings: UserSettings | null) {
     amountBrl,
     dueDate: job.end_date,
     nfRules: client?.nf_rules ?? null,
+    requestTaxGuide: true,
   })
   return { ...built, amountBrl }
 }
 
-function buildFromInvoice(invoice: InvoiceRow, settings: UserSettings | null) {
+function buildFromInvoice(invoice: InvoiceRow, settings: UserSettings | null, receivedBrl?: number) {
   const job = invoice.jobs
   const client = job?.clients ?? null
-  const amountBrl = invoice.nf_amount_brl ?? (invoice.currency === "BRL" ? invoice.total : 0)
+  const amountBrl = receivedBrl ?? invoice.nf_amount_brl ?? (invoice.currency === "BRL" ? invoice.total : 0)
   const built = buildNfRequest({
     companyName: settings?.company_name ?? settings?.legal_name ?? null,
     clientName: client?.name ?? job?.name ?? "Cliente",
@@ -86,14 +87,18 @@ function buildFromInvoice(invoice: InvoiceRow, settings: UserSettings | null) {
     amountBrl,
     dueDate: invoice.due_date,
     nfRules: client?.nf_rules ?? null,
+    requestTaxGuide: true,
   })
   return { ...built, amountBrl }
 }
 
 /** Send the request to the accountant, log it in nf_requests and move the invoice to "requested". */
 export async function POST(request: NextRequest) {
-  const { invoiceId, jobId, subject: customSubject, body: customBody } = await request.json().catch(() => ({}))
+  const { invoiceId, jobId, subject: customSubject, body: customBody, amountBrl: receivedBrl } = await request.json().catch(() => ({}))
   if (!invoiceId && !jobId) return NextResponse.json({ error: "invoiceId ou jobId obrigatório" }, { status: 400 })
+  if (receivedBrl !== undefined && (typeof receivedBrl !== "number" || !Number.isFinite(receivedBrl) || receivedBrl <= 0 || receivedBrl > 9999999999.99)) {
+    return NextResponse.json({ error: "Informe um valor recebido em reais maior que zero" }, { status: 400 })
+  }
 
   const authClient = await createClient()
   const { data: { user } } = await authClient.auth.getUser()
@@ -110,20 +115,15 @@ export async function POST(request: NextRequest) {
   if (jobId && !job) return NextResponse.json({ error: "Job não encontrado" }, { status: 404 })
   if (!settings?.accountant_email) return NextResponse.json({ error: "Cadastre o e-mail do contador em Configurações" }, { status: 400 })
 
-  if (invoice) {
-    try { assertTransition(invoice.nf_status as NfStatus, "requested") }
-    catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 409 }) }
+  const built = invoice ? buildFromInvoice(invoice, settings, receivedBrl) : buildFromJob(job!, settings, receivedBrl)
+  if (!Number.isFinite(built.amountBrl) || built.amountBrl <= 0) {
+    return NextResponse.json({ error: "Informe o valor recebido em reais no pedido ao contador" }, { status: 400 })
   }
-
-  const built = invoice ? buildFromInvoice(invoice, settings) : buildFromJob(job!, settings)
-  if (!built.amountBrl) {
-    // The NF is always in reais; a job in another currency only knows that figure once an
-    // invoice has been paid and its nf_amount_brl recorded.
-    const why = invoice ? "Valor em reais da NF não definido"
-      : job!.currency !== "BRL"
-        ? `O job é em ${job!.currency}: o valor da NF em reais vem da invoice, crie uma para pedir a NF`
-        : "Defina o valor do contrato do job para pedir a NF"
-    return NextResponse.json({ error: why }, { status: 400 })
+  if (invoice) {
+    // A positive BRL receipt lets a foreign invoice enter the NF workflow.
+    const from = invoice.nf_status === "not_required" && built.amountBrl > 0 ? "pending" : invoice.nf_status
+    try { assertTransition(from as NfStatus, "requested") }
+    catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 409 }) }
   }
 
   const subject = typeof customSubject === "string" && customSubject.trim() ? customSubject : built.subject
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
   // Only an invoice carries the NF's lifecycle; a request made from the job just goes out.
   if (invoice) {
     await supabase.from("invoices")
-      .update({ nf_status: "requested", nf_requested_at: new Date().toISOString() })
+      .update({ nf_status: "requested", nf_requested_at: new Date().toISOString(), nf_amount_brl: built.amountBrl })
       .eq("id", invoice.id)
   }
   return NextResponse.json({ ok: true, requestId: req?.id })
@@ -213,16 +213,16 @@ export async function GET(request: NextRequest) {
     const { invoice, settings } = await loadInvoice(invoiceId, user.id)
     if (!invoice) return NextResponse.json({ error: "Invoice não encontrado" }, { status: 404 })
     if (invoice.status === "cancelled") return NextResponse.json({ error: "Esta invoice foi cancelada" }, { status: 409 })
-    const { subject, body } = buildFromInvoice(invoice, settings)
+    const { subject, body, amountBrl } = buildFromInvoice(invoice, settings)
     return NextResponse.json({
-      subject, body, to: settings?.accountant_email ?? null, bankBlock: bankBlockOf(settings, invoice.currency),
+      subject, body, amountBrl, to: settings?.accountant_email ?? null, bankBlock: bankBlockOf(settings, invoice.currency),
     })
   }
 
   const { job, settings } = await loadJob(jobId!, user.id)
   if (!job) return NextResponse.json({ error: "Job não encontrado" }, { status: 404 })
-  const { subject, body } = buildFromJob(job, settings)
+  const { subject, body, amountBrl } = buildFromJob(job, settings)
   return NextResponse.json({
-    subject, body, to: settings?.accountant_email ?? null, bankBlock: bankBlockOf(settings, job.currency),
+    subject, body, amountBrl, to: settings?.accountant_email ?? null, bankBlock: bankBlockOf(settings, job.currency),
   })
 }
