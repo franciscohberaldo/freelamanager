@@ -128,17 +128,18 @@ export function summarizeJob(
   fallback?: { start_date: string | null; end_date: string | null },
 ): JobSummary {
   const byCurrency = new Map<string, number>()
-  for (const i of invoices) byCurrency.set(i.currency, (byCurrency.get(i.currency) ?? 0) + i.total)
+  const activeInvoices = invoices.filter(i => i.status !== "cancelled")
+  for (const i of activeInvoices) byCurrency.set(i.currency, (byCurrency.get(i.currency) ?? 0) + i.total)
 
   const billing: BillingStatus =
-    invoices.length === 0 ? "no_invoice"
-    : invoices.every(i => i.status === "paid") ? "received"
+    activeInvoices.length === 0 ? "no_invoice"
+    : activeInvoices.every(i => i.status === "paid") ? "received"
     : "receivable"
 
   const seqLabels = invoices.map(i => {
     const label = formatSeqNumber(i.seq_number, i.invoice_number)
     const code = NF_SERIES_CODES[effectiveNfSeries(i.nf_series, i.nf_issued_at ?? i.period_start)]
-    return `${label} ${code}`
+    return `${label} ${code}${i.status === "cancelled" ? " (Cancelada)" : ""}`
   })
 
   const nfDates = invoices.map(i => i.nf_issued_at)
@@ -161,7 +162,7 @@ export function summarizeJob(
     nfFrom: minOf(nfDates),
     nfTo: maxOf(nfDates),
     billing,
-    nfPending: invoices.some(i => i.nf_status === "pending" || i.nf_status === "requested"),
+    nfPending: activeInvoices.some(i => i.nf_status === "pending" || i.nf_status === "requested"),
     seqNum: topSeq?.num ?? null,
     seqSeries: topSeq?.series ?? null,
     // Every invoice listed, one entry per NF — never collapsed into a count.

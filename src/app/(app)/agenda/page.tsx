@@ -56,7 +56,7 @@ export default async function AgendaPage() {
   for (const d of documents ?? []) docsByJob.set(d.job_id, [...(docsByJob.get(d.job_id) ?? []), d])
   const jobsWithStage = (jobs ?? []).map(j => ({
     ...j,
-    invoice_numbers: [...new Set((invoices ?? []).filter(i => i.job_id === j.id).map(i => i.seq_number ?? i.invoice_number))],
+    invoice_numbers: [...new Set((invoices ?? []).filter(i => i.job_id === j.id).map(i => `${i.seq_number ?? i.invoice_number}${i.status === "cancelled" ? " (Cancelada)" : ""}`))],
     stage: jobStage(j, invoicesByJob.get(j.id) ?? [], docsByJob.get(j.id) ?? []),
   }))
 

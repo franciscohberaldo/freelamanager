@@ -17,6 +17,12 @@ const inv = (o: Partial<HistoryInvoice> = {}): HistoryInvoice => ({
 })
 
 describe("summarizeJob", () => {
+  it("keeps cancelled invoices in history without counting them as receivables", () => {
+    const s = summarizeJob([inv({ seq_number: "0108", status: "cancelled" as HistoryInvoice["status"] })])
+    expect(s.totals).toEqual([])
+    expect(s.billing).toBe("no_invoice")
+    expect(s.invoiceLabel).toContain("Cancelada")
+  })
   it("sums invoice totals per currency", () => {
     const s = summarizeJob([inv({ total: 19200 }), inv({ total: 19200 })])
     expect(s.totals).toEqual([{ currency: "BRL", amount: 38400 }])

@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
         .from("invoices")
         .update({ status: "paid", paid_at: new Date().toISOString() })
         .eq("id", invoiceId)
+        .neq("status", "cancelled")
         .eq("user_id", userId)
 
       // Update payment link status

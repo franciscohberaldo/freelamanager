@@ -23,6 +23,7 @@ interface PortalInvoicesProps {
 }
 
 const INV_STATUS: Record<string, { label: string; class: string }> = {
+  cancelled: { label: "Cancelada", class: "bg-gray-100 text-gray-600" },
   draft:   { label: "Rascunho", class: "bg-gray-100 text-gray-600" },
   sent:    { label: "Enviado",  class: "bg-amber-100 text-amber-700" },
   paid:    { label: "Pago",     class: "bg-green-100 text-green-700" },

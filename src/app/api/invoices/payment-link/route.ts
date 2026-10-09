@@ -12,12 +12,13 @@ export async function POST(req: NextRequest) {
 
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("id, invoice_number, total, currency, jobs(name, clients(name, email))")
+    .select("id, invoice_number, status, total, currency, jobs(name, clients(name, email))")
     .eq("id", invoiceId)
     .eq("user_id", user.id)
     .single()
 
   if (!invoice) return NextResponse.json({ error: "Invoice not found" }, { status: 404 })
+  if (invoice.status === "cancelled") return NextResponse.json({ error: "Esta invoice foi cancelada" }, { status: 409 })
 
   const stripeKey = process.env.STRIPE_SECRET_KEY
   if (!stripeKey) {

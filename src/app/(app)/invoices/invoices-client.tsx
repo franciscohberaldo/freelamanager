@@ -14,6 +14,7 @@ import { NF_STATUS_LABELS, type NfStatus } from "@/lib/nf-status"
 import { PageHeader } from "@/components/page-header"
 
 const statusMap: Record<string, { label: string; variant: "default" | "outline" | "success" | "warning" | "destructive" }> = {
+  cancelled: { label: "Cancelada", variant: "outline" },
   draft:   { label: "Rascunho", variant: "outline" },
   sent:    { label: "Enviado",  variant: "warning" },
   paid:    { label: "Pago",     variant: "success" },
@@ -26,6 +27,7 @@ interface Invoice {
   seq_number: string | null
   nf_status: string
   status: string
+  cancelled_at?: string | null
   period_start: string
   period_end: string
   total_hours_billed: number
@@ -143,6 +145,9 @@ export function InvoicesClient({ invoices, invoicesCount, paidMap, jobs }: Props
                   <p className="text-xs text-muted-foreground">
                     {formatDate(inv.period_start)} – {formatDate(inv.period_end)} · {inv.total_hours_billed}h faturadas
                   </p>
+                  {inv.cancelled_at && (
+                    <p className="text-xs text-muted-foreground mt-0.5">Cancelada em {formatDate(inv.cancelled_at)}</p>
+                  )}
                   {inv.sent_at && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
                       Enviado em {formatDate(inv.sent_at)}

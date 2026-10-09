@@ -22,6 +22,10 @@ describe("jobStage", () => {
     expect(jobStage(finished, [], [{ kind: "invoice" }])).toBe("payment")
   })
 
+  it("asks for a replacement when the attached invoice was cancelled", () => {
+    expect(jobStage(finished, [{ status: "cancelled" }], [{ kind: "invoice" }])).toBe("invoice")
+  })
+
   it("then the NF, then the DAS", () => {
     expect(jobStage(finished, [{ status: "paid" }], [])).toBe("nf")
     expect(jobStage(finished, [{ status: "paid", nf_status: "issued" }], [])).toBe("das")

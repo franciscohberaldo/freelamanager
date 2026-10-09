@@ -108,6 +108,7 @@ export default async function DashboardPage() {
       .select("id, seq_number, invoice_number, nf_status, nf_amount_brl, total, currency, nf_requested_at, sent_at, created_at, jobs(name)")
       .eq("user_id", user!.id)
       .in("nf_status", ["pending", "requested"])
+      .neq("status", "cancelled")
       .order("created_at"),
   ])
 

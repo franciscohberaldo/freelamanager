@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     .single()
 
   if (!invoice) return NextResponse.json({ error: "Invoice não encontrado" }, { status: 404 })
+  if (invoice.status === "cancelled") return NextResponse.json({ error: "Esta invoice foi cancelada" }, { status: 409 })
 
   const job = invoice.jobs as { name: string; currency: string; billing_mode: "hourly" | "daily" | "fixed"; project_code: string | null; clients: { id: string; name: string; email: string | null } | null } | null
 

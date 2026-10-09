@@ -64,6 +64,7 @@ async function run(req: NextRequest) {
       .eq("user_id", uid)
       .eq("job_id", jobId)
       .eq("period_start", periodStart)
+      .neq("status", "cancelled")
       .maybeSingle()
     if (existing) { skipped.push(`${jobId}:exists`); continue }
 

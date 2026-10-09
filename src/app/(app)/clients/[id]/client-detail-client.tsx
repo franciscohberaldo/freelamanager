@@ -53,6 +53,7 @@ const JOB_STATUS: Record<string, string> = {
   proposal: "Proposta", active: "Ativo", paused: "Pausado", completed: "Finalizado",
 }
 const INV_STATUS: Record<string, { label: string; color: string }> = {
+  cancelled: { label: "Cancelada", color: "text-muted-foreground" },
   draft:   { label: "Rascunho", color: "text-muted-foreground" },
   sent:    { label: "Enviado",  color: "text-amber-600" },
   paid:    { label: "Pago",     color: "text-green-600" },

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   const { data: invoice, error: invError } = await supabase
     .from("invoices")
-    .select("id, user_id, job_id, jobs(client_id)")
+    .select("id, user_id, job_id, status, jobs(client_id)")
     .eq("id", invoice_id)
     .eq("user_id", auth.user_id)
     .single()
@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
   if (job.client_id !== auth.client_id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
+
+  if (invoice.status === "cancelled") return NextResponse.json({ error: "Esta invoice foi cancelada" }, { status: 409 })
 
   const confirmedAt = new Date().toISOString()
 

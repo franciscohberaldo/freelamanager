@@ -7,7 +7,7 @@ import { assertTransition, type NfStatus } from "@/lib/nf-status"
 import { replyAddress } from "@/lib/inbound-email"
 import type { UserSettings } from "@/lib/supabase/types"
 
-const INVOICE_SELECT = "id, seq_number, invoice_number, currency, total, due_date, nf_status, nf_amount_brl, jobs(name, nf_description, po_number, clients(name, legal_name, cnpj, state_registration, address, nf_rules))"
+const INVOICE_SELECT = "id, seq_number, invoice_number, status, currency, total, due_date, nf_status, nf_amount_brl, jobs(name, nf_description, po_number, clients(name, legal_name, cnpj, state_registration, address, nf_rules))"
 
 /** What the tomador's block of the e-mail is written from. */
 type ClientFiscal = {
@@ -17,7 +17,7 @@ type ClientFiscal = {
 
 type InvoiceRow = {
   id: string; seq_number: string | null; invoice_number: string; currency: string; total: number
-  due_date: string | null; nf_status: string; nf_amount_brl: number | null
+  due_date: string | null; nf_status: string; nf_amount_brl: number | null; status: string
   jobs: {
     name: string; nf_description: string | null; po_number: string | null
     clients: ClientFiscal | null
@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
   const job = "job" in loaded ? loaded.job : null
   const { supabase, settings } = loaded
   if (invoiceId && !invoice) return NextResponse.json({ error: "Invoice não encontrado" }, { status: 404 })
+  if (invoice?.status === "cancelled") return NextResponse.json({ error: "Esta invoice foi cancelada" }, { status: 409 })
   if (jobId && !job) return NextResponse.json({ error: "Job não encontrado" }, { status: 404 })
   if (!settings?.accountant_email) return NextResponse.json({ error: "Cadastre o e-mail do contador em Configurações" }, { status: 400 })
 
@@ -211,6 +212,7 @@ export async function GET(request: NextRequest) {
   if (invoiceId) {
     const { invoice, settings } = await loadInvoice(invoiceId, user.id)
     if (!invoice) return NextResponse.json({ error: "Invoice não encontrado" }, { status: 404 })
+    if (invoice.status === "cancelled") return NextResponse.json({ error: "Esta invoice foi cancelada" }, { status: 409 })
     const { subject, body } = buildFromInvoice(invoice, settings)
     return NextResponse.json({
       subject, body, to: settings?.accountant_email ?? null, bankBlock: bankBlockOf(settings, invoice.currency),

@@ -204,9 +204,7 @@ function PaymentDialog({
 }
 
 /**
- * Removing an invoice takes its lines, payments, NF requests and payment links with it
- * (the database cascades); e-mails about it stay in the inbox, unlinked. The sequence
- * number is not reused. A paid invoice or one with an issued NF gets a louder warning.
+ * Cancellation preserves the number, items, payments and paperwork in history.
  */
 function DeleteInvoiceDialog({
   invoice, paidAmount, open, onClose,
@@ -223,9 +221,9 @@ function DeleteInvoiceDialog({
 
   async function remove() {
     setDeleting(true)
-    const { error } = await supabase.from("invoices").delete().eq("id", invoice.id)
-    if (error) { toast.error(`Erro ao excluir invoice: ${error.message}`); setDeleting(false); return }
-    toast.success(`Invoice ${label} excluída`)
+    const { data, error } = await supabase.from("invoices").update({ status: "cancelled" }).eq("id", invoice.id).select("id").single()
+    if (error || !data) { toast.error("Erro ao cancelar invoice"); setDeleting(false); return }
+    toast.success(`Invoice ${label} cancelada`)
     setDeleting(false)
     onClose()
     router.refresh()
@@ -235,29 +233,29 @@ function DeleteInvoiceDialog({
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Excluir invoice {label}?</DialogTitle>
+          <DialogTitle>Cancelar invoice {label}?</DialogTitle>
           <DialogDescription>
-            Saem junto as linhas, os pagamentos registrados e os pedidos de NF desta invoice.
-            E-mails sobre ela ficam na caixa de entrada, sem vínculo. O número {label} não volta a ser usado.
+            A invoice ficará no histórico como Cancelada, com seus itens e pagamentos preservados.
+            As diárias ficam disponíveis para uma nova invoice. O número {label} não volta a ser usado.
           </DialogDescription>
         </DialogHeader>
 
         {(hasMoney || hasNf) && (
           <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-sm text-amber-800 dark:text-amber-300 space-y-1">
             {hasMoney && (
-              <p>Esta invoice já tem pagamento registrado{invoice.status === "paid" ? " e está marcada como paga" : ""}. O histórico financeiro perde esse recebimento.</p>
+              <p>Esta invoice já tem pagamento registrado. O recebimento continuará no histórico financeiro.</p>
             )}
             {hasNf && (
-              <p>A nota fiscal {nfNumber ?? ""} já foi emitida sobre ela. Excluir a invoice não cancela a NF na prefeitura.</p>
+              <p>A nota fiscal {nfNumber ?? ""} já foi emitida sobre ela. Cancelar a invoice não cancela a NF na prefeitura.</p>
             )}
           </div>
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={deleting}>Cancelar</Button>
+          <Button variant="outline" onClick={onClose} disabled={deleting}>Voltar</Button>
           <Button variant="destructive" onClick={remove} disabled={deleting}>
             {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            Excluir
+            Cancelar invoice
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -423,6 +421,10 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
     a.click()
     URL.revokeObjectURL(url)
     setLoading(false)
+  }
+
+  if (invoice.status === "cancelled") {
+    return <span className="text-xs text-muted-foreground shrink-0">Cancelada</span>
   }
 
   return (

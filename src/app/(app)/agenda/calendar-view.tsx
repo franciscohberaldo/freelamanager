@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, parseISO, isSameMonth, isToday, addMonths, subMonths } from "date-fns"
-import { ptBR } from "date-fns/locale"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { format, startOfWeek, addDays, parseISO, isToday } from "date-fns"
+import { continuousCalendarDays } from "@/lib/calendar-days"
 import { ChevronLeft, ChevronRight, GripVertical } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -103,7 +103,9 @@ type DragItem = {
 const DAY_MS = 86_400_000
 
 export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJobs = [] }: Props) {
-  const [month, setMonth] = useState(new Date())
+  const [firstDay, setFirstDay] = useState(() => startOfWeek(addDays(new Date(), -7), { weekStartsOn: 0 }))
+  const [dayCount, setDayCount] = useState(28)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [dragOverDay, setDragOverDay] = useState<string | null>(null)
   const router = useRouter()
@@ -223,7 +225,8 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
       // A day already billed on an invoice cannot wander into another period.
       const { data: billed } = await supabase
         .from("invoice_items")
-        .select("invoice_id, invoices(invoice_number)")
+        .select("invoice_id, invoices!inner(invoice_number)")
+        .neq("invoices.status", "cancelled")
         .eq("log_id", item.id)
         .limit(1)
       const inv = billed?.[0]?.invoices as unknown as { invoice_number: string } | null
@@ -288,7 +291,8 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
   async function deleteLog(l: DayLog) {
     const { data: billed } = await supabase
       .from("invoice_items")
-      .select("invoice_id, invoices(invoice_number)")
+      .select("invoice_id, invoices!inner(invoice_number)")
+        .neq("invoices.status", "cancelled")
       .eq("log_id", l.id)
       .limit(1)
     const inv = billed?.[0]?.invoices as unknown as { invoice_number: string } | null
@@ -331,14 +335,20 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
       return j.start_date <= key && key <= end
     })
 
-  const days = useMemo(() => {
-    const start = startOfWeek(startOfMonth(month), { weekStartsOn: 0 })
-    const end   = endOfWeek(endOfMonth(month), { weekStartsOn: 0 })
-    const result: Date[] = []
-    let cur = start
-    while (cur <= end) { result.push(cur); cur = addDays(cur, 1) }
-    return result
-  }, [month])
+  const days = useMemo(() => continuousCalendarDays(firstDay, dayCount), [firstDay, dayCount])
+
+  useEffect(() => {
+    const target = loadMoreRef.current
+    if (!target) return
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        observer.disconnect()
+        setDayCount(count => count + 28)
+      }
+    }, { rootMargin: "300px" })
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [dayCount])
 
   // First/last visible day — spans that start before or end after the window still
   // offer their stretch edge on the window's boundary day.
@@ -427,24 +437,30 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
 
   return (
     <div className="bg-card border rounded-xl shadow-sm overflow-hidden">
-      {/* Month */}
+      {/* Continuous range */}
       <div className="grid grid-cols-[auto_1fr_auto] items-center px-4 py-4">
         <button
           type="button"
-          onClick={() => setMonth(m => subMonths(m, 1))}
-          aria-label="Mês anterior"
+          onClick={() => { setFirstDay(day => addDays(day, -28)); setDayCount(count => count + 28) }}
+          aria-label="Carregar quatro semanas anteriores"
+          title="Carregar semanas anteriores"
           className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
         <div className="text-center">
-          <p className="text-lg font-semibold tracking-tight capitalize">{format(month, "MMMM yyyy", { locale: ptBR })}</p>
-          <p className="text-sm text-muted-foreground">Visão mensal</p>
+          <p className="text-lg font-semibold tracking-tight">Calendário contínuo</p>
+          <p className="text-sm text-muted-foreground">{format(days[0], "dd/MM/yyyy")} – {format(days[days.length - 1], "dd/MM/yyyy")}</p>
+          <button type="button" className="mt-1 text-xs font-medium text-primary hover:underline" onClick={() => {
+            setFirstDay(startOfWeek(addDays(new Date(), -7), { weekStartsOn: 0 }))
+            setDayCount(28)
+          }}>Hoje</button>
         </div>
         <button
           type="button"
-          onClick={() => setMonth(m => addMonths(m, 1))}
-          aria-label="Próximo mês"
+          onClick={() => setDayCount(count => count + 28)}
+          aria-label="Carregar mais quatro semanas"
+          title="Carregar próximas semanas"
           className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
@@ -483,7 +499,6 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
           const key      = format(day, "yyyy-MM-dd")
           const evs      = eventsByDate[key] ?? []
           const dayLogs  = logsByDate[key] ?? []
-          const inMonth  = isSameMonth(day, month)
           const today    = isToday(day)
           const dayHolds = holdsForDay(key)
           // One entry per job per day, all in the job's lane so its days read as one
@@ -497,7 +512,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
           const loggedOn = (jobId: string, k: string) => (logsByDate[k] ?? []).some(l => l.job_id === jobId)
           return (
             <div
-              key={i}
+              key={key}
               onClick={() => setSelectedDay(key)}
               onDragOver={e => {
                 if (e.dataTransfer.types.includes(DND_TYPE)) { e.preventDefault(); setDragOverDay(key) }
@@ -513,10 +528,10 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
             >
               <div className="flex items-center justify-between mb-1.5">
                 <span className={cn(
-                  "text-sm w-7 h-7 flex items-center justify-center rounded-full tabular",
-                  today ? "bg-primary text-primary-foreground font-semibold" : inMonth ? "text-foreground font-medium" : "text-muted-foreground/50",
+                  "text-sm min-w-7 h-7 px-1.5 flex items-center justify-center rounded-full tabular-nums",
+                  today ? "bg-primary text-primary-foreground font-semibold" : "text-foreground font-medium",
                 )}>
-                  {format(day, "d")}
+                  {format(day, "dd/MM")}
                 </span>
               </div>
 
@@ -686,6 +701,12 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
             </div>
           )
         })}
+      </div>
+
+      <div ref={loadMoreRef} className="flex justify-center border-t p-4">
+        <button type="button" onClick={() => setDayCount(count => count + 28)} className="text-sm font-medium text-primary hover:underline">
+          Carregar mais semanas
+        </button>
       </div>
 
       <DayDialog

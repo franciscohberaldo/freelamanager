@@ -121,7 +121,7 @@ export function CreateInvoiceDialog({
         const rows = all ?? []
         let billed = new Set<string>()
         if (rows.length > 0) {
-          const { data: items } = await supabase.from("invoice_items").select("log_id").in("log_id", rows.map(r => r.id))
+          const { data: items } = await supabase.from("invoice_items").select("log_id, invoices!inner(status)").neq("invoices.status", "cancelled").in("log_id", rows.map(r => r.id))
           billed = new Set((items ?? []).map(i => i.log_id as string))
         }
         if (cancelled) return
@@ -171,7 +171,7 @@ export function CreateInvoiceDialog({
       const fetched = data ?? []
       const map: Record<string, string> = {}
       if (fetched.length > 0) {
-        const { data: jobInvoices } = await supabase.from("invoices").select("id, invoice_number").eq("job_id", jobId)
+        const { data: jobInvoices } = await supabase.from("invoices").select("id, invoice_number").eq("job_id", jobId).neq("status", "cancelled")
         const invoiceIds = (jobInvoices ?? []).map(i => i.id)
         if (invoiceIds.length > 0) {
           const { data: items } = await supabase

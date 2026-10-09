@@ -32,7 +32,8 @@ export function DeleteLogButton({ logId, logDate, jobName }: Props) {
     setBilledOn(null)
     const { data: items } = await supabase
       .from("invoice_items")
-      .select("invoice_id")
+      .select("invoice_id, invoices!inner(status)")
+      .neq("invoices.status", "cancelled")
       .eq("log_id", logId)
       .limit(1)
     if (items && items.length > 0) {

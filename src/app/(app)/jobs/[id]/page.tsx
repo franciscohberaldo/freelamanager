@@ -28,7 +28,7 @@ const invoiceVariant: Record<string, "default" | "success" | "warning" | "outlin
 }
 
 const INVOICE_STATUS_LABELS: Record<string, string> = {
-  draft: "Rascunho", sent: "Enviada", paid: "Paga", overdue: "Atrasada",
+  cancelled: "Cancelada", draft: "Rascunho", sent: "Enviada", paid: "Paga", overdue: "Atrasada",
 }
 
 export default async function JobPage({ params }: { params: { id: string } }) {
@@ -72,6 +72,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
 
   // only an invoice still waiting on its NF can be sent to the accountant
   const nfCandidates = jobInvoices
+    .filter(i => i.status !== "cancelled")
     .filter(i => canTransition((i.nf_status ?? "not_required") as NfStatus, "requested"))
     .map(i => ({ id: i.id, label: i.seq_number ?? i.invoice_number }))
 

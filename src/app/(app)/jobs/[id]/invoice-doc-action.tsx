@@ -53,7 +53,7 @@ export function InvoiceDocAction({
   const supabase = createClient()
 
   // the invoice to act on: the newest draft, else the newest one whatever its state
-  const target = [...invoices].sort((a, b) => b.invoice_number.localeCompare(a.invoice_number))
+  const target = invoices.filter(i => i.status !== "cancelled").sort((a, b) => b.invoice_number.localeCompare(a.invoice_number))
     .sort((a, b) => Number(a.status !== "draft") - Number(b.status !== "draft"))[0]
   const label = target ? (target.seq_number ?? target.invoice_number) : null
   const lang = target ? invoiceLangFor(target.currency) : "pt"

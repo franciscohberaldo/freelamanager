@@ -76,6 +76,7 @@ export interface MonthlyViewProps {
 }
 
 const invoiceStatusMap: Record<string, { label: string; variant: "default" | "success" | "warning" | "destructive" | "outline" }> = {
+  cancelled: { label: "Cancelada", variant: "outline" },
   draft:   { label: "Rascunho", variant: "outline" },
   sent:    { label: "Enviado",  variant: "warning" },
   paid:    { label: "Pago",     variant: "success" },
