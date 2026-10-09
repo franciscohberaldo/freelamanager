@@ -520,12 +520,17 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
               onDragLeave={() => setDragOverDay(d => (d === key ? null : d))}
               onDrop={e => onDrop(e, key)}
               className={cn(
-                "min-h-[240px] min-w-0 p-2 border-b cursor-pointer transition-colors",
+                "relative min-h-[240px] min-w-0 p-2 border-b cursor-pointer transition-colors",
                 i % 7 !== 0 && "border-l",
                 dragOverDay === key ? "bg-accent ring-2 ring-inset ring-primary" : today ? "bg-accent/40" : "hover:bg-muted/40",
               )}
               title={dayHolds.map(h => `${HOLD_TONE[h.type].label}: ${h.clients?.name ?? "—"}${h.jobs?.name ? ` · ${h.jobs.name}` : ""}`).join("\n") || undefined}
             >
+              <span
+                aria-hidden
+                className={cn("pointer-events-none absolute -inset-px z-20 border-b", i % 7 !== 0 && "border-l")}
+                style={{ borderColor: "color-mix(in srgb, hsl(var(--border)) 80%, black)" }}
+              />
               <div className="flex items-center justify-between mb-1.5">
                 <span className={cn(
                   "text-sm min-w-7 h-7 px-1.5 flex items-center justify-center rounded-full tabular-nums",
