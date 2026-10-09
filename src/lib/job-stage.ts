@@ -58,12 +58,13 @@ export function jobSteps(job: StageJob, invoices: StageInvoice[], documents: Sta
   const nfs      = invoices.filter(i => NF_DONE.has(i.nf_status ?? ""))
   const paid     = invoices.filter(i => i.status === "paid")
   const invoiceDoc = invoices.length > 0 && invoices.every(i => i.status === "cancelled") ? undefined : doc("invoice")
+  const nfDoc = nfs.length === 0 && invoices.some(i => i.nf_status === "cancelled") ? undefined : doc("nf")
 
   return [
     { stage: "work",    label: "Trabalho",    done: workDone,                              at: workDone ? job.end_date ?? null : null },
     { stage: "invoice", label: "Invoice",     done: sent.length > 0 || !!invoiceDoc,   at: earliest([...sent.map(i => i.sent_at ?? i.created_at), invoiceDoc?.uploaded_at]) },
     { stage: "payment", label: "Recebimento", done: paid.length > 0 || !!doc("payment_proof"), at: earliest([...paid.map(i => i.paid_at), doc("payment_proof")?.uploaded_at]) },
-    { stage: "nf",      label: "NF",          done: nfs.length > 0 || !!doc("nf"),         at: earliest([...nfs.map(i => i.nf_issued_at), doc("nf")?.uploaded_at]) },
+    { stage: "nf",      label: "NF",          done: nfs.length > 0 || !!nfDoc,         at: earliest([...nfs.map(i => i.nf_issued_at), nfDoc?.uploaded_at]) },
     { stage: "das",     label: "DAS",         done: !!doc("das_paid"),                     at: doc("das_paid")?.uploaded_at ?? null },
   ]
 }

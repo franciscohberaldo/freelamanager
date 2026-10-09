@@ -19,8 +19,8 @@ try {
   const { rows: [job] } = await db.query("select id, user_id from jobs limit 1")
   assert.ok(job, "An existing job is required for the rollback-only fixture")
   const { rows: [invoice] } = await db.query(
-    "insert into invoices (user_id, job_id, invoice_number, period_start, period_end) values ($1,$2,$3,'2026-10-09','2026-10-09') returning id",
-    [job.user_id, job.id, `cancellation-check-${randomUUID()}`],
+    "insert into invoices (user_id, job_id, invoice_number, period_start, period_end, nf_status, nf_number, nf_series, nf_issued_at, nf_amount_brl) values ($1,$2,$3,'2026-10-09','2026-10-09','issued',$4,'sao_paulo','2026-10-09',10) returning id, nf_number",
+    [job.user_id, job.id, `cancellation-check-${randomUUID()}`, String(90000000 + Math.floor(Math.random() * 999999))],
   )
   const { rows: [log] } = await db.query(
     "insert into daily_logs (user_id, job_id, date, hours_worked, hours_billed) values ($1,$2,'2026-10-09',1,1) returning id",
@@ -47,6 +47,19 @@ try {
   await db.query("update invoices set status='cancelled' where id=$1", [invoice.id])
   const { rows: [again] } = await db.query("select cancelled_at from invoices where id=$1", [invoice.id])
   assert.equal(again.cancelled_at.toISOString(), cancelled.cancelled_at.toISOString())
+  await db.query("update invoices set nf_status='cancelled', nf_number=null where id=$1", [invoice.id])
+  const { rows: [nf] } = await db.query("select status, nf_status, nf_number, nf_series, nf_amount_brl, nf_issued_at, nf_cancelled_at from invoices where id=$1", [invoice.id])
+  assert.equal(nf.status, "cancelled", "NF cancellation must not change the invoice status")
+  assert.equal(nf.nf_status, "cancelled")
+  assert.equal(nf.nf_number, invoice.nf_number)
+  assert.equal(nf.nf_series, "sao_paulo")
+  assert.equal(Number(nf.nf_amount_brl), 10)
+  assert.ok(nf.nf_issued_at)
+  assert.ok(nf.nf_cancelled_at)
+  await db.query("savepoint invalid_nf_reactivation")
+  await assert.rejects(db.query("update invoices set nf_status='sent' where id=$1", [invoice.id]), /permanecer no histórico/)
+  await db.query("rollback to savepoint invalid_nf_reactivation")
+  console.log("PASS: NF cancellation preserves number/series/amount/issue date and invoice status; records cancellation date; blocks reactivation")
   console.log("PASS: cancelled status/date, preserved items/payments, released daily log, blocked payment/reactivation, idempotent cancellation")
 } finally {
   await db.query("rollback").catch(() => {})

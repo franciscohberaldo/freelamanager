@@ -224,6 +224,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
                     </td>
                     <td className="p-2 font-mono">
                       {inv.nf_number ? formatNfNumber(effectiveNfSeries(inv.nf_series, inv.nf_issued_at), inv.nf_number) : <span className="text-muted-foreground font-sans">—</span>}
+                      {inv.nf_status === "cancelled" && <Badge variant="destructive" className="ml-2 font-sans">NF cancelada</Badge>}
                     </td>
                     <td className="p-1 text-right">
                       <InvoiceActions invoice={inv} clientEmail={client?.email ?? null} />

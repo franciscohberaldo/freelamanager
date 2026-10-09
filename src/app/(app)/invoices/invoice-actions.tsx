@@ -22,6 +22,7 @@ import type { InvoiceLang } from "@/lib/invoice-i18n"
 import { NF_STATUS_LABELS, canTransition, formatNfNumber, effectiveNfSeries, type NfStatus } from "@/lib/nf-status"
 import { NfRequestDialog } from "./nf-request-dialog"
 import { NfRegisterDialog } from "./nf-register-dialog"
+import { NfCancelDialog } from "./nf-cancel-dialog"
 import { SendEmailDialog } from "@/components/send-email-dialog"
 
 interface Props {
@@ -360,6 +361,7 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
   const [aiOpen, setAiOpen]           = useState(false)
   const [nfOpen, setNfOpen]           = useState(false)
   const [nfRegisterOpen, setNfRegisterOpen] = useState(false)
+  const [nfCancelOpen, setNfCancelOpen] = useState(false)
   const [sendLang, setSendLang]       = useState<InvoiceLang | null>(null)
   const [deleteOpen, setDeleteOpen]   = useState(false)
   const nfStatus = (invoice.nf_status ?? "not_required") as NfStatus
@@ -424,7 +426,12 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
   }
 
   if (invoice.status === "cancelled") {
-    return <span className="text-xs text-muted-foreground shrink-0">Cancelada</span>
+    return <>
+      {canTransition(nfStatus, "cancelled") ? (
+        <Button variant="outline" size="sm" onClick={() => setNfCancelOpen(true)}>Registrar NF cancelada</Button>
+      ) : <span className="text-xs text-muted-foreground shrink-0">Cancelada</span>}
+      <NfCancelDialog invoice={invoice} open={nfCancelOpen} onClose={() => setNfCancelOpen(false)} />
+    </>
   }
 
   return (
@@ -491,6 +498,11 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
           {canTransition(nfStatus, "sent") && (
             <DropdownMenuItem onClick={() => setNf({ nf_status: "sent", nf_sent_at: new Date().toISOString() }, "NF marcada como enviada")} className="pl-6">
               Marcar NF enviada ao cliente
+            </DropdownMenuItem>
+          )}
+          {canTransition(nfStatus, "cancelled") && (
+            <DropdownMenuItem onClick={() => setNfCancelOpen(true)} className="pl-6 text-destructive">
+              Registrar NF cancelada
             </DropdownMenuItem>
           )}
           {nfStatus === "requested" && (
@@ -568,6 +580,7 @@ export function InvoiceActions({ invoice, clientEmail, paidAmount = 0 }: Props) 
         open={nfRegisterOpen}
         onClose={() => setNfRegisterOpen(false)}
       />
+      <NfCancelDialog invoice={invoice} open={nfCancelOpen} onClose={() => setNfCancelOpen(false)} />
     </>
   )
 }

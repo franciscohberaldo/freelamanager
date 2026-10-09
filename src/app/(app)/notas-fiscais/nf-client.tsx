@@ -15,6 +15,7 @@ export type NfRow = Invoice & { jobs: { name: string; clients: { name: string; l
 
 const STATUS_VARIANT: Record<NfStatus, "outline" | "warning" | "default" | "success" | "destructive"> = {
   not_required: "outline", pending: "warning", requested: "default", issued: "success", sent: "success",
+  cancelled: "destructive",
 }
 
 const overdueSince = (r: NfRow) => r.nf_requested_at ?? r.sent_at ?? r.created_at
@@ -126,6 +127,7 @@ export function NfClient({ rows }: { rows: NfRow[] }) {
                   </td>
                   <td className="p-2">
                     <Badge variant={STATUS_VARIANT[r.nf_status]}>{NF_STATUS_LABELS[r.nf_status]}</Badge>
+                    {r.nf_cancelled_at && <p className="mt-1 text-xs text-muted-foreground">Cancelamento registrado em {formatDate(r.nf_cancelled_at)}</p>}
                     {late && <span className="ml-1 text-xs text-red-600">atrasada</span>}
                   </td>
                   <td className="p-2 text-right"><InvoiceActions invoice={r} clientEmail={null} paidAmount={0} /></td>

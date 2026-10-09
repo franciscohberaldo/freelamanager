@@ -30,6 +30,9 @@ describe("jobStage", () => {
     expect(jobStage(finished, [{ status: "paid" }], [])).toBe("nf")
     expect(jobStage(finished, [{ status: "paid", nf_status: "issued" }], [])).toBe("das")
   })
+  it("does not count a cancelled NF attachment as a valid issued note", () => {
+    expect(jobStage(finished, [{ status: "paid", nf_status: "cancelled" }], [{ kind: "nf" }])).toBe("nf")
+  })
 
   it("is done when the invoice is paid and everything before it is settled", () => {
     expect(jobStage(finished, [{ status: "paid", nf_status: "sent" }], [{ kind: "das_paid" }])).toBe("done")

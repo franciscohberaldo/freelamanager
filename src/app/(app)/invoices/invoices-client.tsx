@@ -28,6 +28,8 @@ interface Invoice {
   nf_status: string
   status: string
   cancelled_at?: string | null
+  nf_cancelled_at?: string | null
+  nf_number?: string | null
   period_start: string
   period_end: string
   total_hours_billed: number
@@ -137,7 +139,7 @@ export function InvoicesClient({ invoices, invoicesCount, paidMap, jobs }: Props
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-semibold">{inv.seq_number ?? `#${inv.invoice_number}`}</span>
                     <Badge variant={s.variant as "default"}>{s.label}</Badge>
-                    <Badge variant="outline" className="text-[10px]">{NF_STATUS_LABELS[inv.nf_status as NfStatus] ?? inv.nf_status}</Badge>
+                    <Badge variant={inv.nf_status === "cancelled" ? "destructive" : "outline"} className="text-[10px]">{NF_STATUS_LABELS[inv.nf_status as NfStatus] ?? inv.nf_status}{inv.nf_status === "cancelled" && inv.nf_number ? ` · ${inv.nf_number}` : ""}</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-0.5">
                     {job?.name} · {job?.clients?.name}
@@ -148,6 +150,7 @@ export function InvoicesClient({ invoices, invoicesCount, paidMap, jobs }: Props
                   {inv.cancelled_at && (
                     <p className="text-xs text-muted-foreground mt-0.5">Cancelada em {formatDate(inv.cancelled_at)}</p>
                   )}
+                  {inv.nf_cancelled_at && <p className="text-xs text-muted-foreground mt-0.5">Cancelamento da NF registrado em {formatDate(inv.nf_cancelled_at)}</p>}
                   {inv.sent_at && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
                       Enviado em {formatDate(inv.sent_at)}

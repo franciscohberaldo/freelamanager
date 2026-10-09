@@ -1,9 +1,10 @@
-export type NfStatus = "not_required" | "pending" | "requested" | "issued" | "sent"
+export type NfStatus = "not_required" | "pending" | "requested" | "issued" | "sent" | "cancelled"
 export type NfSeries = "paulinia" | "sao_paulo"
 
-export const NF_STATUSES: NfStatus[] = ["not_required", "pending", "requested", "issued", "sent"]
+export const NF_STATUSES: NfStatus[] = ["not_required", "pending", "requested", "issued", "sent", "cancelled"]
 
 export const NF_STATUS_LABELS: Record<NfStatus, string> = {
+  cancelled:    "NF cancelada",
   not_required: "Não exigida",
   pending:      "Pendente",
   requested:    "Pedida ao contador",
@@ -71,8 +72,9 @@ const TRANSITIONS: Record<NfStatus, NfStatus[]> = {
   not_required: ["pending"],
   pending:      ["requested", "issued"],
   requested:    ["issued", "pending"],
-  issued:       ["sent"],
-  sent:         [],
+  issued:       ["sent", "cancelled"],
+  sent:         ["cancelled"],
+  cancelled:    [],
 }
 
 /** BRL invoices need an NF from the start; foreign ones only after money arrives. */

@@ -64,8 +64,9 @@ type InvoiceRow = {
   sent_at: string | null; paid_at: string | null; due_date: string | null;
   notes: string | null; client_confirmed_at: string | null; created_at: string; updated_at: string;
   seq_number: string | null; po_number: string | null;
-  nf_status: 'not_required' | 'pending' | 'requested' | 'issued' | 'sent';
+  nf_status: 'not_required' | 'pending' | 'requested' | 'issued' | 'sent' | 'cancelled';
   nf_series: 'paulinia' | 'sao_paulo' | null; nf_number: string | null; nf_issued_at: string | null;
+  nf_cancelled_at: string | null;
   nf_amount_brl: number | null; nf_requested_at: string | null; nf_sent_at: string | null
   group_days: boolean
 }
@@ -78,8 +79,9 @@ type InvoiceInsert = {
   paid_at?: string | null; due_date?: string | null; notes?: string | null;
   client_confirmed_at?: string | null;
   seq_number?: string | null; po_number?: string | null;
-  nf_status?: 'not_required' | 'pending' | 'requested' | 'issued' | 'sent';
+  nf_status?: 'not_required' | 'pending' | 'requested' | 'issued' | 'sent' | 'cancelled';
   nf_series?: 'paulinia' | 'sao_paulo' | null; nf_number?: string | null; nf_issued_at?: string | null;
+  nf_cancelled_at?: string | null;
   nf_amount_brl?: number | null; nf_requested_at?: string | null; nf_sent_at?: string | null
   group_days?: boolean
 }

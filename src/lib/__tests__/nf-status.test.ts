@@ -25,6 +25,10 @@ describe("canTransition", () => {
     ["issued", "pending", false],
     ["not_required", "issued", false],
     ["pending", "pending", false],
+    ["issued", "cancelled", true],
+    ["sent", "cancelled", true],
+    ["pending", "cancelled", false],
+    ["cancelled", "sent", false],
   ] as const)("%s → %s = %s", (from, to, ok) => {
     expect(canTransition(from, to)).toBe(ok)
   })
@@ -46,7 +50,7 @@ describe("isNfOverdue", () => {
 
 describe("labels", () => {
   it("has a Portuguese label for every status", () => {
-    expect(Object.keys(NF_STATUS_LABELS).sort()).toEqual(["issued", "not_required", "pending", "requested", "sent"])
+    expect(Object.keys(NF_STATUS_LABELS).sort()).toEqual(["cancelled", "issued", "not_required", "pending", "requested", "sent"])
   })
 })
 

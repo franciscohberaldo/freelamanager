@@ -108,11 +108,14 @@ export function compactNumbers(values: (string | null)[]): string {
  * series, "5 NFs" when they span both.
  */
 export function compactNfLabels(
-  invoices: Pick<Invoice, "nf_number" | "nf_series" | "nf_issued_at" | "period_start">[],
+  invoices: (Pick<Invoice, "nf_number" | "nf_series" | "nf_issued_at" | "period_start"> & { nf_status?: string })[],
 ): string {
   const present = invoices.filter(i => i.nf_number)
   if (present.length === 0) return "—"
   const seriesOf = (i: (typeof present)[number]) => effectiveNfSeries(i.nf_series, i.nf_issued_at ?? i.period_start)
+  if (present.some(i => i.nf_status === "cancelled")) {
+    return present.map(i => `${formatNfNumber(seriesOf(i), i.nf_number)}${i.nf_status === "cancelled" ? " (Cancelada)" : ""}`).join(", ")
+  }
   if (present.length <= 3) return present.map(i => formatNfNumber(seriesOf(i), i.nf_number)).join(", ")
   const nums = present.map(i => parseInt(i.nf_number!.replace(/\D/g, ""), 10)).filter(Number.isInteger)
   if (nums.length === 0) return `${present.length} NFs`
