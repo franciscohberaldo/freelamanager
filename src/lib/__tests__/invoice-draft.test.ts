@@ -22,6 +22,17 @@ describe("buildDraft", () => {
     expect(d.items[1]).toMatchObject({ quantity: 0.5, unit: "day" })
   })
 
+  it("keeps each day's stored rate when weekends have a different value", () => {
+    const weekendLogs = [
+      { id: "a", date: "2026-09-05", hours_billed: 8, daily_rate: 600, total_value: 600 },
+      { id: "b", date: "2026-09-06", hours_billed: 8, daily_rate: 600, total_value: 600 },
+    ]
+    const d = buildDraft(weekendLogs, { name: "Site", billing_mode: "daily", daily_rate: 400 }, [], "2026-09-30")
+    expect(d.items[0]).toMatchObject({ rate: 600, subtotal: 600 })
+    expect(d.items[1]).toMatchObject({ rate: 600, subtotal: 600 })
+    expect(d.subtotal).toBe(1200)
+  })
+
   it("lists a project's worked days at no charge and closes with the contract value", () => {
     const d = buildDraft(logs, { name: "Site", billing_mode: "fixed", contract_value: 2182 }, [], "2026-09-30")
     expect(d.items).toHaveLength(3)

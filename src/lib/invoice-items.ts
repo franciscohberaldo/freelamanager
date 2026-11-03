@@ -65,7 +65,7 @@ export function groupDayLines<T extends GroupableItem>(items: T[]): Array<T & { 
 }
 
 export function itemsFromLogs(
-  logs: Array<{ date: string; hours_billed: number; total_value: number | null }>,
+  logs: Array<{ date: string; hours_billed: number; daily_rate?: number | null; total_value: number | null }>,
   job: {
     name: string
     billing_mode?: BillingMode | null
@@ -101,7 +101,7 @@ export function itemsFromLogs(
     hours_billed: l.hours_billed,
     quantity: mode === "daily" ? toDays(l.hours_billed) : l.hours_billed,
     unit: (mode === "daily" ? "day" : "hour") as BillingUnit,
-    rate: mode === "daily" ? (job.daily_rate ?? 0) : (job.hourly_rate ?? 0),
+    rate: mode === "daily" ? (l.daily_rate ?? job.daily_rate ?? 0) : (job.hourly_rate ?? 0),
     subtotal: l.total_value ?? 0,
   }))
 }

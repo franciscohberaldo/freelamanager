@@ -11,6 +11,7 @@ export interface DraftLog {
   id: string
   date: string
   hours_billed: number
+  daily_rate?: number | null
   total_value: number
 }
 
@@ -86,7 +87,7 @@ export function buildDraft(
       log_id: l.id, date: l.date, hours_billed: l.hours_billed,
       quantity: daily ? toDays(l.hours_billed) : l.hours_billed,
       unit: daily ? "day" : "hour",
-      rate: daily ? (job.daily_rate ?? 0) : (job.hourly_rate ?? 0),
+      rate: daily ? (l.daily_rate ?? job.daily_rate ?? 0) : (job.hourly_rate ?? 0),
       subtotal: l.total_value,
     }))
     subtotal = logs.reduce((s, l) => s + l.total_value, 0)

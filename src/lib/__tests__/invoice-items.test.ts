@@ -14,6 +14,16 @@ describe("itemsFromLogs", () => {
     expect(items[1]).toMatchObject({ date: "2026-04-28", quantity: 0.5, unit: "day", subtotal: 250 })
   })
 
+  it("uses the stored weekend rate on each daily line", () => {
+    const weekendLogs = [
+      { date: "2026-08-01", hours_billed: 8, daily_rate: 800, total_value: 800 },
+      { date: "2026-08-02", hours_billed: 8, daily_rate: 800, total_value: 800 },
+    ]
+    const items = itemsFromLogs(weekendLogs, { name: "Motion Design", billing_mode: "daily", daily_rate: 620 }, { period_end: "2026-08-31", subtotal: 1600 })
+    expect(items[0]).toMatchObject({ rate: 800, subtotal: 800 })
+    expect(items[1]).toMatchObject({ rate: 800, subtotal: 800 })
+  })
+
   it("lists each log in hours when the job bills by hour", () => {
     const items = itemsFromLogs(logs, { name: "Motion Design", billing_mode: "hourly", hourly_rate: 62.5 }, { period_end: "2026-04-30", subtotal: 750 })
     expect(items[0]).toMatchObject({ quantity: 8, unit: "hour", rate: 62.5 })

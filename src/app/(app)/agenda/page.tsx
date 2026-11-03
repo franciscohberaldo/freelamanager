@@ -23,7 +23,7 @@ export default async function AgendaPage() {
       .order("event_date"),
     supabase
       .from("jobs")
-      .select("id, name, start_date, end_date, status, hourly_rate, daily_rate, billing_mode, currency, clients(name)")
+      .select("id, name, start_date, end_date, status, hourly_rate, daily_rate, weekend_daily_rate, holiday_daily_rate, billing_mode, currency, clients(name)")
       .eq("user_id", user!.id)
       .order("name"),
     supabase

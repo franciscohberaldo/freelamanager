@@ -5,6 +5,7 @@
  */
 import { addDays, format, isWeekend, parseISO } from "date-fns"
 import { HOURS_PER_DAY } from "@/lib/invoice-i18n"
+import { isHoliday } from "@/lib/holidays"
 import type { BillingMode } from "@/lib/billing-mode"
 
 export interface SpanJob {
@@ -12,8 +13,23 @@ export interface SpanJob {
   billing_mode?: BillingMode | null
   hourly_rate?: number | null
   daily_rate?: number | null
+  /** Optional different rate for Saturday/Sunday; null or undefined means the normal rate. */
+  weekend_daily_rate?: number | null
+  /** Optional different rate for holidays; null or undefined means the weekend/normal rate. */
+  holiday_daily_rate?: number | null
   start_date?: string | null
   end_date?: string | null
+}
+
+/**
+ * The day rate that applies on a date. A holiday rate wins over everything, even when the
+ * holiday falls on a weekend; then the weekend rate on Sat/Sun; otherwise the normal rate.
+ */
+export function dailyRateForDate(job: SpanJob, date: string): number {
+  const normal = job.daily_rate ?? 0
+  if (job.holiday_daily_rate != null && isHoliday(date)) return job.holiday_daily_rate
+  if (job.weekend_daily_rate != null && isWeekend(parseISO(date))) return job.weekend_daily_rate
+  return normal
 }
 
 /** Every date from start to end, inclusive; weekends only when asked. */
@@ -42,7 +58,7 @@ export function missingDays(job: SpanJob, existing: string[], includeWeekends = 
  */
 export function logForDay(job: SpanJob, date: string, userId: string) {
   const mode = job.billing_mode ?? "hourly"
-  const dailyRate = job.daily_rate ?? 0
+  const dailyRate = dailyRateForDate(job, date)
   const total =
     mode === "fixed"  ? 0 :
     mode === "daily"  ? dailyRate :

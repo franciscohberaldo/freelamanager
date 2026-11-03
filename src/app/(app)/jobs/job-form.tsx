@@ -42,6 +42,8 @@ const jobSchema = z.object({
   is_confidential: z.boolean(),
   hourly_rate:    z.coerce.number().min(0),
   daily_rate:     z.coerce.number().min(0),
+  weekend_daily_rate: z.coerce.number().min(0).optional(),
+  holiday_daily_rate: z.coerce.number().min(0).optional(),
   currency:       z.enum(["BRL", "USD", "EUR"]),
   status:         z.enum(["proposal", "active", "paused", "completed"]),
   contract_value: z.coerce.number().optional(),
@@ -88,6 +90,8 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
       is_confidential: job?.is_confidential ?? false,
       hourly_rate:    job?.hourly_rate ?? 0,
       daily_rate:     job?.daily_rate ?? 0,
+      weekend_daily_rate: job?.weekend_daily_rate ?? undefined,
+      holiday_daily_rate: job?.holiday_daily_rate ?? undefined,
       currency:       (job?.currency as "BRL" | "USD" | "EUR") ?? "BRL",
       status:         (job?.status as "proposal" | "active" | "paused" | "completed") ?? "active",
       contract_value: job?.contract_value ?? undefined,
@@ -148,6 +152,8 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
       timezone: data.timezone || null,
       work_hours: data.work_hours?.trim() || null,
       contract_value: data.contract_value || null,
+      weekend_daily_rate: data.weekend_daily_rate || null,
+      holiday_daily_rate: data.holiday_daily_rate || null,
       start_date: data.start_date || null,
       end_date: data.end_date || null,
       thumbnail_url: thumbnail,
@@ -176,7 +182,7 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
       const { data: { user } } = await supabase.auth.getUser()
       const { count } = await supabase.from("daily_logs").select("*", { count: "exact", head: true }).eq("job_id", savedId)
       if ((count ?? 0) === 0) {
-        const span = { id: savedId, billing_mode: payload.billing_mode, hourly_rate: payload.hourly_rate, daily_rate: payload.daily_rate, start_date: payload.start_date, end_date: payload.end_date }
+        const span = { id: savedId, billing_mode: payload.billing_mode, hourly_rate: payload.hourly_rate, daily_rate: payload.daily_rate, weekend_daily_rate: payload.weekend_daily_rate, holiday_daily_rate: payload.holiday_daily_rate, start_date: payload.start_date, end_date: payload.end_date }
         const dates = missingDays(span, [])
         if (dates.length > 0) {
           const { error } = await supabase.from("daily_logs").insert(dates.map(d => logForDay(span, d, user!.id)))
@@ -291,10 +297,20 @@ export function JobForm({ clients, job, mode, onSaved, onCancel }: Props) {
         )}
 
         {billingMode === "daily" && (
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">Valor/dia * <FieldHint>Registros e invoices são calculados em dias (1 dia = 8h).</FieldHint></Label>
-            <Input {...register("daily_rate")} type="number" step="0.01" placeholder="0.00" />
-          </div>
+          <>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">Valor/dia * <FieldHint>Registros e invoices são calculados em dias (1 dia = 8h).</FieldHint></Label>
+              <Input {...register("daily_rate")} type="number" step="0.01" placeholder="0.00" />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">Valor/dia no fim de semana <FieldHint>Opcional. Vale para sábados e domingos. Se ficar em branco, o fim de semana usa o valor/dia normal.</FieldHint></Label>
+              <Input {...register("weekend_daily_rate")} type="number" step="0.01" min="0" placeholder="Igual ao valor/dia" />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">Valor/dia em feriado <FieldHint>Opcional. Vale para feriados nacionais, inclusive quando caem no fim de semana — tem prioridade sobre os outros valores. Feriados estaduais/municipais podem ser ajustados na diária.</FieldHint></Label>
+              <Input {...register("holiday_daily_rate")} type="number" step="0.01" min="0" placeholder="Igual ao valor/dia" />
+            </div>
+          </>
         )}
 
         {billingMode === "fixed" && (

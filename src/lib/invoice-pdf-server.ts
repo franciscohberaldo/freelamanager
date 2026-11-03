@@ -51,7 +51,7 @@ export async function renderInvoicePdf(
   if (itemRows.length === 0 && job) {
     const { data: logs } = await supabase
       .from("daily_logs")
-      .select("date, hours_billed, total_value")
+      .select("date, hours_billed, daily_rate, total_value")
       .eq("job_id", invoice.job_id)
       .gte("date", invoice.period_start)
       .lte("date", invoice.period_end)

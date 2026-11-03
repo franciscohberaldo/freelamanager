@@ -26,7 +26,7 @@ type ClientContactInsert = { client_id: string; name: string; role?: string | nu
 
 type JobRow = {
   id: string; user_id: string; client_id: string; name: string; description: string | null;
-  hourly_rate: number; daily_rate: number; currency: 'BRL' | 'USD' | 'EUR';
+  hourly_rate: number; daily_rate: number; weekend_daily_rate: number | null; holiday_daily_rate: number | null; currency: 'BRL' | 'USD' | 'EUR';
   status: 'proposal' | 'active' | 'paused' | 'completed'; contract_value: number | null;
   start_date: string | null; end_date: string | null; is_recurring: boolean;
   tax_rate: number; notes: string | null; billing_mode: 'hourly' | 'daily' | 'fixed'; project_code: string | null;
@@ -36,7 +36,7 @@ type JobRow = {
 }
 type JobInsert = {
   user_id: string; client_id: string; name: string; description?: string | null;
-  hourly_rate: number; daily_rate: number; currency: 'BRL' | 'USD' | 'EUR';
+  hourly_rate: number; daily_rate: number; weekend_daily_rate?: number | null; holiday_daily_rate?: number | null; currency: 'BRL' | 'USD' | 'EUR';
   status: 'proposal' | 'active' | 'paused' | 'completed'; contract_value?: number | null;
   start_date?: string | null; end_date?: string | null; is_recurring: boolean;
   tax_rate: number; notes?: string | null; billing_mode?: 'hourly' | 'daily' | 'fixed'; project_code?: string | null;

@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
   if (itemRows.length === 0) {
     const { data: logs } = await supabase
       .from("daily_logs")
-      .select("date, hours_billed, total_value")
+      .select("date, hours_billed, daily_rate, total_value")
       .eq("job_id", job.id)
       .gte("date", invoice.period_start)
       .lte("date", invoice.period_end)

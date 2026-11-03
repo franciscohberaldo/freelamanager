@@ -8,6 +8,7 @@ import { calculateTotal } from "@/lib/utils"
 import { roundHours } from "@/lib/csv"
 import { HOURS_PER_DAY } from "@/lib/invoice-i18n"
 import { logValue, BILLING_MODE_LABELS, type BillingMode } from "@/lib/billing-mode"
+import { dailyRateForDate } from "@/lib/job-days"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -23,6 +24,8 @@ export interface JobOption {
   name: string
   hourly_rate: number
   daily_rate: number
+  weekend_daily_rate?: number | null
+  holiday_daily_rate?: number | null
   billing_mode?: BillingMode
   currency: string
   clients: { name: string } | null
@@ -49,12 +52,13 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none", de
   const isCreate = mode === "create"
   const isDuplicate = mode === "duplicate"
 
+  const initialDate = isDuplicate ? format(new Date(), "yyyy-MM-dd") : (log?.date ?? defaultDate ?? format(new Date(), "yyyy-MM-dd"))
   const [form, setForm] = useState({
     job_id:       log?.job_id ?? (jobs[0]?.id ?? ""),
-    date:         isDuplicate ? format(new Date(), "yyyy-MM-dd") : (log?.date ?? defaultDate ?? format(new Date(), "yyyy-MM-dd")),
+    date:         initialDate,
     meetings:     log?.meetings ?? "",
     requests:     log?.requests ?? "",
-    daily_rate:   log?.daily_rate ?? (jobs[0]?.daily_rate ?? 0),
+    daily_rate:   log?.daily_rate ?? (jobs[0] ? dailyRateForDate(jobs[0], initialDate) : 0),
     hours_worked: log?.hours_worked ?? (isDailyJob(jobs[0]) ? HOURS_PER_DAY : 0),
     hours_billed: log?.hours_billed ?? (isDailyJob(jobs[0]) ? HOURS_PER_DAY : 0),
   })
@@ -82,17 +86,22 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none", de
   function update(field: string, value: string | number) {
     setForm((f) => {
       const next = { ...f, [field]: value }
-      // Auto-fill daily_rate from job if changing job
+      // Auto-fill daily_rate from job if changing job, using the weekend rate when due
       if (field === "job_id") {
         const job = jobs.find((j) => j.id === value)
         if (job) {
-          next.daily_rate = job.daily_rate
+          next.daily_rate = dailyRateForDate(job, next.date)
           // Daily-rate jobs default to one full day
           if (isDailyJob(job) && !next.hours_billed) {
             next.hours_billed = HOURS_PER_DAY
             if (!next.hours_worked) next.hours_worked = HOURS_PER_DAY
           }
         }
+      }
+      // Picking a Saturday/Sunday on a new daily log applies the job's weekend rate
+      if (field === "date" && (isCreate || isDuplicate)) {
+        const job = jobs.find((j) => j.id === next.job_id)
+        if (job && isDailyJob(job)) next.daily_rate = dailyRateForDate(job, String(value))
       }
       return next
     })

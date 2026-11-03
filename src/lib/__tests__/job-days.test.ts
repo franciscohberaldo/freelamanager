@@ -50,4 +50,40 @@ describe("logForDay", () => {
     expect(logForDay({ id: "j", billing_mode: "fixed", hourly_rate: 50 }, "2026-07-27", "u"))
       .toMatchObject({ hours_billed: 8, total_value: 0 })
   })
+
+  it("uses the normal rate on weekends when no weekend rate is set", () => {
+    // 2026-08-01 is a Saturday
+    expect(logForDay({ id: "j", billing_mode: "daily", daily_rate: 620 }, "2026-08-01", "u"))
+      .toMatchObject({ daily_rate: 620, total_value: 620 })
+  })
+
+  it("charges the weekend rate on Saturday and Sunday when the job has one", () => {
+    const job = { id: "j", billing_mode: "daily" as const, daily_rate: 620, weekend_daily_rate: 800 }
+    expect(logForDay(job, "2026-08-01", "u")).toMatchObject({ daily_rate: 800, total_value: 800 })
+    expect(logForDay(job, "2026-08-02", "u")).toMatchObject({ daily_rate: 800, total_value: 800 })
+  })
+
+  it("keeps the normal rate on weekdays even with a weekend rate set", () => {
+    const job = { id: "j", billing_mode: "daily" as const, daily_rate: 620, weekend_daily_rate: 800 }
+    expect(logForDay(job, "2026-07-31", "u")).toMatchObject({ daily_rate: 620, total_value: 620 })
+  })
+
+  it("charges the holiday rate on a weekday holiday", () => {
+    // 2026-12-25 is a Friday
+    const job = { id: "j", billing_mode: "daily" as const, daily_rate: 620, weekend_daily_rate: 800, holiday_daily_rate: 1000 }
+    expect(logForDay(job, "2026-12-25", "u")).toMatchObject({ daily_rate: 1000, total_value: 1000 })
+  })
+
+  it("lets the holiday rate win when the holiday falls on a weekend", () => {
+    // 2026-11-15 is a Sunday
+    const job = { id: "j", billing_mode: "daily" as const, daily_rate: 620, weekend_daily_rate: 800, holiday_daily_rate: 1000 }
+    expect(logForDay(job, "2026-11-15", "u")).toMatchObject({ daily_rate: 1000, total_value: 1000 })
+  })
+
+  it("falls back to the weekend or normal rate on holidays without a holiday rate", () => {
+    // 2026-12-25 is a Friday; 2026-11-15 is a Sunday
+    const job = { id: "j", billing_mode: "daily" as const, daily_rate: 620, weekend_daily_rate: 800 }
+    expect(logForDay(job, "2026-12-25", "u")).toMatchObject({ daily_rate: 620, total_value: 620 })
+    expect(logForDay(job, "2026-11-15", "u")).toMatchObject({ daily_rate: 800, total_value: 800 })
+  })
 })
