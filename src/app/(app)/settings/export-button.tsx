@@ -32,7 +32,7 @@ export function ExportButton() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        O arquivo JSON conterá: clientes, jobs, logs diários, invoices, despesas, metas, projetos, eventos e diário.
+        O arquivo JSON conterá: clientes, jobs, logs diários, invoices, metas, projetos, eventos e diário.
       </p>
       <Button variant="outline" onClick={handleExport} disabled={loading} className="gap-2">
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}

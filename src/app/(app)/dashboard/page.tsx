@@ -21,7 +21,6 @@ export default async function DashboardPage() {
     { data: recentInvoices },
     { data: upcomingEvents },
     { data: allMonthlyData },
-    { data: monthExpenses },
     { data: goals },
     { data: forecastLogs },
     { data: todayLogs },
@@ -61,12 +60,6 @@ export default async function DashboardPage() {
       .select("date, total_value, hours_billed")
       .eq("user_id", user!.id)
       .order("date"),
-    supabase
-      .from("expenses")
-      .select("amount")
-      .eq("user_id", user!.id)
-      .gte("date", monthStart)
-      .lte("date", monthEnd),
     supabase
       .from("user_goals")
       .select("*")
@@ -121,7 +114,6 @@ export default async function DashboardPage() {
         recentInvoices: (recentInvoices ?? []) as unknown as { id: string; invoice_number: string; total: number; currency: string; status: string; period_start: string; period_end: string; jobs: unknown }[],
         upcomingEvents: (upcomingEvents ?? []) as unknown as { id: string; title: string; type: string; event_date: string; is_done: boolean; jobs: unknown }[],
         allMonthlyData: (allMonthlyData ?? []) as unknown as { date: string; total_value: number; hours_billed: number }[],
-        monthExpenses: monthExpenses ?? [],
         goals: (goals ?? []) as unknown as { id: string; type: string; target: number; period: string }[],
         forecastLogs: (forecastLogs ?? []) as unknown as { date: string; total_value: number }[],
       }}

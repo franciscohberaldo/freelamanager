@@ -184,7 +184,7 @@ export function AutomacoesClient({ initialSettings, jobs, logs }: Props) {
               </Select>
             </div>
             <div className="rounded-md bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
-              <p>• Contém: horas trabalhadas, valor faturado, despesas, invoices pendentes e próximos eventos</p>
+              <p>• Contém: horas trabalhadas, valor faturado, invoices pendentes e próximos eventos</p>
               <p>• Enviado para o e-mail da sua conta</p>
               <p>• Executa toda segunda-feira às 08:00 UTC (ajuste em vercel.json)</p>
             </div>

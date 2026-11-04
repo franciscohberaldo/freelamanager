@@ -19,7 +19,6 @@ export default async function MetasPage({
   const [
     { data: goals },
     { data: logs },
-    { data: expenses },
   ] = await Promise.all([
     supabase
       .from("user_goals")
@@ -32,17 +31,10 @@ export default async function MetasPage({
       .eq("user_id", user!.id)
       .gte("date", monthStart)
       .lte("date", monthEnd),
-    supabase
-      .from("expenses")
-      .select("amount")
-      .eq("user_id", user!.id)
-      .gte("date", monthStart)
-      .lte("date", monthEnd),
   ])
 
   const actualHours   = logs?.reduce((s, l) => s + l.hours_worked, 0) ?? 0
   const actualRevenue = logs?.reduce((s, l) => s + l.total_value,  0) ?? 0
-  const totalExpenses = expenses?.reduce((s, e) => s + e.amount,   0) ?? 0
 
   return (
     <MetasClient
@@ -50,7 +42,6 @@ export default async function MetasPage({
       currentMonth={monthParam}
       actualHours={actualHours}
       actualRevenue={actualRevenue}
-      totalExpenses={totalExpenses}
     />
   )
 }

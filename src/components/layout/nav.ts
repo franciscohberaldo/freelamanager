@@ -1,6 +1,6 @@
 import {
   Briefcase, CalendarDays, CalendarOff, Calculator, Clock, FileText, Home, Mail,
-  NotebookPen, Receipt, Settings, TrendingUp, Users, Wallet, type LucideIcon,
+  NotebookPen, Receipt, Settings, TrendingUp, Users, type LucideIcon,
 } from "lucide-react"
 
 export interface NavItem {
@@ -20,7 +20,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/invoices",        label: "Invoices",        icon: FileText },
   { href: "/notas-fiscais",   label: "Notas fiscais",   icon: Receipt },
   { href: "/emails",          label: "E-mails",         icon: Mail },
-  { href: "/despesas",        label: "Despesas",        icon: Wallet },
   { href: "/contabilidade",   label: "Contabilidade",   icon: Calculator },
   { href: "/agenda",          label: "Calendário",      icon: CalendarDays },
   { href: "/disponibilidade", label: "Disponibilidade", icon: Clock },

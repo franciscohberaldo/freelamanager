@@ -8,7 +8,7 @@ import { formatCurrency } from "@/lib/utils"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 
 interface MonthData {
-  month: string; faturado: number; horasTrabalhadas: number; horasFaturadas: number; despesas?: number
+  month: string; faturado: number; horasTrabalhadas: number; horasFaturadas: number
 }
 
 interface JobRentabilidade {
@@ -28,20 +28,14 @@ interface Props {
   year: number
   monthly: MonthData[]
   byJob: { name: string; faturado: number; horas: number; currency: string }[]
-  expByCategory: Record<string, number>
-  totalFaturado: number; totalDespesas: number; totalHorasFaturadas: number
+  totalFaturado: number; totalHorasFaturadas: number
   jobs: JobRentabilidade[]
   clients: ClientLTV[]
   logs: { date: string; hours_worked: number }[]
 }
 
-const catLabels: Record<string, string> = {
-  software: "Software/SaaS", hardware: "Hardware", curso: "Educação",
-  imposto: "Imposto/Contador", servico: "Serviço", outro: "Outro",
-}
-
 export function ReportsClient({
-  year, monthly, byJob, expByCategory, totalFaturado, totalDespesas, totalHorasFaturadas,
+  year, monthly, byJob, totalFaturado, totalHorasFaturadas,
   jobs, clients, logs,
 }: Props) {
   return (
@@ -81,29 +75,6 @@ export function ReportsClient({
           </Card>
         )}
 
-        {totalDespesas > 0 && (
-          <Card>
-            <CardHeader><CardTitle className="text-base">Despesas por categoria</CardTitle></CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {Object.entries(expByCategory).sort((a, b) => b[1] - a[1]).map(([cat, val]) => {
-                  const pct = totalDespesas > 0 ? (val / totalDespesas) * 100 : 0
-                  return (
-                    <div key={cat}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="font-medium">{catLabels[cat] ?? cat}</span>
-                        <span className="text-destructive">{formatCurrency(val)} · {pct.toFixed(0)}%</span>
-                      </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-destructive/60 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </TabsContent>
 
       {/* ===== RENTABILIDADE ===== */}

@@ -23,7 +23,6 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
     { data: logs },
     { data: invoices },
     { data: jobs },
-    { data: expenses },
     { data: allInvoices },
     { data: clients },
     { data: payments },
@@ -44,12 +43,6 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
       .from("jobs")
       .select("id, name, hourly_rate, currency, contract_value, clients(id, name, company)")
       .eq("user_id", user!.id),
-    supabase
-      .from("expenses")
-      .select("date, amount, category")
-      .eq("user_id", user!.id)
-      .gte("date", yearStart)
-      .lte("date", yearEnd),
     // All time invoices for LTV
     supabase
       .from("invoices")
@@ -73,13 +66,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
   const totalHorasTrabalhadas = logs?.reduce((s, l) => s + l.hours_worked, 0) ?? 0
   const totalHorasFaturadas   = logs?.reduce((s, l) => s + l.hours_billed, 0) ?? 0
   const totalInvoicesPagos    = invoices?.filter(i => i.status === "paid").reduce((s, i) => s + i.total, 0) ?? 0
-  const totalDespesas         = expenses?.reduce((s, e) => s + e.amount, 0) ?? 0
   const fxPayments            = (payments ?? []).filter(p => p.amount_received_brl != null)
   const totalRecebidoBrlFx    = fxPayments.reduce((s, p) => s + (p.amount_received_brl ?? 0), 0)
   const avgExchangeRate       = fxPayments.length
     ? fxPayments.reduce((s, p) => s + (p.exchange_rate ?? 0), 0) / fxPayments.filter(p => p.exchange_rate).length || 0
     : 0
-  const lucroLiquido          = totalFaturado - totalDespesas
   const eficiencia            = totalHorasTrabalhadas > 0
     ? ((totalHorasFaturadas / totalHorasTrabalhadas) * 100).toFixed(1)
     : "0"
@@ -89,13 +80,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
     const month    = String(i + 1).padStart(2, "0")
     const key      = `${year}-${month}`
     const monthLogs = logs?.filter(l => l.date.startsWith(key)) ?? []
-    const monthExp  = expenses?.filter(e => e.date.startsWith(key)) ?? []
     return {
       month:            new Date(year, i, 1).toLocaleString("pt-BR", { month: "short" }),
       faturado:         monthLogs.reduce((s, l) => s + l.total_value, 0),
       horasTrabalhadas: monthLogs.reduce((s, l) => s + l.hours_worked, 0),
       horasFaturadas:   monthLogs.reduce((s, l) => s + l.hours_billed, 0),
-      despesas:         monthExp.reduce((s, e) => s + e.amount, 0),
     }
   })
 
@@ -109,10 +98,6 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
       currency: job.currency,
     }
   }).filter(j => j.faturado > 0).sort((a, b) => b.faturado - a.faturado) ?? []
-
-  // ── Expenses by category ─────────────────────────────────────────
-  const expByCategory: Record<string, number> = {}
-  expenses?.forEach(e => { expByCategory[e.category] = (expByCategory[e.category] ?? 0) + e.amount })
 
   // ── Rentabilidade por job ─────────────────────────────────────────
   const jobsRent = jobs?.map(job => {
@@ -200,7 +185,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
       />
 
       {/* Annual KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardContent className="py-4">
             <p className="text-xs text-muted-foreground">Total faturado</p>
@@ -213,24 +198,10 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
             <p className="text-xl font-bold mt-1 text-green-600">{formatCurrency(totalInvoicesPagos)}</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-xs text-muted-foreground">Despesas totais</p>
-            <p className="text-xl font-bold mt-1 text-destructive">{formatCurrency(totalDespesas)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-xs text-muted-foreground">Lucro líquido estimado</p>
-            <p className={`text-xl font-bold mt-1 ${lucroLiquido >= 0 ? "text-green-600" : "text-destructive"}`}>
-              {formatCurrency(lucroLiquido)}
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Secondary KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="py-4">
             <p className="text-xs text-muted-foreground">Recebido em BRL (câmbio)</p>
@@ -261,14 +232,6 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-xs text-muted-foreground">Margem líquida</p>
-            <p className={`text-xl font-bold mt-1 ${lucroLiquido >= 0 ? "text-green-600" : "text-destructive"}`}>
-              {totalFaturado > 0 ? `${((lucroLiquido / totalFaturado) * 100).toFixed(1)}%` : "—"}
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Tabbed content */}
@@ -276,9 +239,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ye
         year={year}
         monthly={monthly}
         byJob={byJob}
-        expByCategory={expByCategory}
         totalFaturado={totalFaturado}
-        totalDespesas={totalDespesas}
         totalHorasFaturadas={totalHorasFaturadas}
         jobs={jobsRent}
         clients={clientsLTV}

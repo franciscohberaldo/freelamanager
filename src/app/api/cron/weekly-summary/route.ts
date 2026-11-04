@@ -52,7 +52,6 @@ async function run(req: NextRequest) {
       { data: user },
       { data: logs },
       { data: invoices },
-      { data: expenses },
       { data: upcomingEvents },
     ] = await Promise.all([
       supabase.auth.admin.getUserById(uid),
@@ -60,8 +59,6 @@ async function run(req: NextRequest) {
         .eq("user_id", uid).gte("date", weekStartStr).lte("date", weekEndStr),
       supabase.from("invoices").select("invoice_number, total, currency, status")
         .eq("user_id", uid).eq("status", "sent"),
-      supabase.from("expenses").select("amount").eq("user_id", uid)
-        .gte("date", weekStartStr).lte("date", weekEndStr),
       supabase.from("agenda_events").select("title, event_date, task_status")
         .eq("user_id", uid).eq("is_done", false)
         .gte("event_date", format(new Date(), "yyyy-MM-dd"))
@@ -73,7 +70,6 @@ async function run(req: NextRequest) {
 
     const totalHours    = logs?.reduce((s, l) => s + l.hours_worked, 0) ?? 0
     const totalBilled   = logs?.reduce((s, l) => s + l.total_value, 0) ?? 0
-    const totalExpenses = expenses?.reduce((s, e) => s + e.amount, 0) ?? 0
     const pendingInvs   = invoices?.length ?? 0
     const pendingValue  = invoices?.reduce((s, i) => s + i.total, 0) ?? 0
 
@@ -102,10 +98,6 @@ async function run(req: NextRequest) {
             <div style="flex:1;background:#f0fdf4;border-radius:8px;padding:12px">
               <p style="margin:0;font-size:12px;color:#16a34a">Valor faturado</p>
               <p style="margin:4px 0 0;font-size:22px;font-weight:bold">${fmt(totalBilled)}</p>
-            </div>
-            <div style="flex:1;background:#fef2f2;border-radius:8px;padding:12px">
-              <p style="margin:0;font-size:12px;color:#dc2626">Despesas</p>
-              <p style="margin:4px 0 0;font-size:22px;font-weight:bold">${fmt(totalExpenses)}</p>
             </div>
           </div>
 

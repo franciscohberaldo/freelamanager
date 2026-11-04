@@ -7,7 +7,7 @@ import { DashboardCharts } from "./dashboard-charts"
 import { ForecastChart } from "./forecast-chart"
 import { format } from "date-fns"
 import {
-  TrendingUp, Clock, FileText, Target, Wallet,
+  TrendingUp, Clock, FileText, Target,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -70,7 +70,6 @@ export interface MonthlyViewProps {
   recentInvoices: Invoice[]
   upcomingEvents: AgendaEvent[]
   allMonthlyData: ChartLog[]
-  monthExpenses: { amount: number }[]
   goals: Goal[]
   forecastLogs: ForecastLog[]
 }
@@ -98,7 +97,6 @@ export function MonthlyView({
   recentInvoices,
   upcomingEvents,
   allMonthlyData,
-  monthExpenses,
   goals,
   forecastLogs,
 }: MonthlyViewProps) {
@@ -108,8 +106,6 @@ export function MonthlyView({
   const totalHoursWorked = monthLogs.reduce((sum, l) => sum + l.hours_worked, 0)
   const totalHoursBilled = monthLogs.reduce((sum, l) => sum + l.hours_billed, 0)
   const pendingInvoices  = recentInvoices.filter(i => i.status === "sent").length
-  const totalExpenses    = monthExpenses.reduce((sum, e) => sum + e.amount, 0)
-  const netRevenue       = totalBilledMonth - totalExpenses
 
   const revenueGoal = goals.find(g => g.type === "revenue_month")
   const hoursGoal   = goals.find(g => g.type === "hours_month")
@@ -121,7 +117,7 @@ export function MonthlyView({
       </p>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Faturado no mês</CardTitle>
@@ -144,19 +140,6 @@ export function MonthlyView({
               {totalHoursBilled > 0 && totalHoursWorked > 0
                 ? `${((totalHoursBilled / totalHoursWorked) * 100).toFixed(0)}% faturado`
                 : "Sem registros"}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Despesas no mês</CardTitle>
-            <Wallet className="w-4 h-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-light tracking-tight text-destructive">{formatCurrency(totalExpenses)}</p>
-            <p className={`text-xs mt-1 font-medium ${netRevenue >= 0 ? "text-green-600" : "text-red-500"}`}>
-              Líquido: {formatCurrency(netRevenue)}
             </p>
           </CardContent>
         </Card>

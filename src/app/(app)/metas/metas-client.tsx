@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChevronLeft, ChevronRight, Target, Clock, TrendingUp, Wallet, Loader2, CheckCircle2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Target, Clock, TrendingUp, Loader2, CheckCircle2 } from "lucide-react"
 import { format, parseISO, subMonths, addMonths } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { PageHeader } from "@/components/page-header"
@@ -22,7 +22,6 @@ interface Props {
   currentMonth: string
   actualHours: number
   actualRevenue: number
-  totalExpenses: number
 }
 
 function formatMoney(v: number) {
@@ -136,7 +135,7 @@ function GoalCard({
   )
 }
 
-export function MetasClient({ goals, currentMonth, actualHours, actualRevenue, totalExpenses }: Props) {
+export function MetasClient({ goals, currentMonth, actualHours, actualRevenue }: Props) {
   const router   = useRouter()
   const supabase = createClient()
 
@@ -166,8 +165,6 @@ export function MetasClient({ goals, currentMonth, actualHours, actualRevenue, t
     router.refresh()
   }
 
-  const netRevenue = actualRevenue - totalExpenses
-
   return (
     <div className="px-8 py-6 space-y-6 max-w-3xl">
       <PageHeader
@@ -188,21 +185,9 @@ export function MetasClient({ goals, currentMonth, actualHours, actualRevenue, t
       />
 
       {/* Summary bar */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="border rounded-xl p-4 bg-card text-center">
-          <p className="text-xs text-muted-foreground mb-1">Receita bruta</p>
-          <p className="text-xl font-bold text-green-600">{formatMoney(actualRevenue)}</p>
-        </div>
-        <div className="border rounded-xl p-4 bg-card text-center">
-          <p className="text-xs text-muted-foreground mb-1">Despesas</p>
-          <p className="text-xl font-bold text-destructive">{formatMoney(totalExpenses)}</p>
-        </div>
-        <div className="border rounded-xl p-4 bg-card text-center">
-          <p className="text-xs text-muted-foreground mb-1">Lucro líquido</p>
-          <p className={`text-xl font-bold ${netRevenue >= 0 ? "text-green-600" : "text-destructive"}`}>
-            {formatMoney(netRevenue)}
-          </p>
-        </div>
+      <div className="border rounded-xl p-4 bg-card text-center">
+        <p className="text-xs text-muted-foreground mb-1">Receita bruta</p>
+        <p className="text-xl font-bold text-green-600">{formatMoney(actualRevenue)}</p>
       </div>
 
       {/* Goal cards */}

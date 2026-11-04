@@ -12,20 +12,15 @@ interface MonthData {
   faturado: number
   horasTrabalhadas: number
   horasFaturadas: number
-  despesas?: number
 }
 
 export function ReportsCharts({ monthly }: { monthly: MonthData[] }) {
-  const hasExpenses = monthly.some(m => (m.despesas ?? 0) > 0)
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Receita vs Despesas */}
+      {/* Faturamento */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">
-            {hasExpenses ? "Receita vs Despesas" : "Faturamento mensal"}
-          </CardTitle>
+          <CardTitle className="text-base">Faturamento mensal</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={240}>
@@ -33,20 +28,9 @@ export function ReportsCharts({ monthly }: { monthly: MonthData[] }) {
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-              <Tooltip
-                formatter={(v: number, name: string) => [
-                  formatCurrency(v),
-                  name === "faturado" ? "Faturado" : name === "despesas" ? "Despesas" : name,
-                ]}
-              />
-              {hasExpenses && <Legend formatter={(v) => v === "faturado" ? "Receita" : "Despesas"} />}
+              <Tooltip formatter={(v: number) => [formatCurrency(v), "Faturado"]} />
               <Bar dataKey="faturado" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              {hasExpenses && (
-                <Bar dataKey="despesas" fill="#ef4444" radius={[4, 4, 0, 0]} />
-              )}
-              {!hasExpenses && (
-                <Line type="monotone" dataKey="faturado" stroke="#f59e0b" strokeWidth={2} dot={false} />
-              )}
+              <Line type="monotone" dataKey="faturado" stroke="#f59e0b" strokeWidth={2} dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </CardContent>
