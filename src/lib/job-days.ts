@@ -52,26 +52,33 @@ export function missingDays(job: SpanJob, existing: string[], includeWeekends = 
   return daysInSpan(job.start_date, job.end_date, includeWeekends).filter(d => !have.has(d))
 }
 
+/** Values for a log on a specific date, including the applicable daily rate. */
+export function logValuesForDate(job: SpanJob, date: string, hoursWorked: number, hoursBilled: number) {
+  const mode = job.billing_mode ?? "hourly"
+  const dailyRate = dailyRateForDate(job, date)
+  const total =
+    mode === "fixed"  ? 0 :
+    mode === "daily"  ? (hoursBilled / HOURS_PER_DAY) * dailyRate :
+    hoursBilled * (job.hourly_rate ?? 0)
+  return {
+    daily_rate: dailyRate,
+    hours_worked: hoursWorked,
+    hours_billed: hoursBilled,
+    total_value: Number(total.toFixed(2)),
+  }
+}
+
 /**
  * A full day on this job: eight hours worked and billed; worth a day's rate on a daily
  * job, eight hours on an hourly one, nothing on a fixed-price project.
  */
 export function logForDay(job: SpanJob, date: string, userId: string) {
-  const mode = job.billing_mode ?? "hourly"
-  const dailyRate = dailyRateForDate(job, date)
-  const total =
-    mode === "fixed"  ? 0 :
-    mode === "daily"  ? dailyRate :
-    HOURS_PER_DAY * (job.hourly_rate ?? 0)
   return {
     user_id: userId,
     job_id: job.id,
     date,
     meetings: null,
     requests: null,
-    daily_rate: dailyRate,
-    hours_worked: HOURS_PER_DAY,
-    hours_billed: HOURS_PER_DAY,
-    total_value: Number(total.toFixed(2)),
+    ...logValuesForDate(job, date, HOURS_PER_DAY, HOURS_PER_DAY),
   }
 }

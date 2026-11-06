@@ -25,16 +25,10 @@ import {
   Clock, DollarSign, Briefcase, X, Loader2,
 } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
+import { logValuesForDate } from "@/lib/job-days"
+import type { JobOption } from "../logs/log-dialog"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-
-interface JobOption {
-  id: string
-  name: string
-  hourly_rate: number
-  currency: string
-  clients: { name: string } | null
-}
 
 interface LogEntry {
   id: string
@@ -83,21 +77,25 @@ function QuickAddForm({ date, jobs, onSaved, onCancel }: QuickAddProps) {
   const [loading, setLoading] = useState(false)
 
   const selectedJob = jobs.find(j => j.id === jobId)
-  const total = (parseFloat(hoursBilled) || 0) * (selectedJob?.hourly_rate ?? 0)
+  const total = selectedJob
+    ? logValuesForDate(selectedJob, date, parseFloat(hoursWorked) || 0, parseFloat(hoursBilled) || 0).total_value
+    : 0
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!jobId) { toast.error("Selecione um job"); return }
+    if (!selectedJob) { toast.error("Selecione um job"); return }
+    const values = logValuesForDate(selectedJob, date, parseFloat(hoursWorked) || 0, parseFloat(hoursBilled) || 0)
+    if (selectedJob.billing_mode === "daily" && (values.hours_billed <= 0 || values.daily_rate <= 0)) {
+      toast.warning("Para jobs por diária, informe dias faturados e configure um valor/dia maior que zero.")
+      return
+    }
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     const { error } = await supabase.from("daily_logs").insert({
       user_id: user!.id,
       job_id: jobId,
       date,
-      hours_worked: parseFloat(hoursWorked) || 0,
-      hours_billed: parseFloat(hoursBilled) || 0,
-      daily_rate: 0,
-      total_value: total,
+      ...values,
       meetings: meetings || null,
       requests: requests || null,
     })

@@ -98,8 +98,8 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none", de
           }
         }
       }
-      // Picking a Saturday/Sunday on a new daily log applies the job's weekend rate
-      if (field === "date" && (isCreate || isDuplicate)) {
+      // Moving a daily log to another date applies that date's weekend/holiday rate
+      if (field === "date") {
         const job = jobs.find((j) => j.id === next.job_id)
         if (job && isDailyJob(job)) next.daily_rate = dailyRateForDate(job, String(value))
       }

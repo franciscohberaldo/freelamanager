@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { format, startOfWeek, addDays, parseISO, isToday } from "date-fns"
 import { continuousCalendarDays } from "@/lib/calendar-days"
+import { logValuesForDate } from "@/lib/job-days"
 import { ChevronLeft, ChevronRight, GripVertical } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -27,9 +28,7 @@ export interface CalendarHold {
   jobs: { name: string } | null
 }
 
-export interface CalendarJob {
-  id: string
-  name: string
+export interface CalendarJob extends JobOption {
   invoice_numbers?: string[]
   start_date: string | null
   end_date: string | null
@@ -184,11 +183,17 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
 
     if (item.kind === "log-extend") {
       // Dragging a diária's arrow to another day marks every weekday in between as
-      // worked too, copying hours/rate from the original. Weekends are skipped (work
-      // on a weekend? drag the chip there by hand). Days that already have a log for
-      // this job are skipped as well.
+      // worked too, copying hours and calculating each date's applicable rate. Weekends
+      // are skipped (work on a weekend? drag the chip there by hand). Days that already
+      // have a log for this job are skipped as well.
       const log = logs.find(l => l.id === item.id)
       if (!log) return
+      const job = jobs.find(j => j.id === log.job_id)
+      if (!job) { toast.error("Não foi possível localizar o job dessa diária"); return }
+      if (job.billing_mode === "daily" && (log.hours_billed <= 0 || log.daily_rate <= 0)) {
+        toast.warning("A diária de origem está sem dias faturados ou sem valor. Edite-a antes de estender.")
+        return
+      }
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { toast.error("Sessão expirada — entre de novo"); return }
       const from = parseISO(log.date.slice(0, 10))
@@ -201,11 +206,13 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         const k = format(cur, "yyyy-MM-dd")
         if (taken.has(k)) continue
         taken.add(k)
-        rows.push({
-          user_id: user.id, job_id: log.job_id, date: k,
-          daily_rate: log.daily_rate, hours_worked: log.hours_worked,
-          hours_billed: log.hours_billed, total_value: log.total_value,
-        })
+        const values = job.billing_mode === "daily"
+          ? logValuesForDate(job, k, log.hours_worked, log.hours_billed)
+          : {
+              daily_rate: log.daily_rate, hours_worked: log.hours_worked,
+              hours_billed: log.hours_billed, total_value: log.total_value,
+            }
+        rows.push({ user_id: user.id, job_id: log.job_id, date: k, ...values })
       }
       if (rows.length === 0) { toast.info("Nenhum dia útil novo nesse intervalo — fins de semana ficam de fora"); return }
       const { data: created, error } = await supabase.from("daily_logs").insert(rows).select("id")
@@ -232,12 +239,23 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
       const inv = billed?.[0]?.invoices as unknown as { invoice_number: string } | null
       if (inv) { toast.warning(`Essa diária já foi faturada na invoice ${inv.invoice_number} — não dá para mover.`); return }
 
-      const { error } = await supabase.from("daily_logs").update({ date: day }).eq("id", item.id)
+      const movedLog = logs.find(l => l.id === item.id)
+      const movedJob = jobs.find(j => j.id === movedLog?.job_id)
+      const movedValues = movedLog && movedJob?.billing_mode === "daily"
+        ? logValuesForDate(movedJob, day, movedLog.hours_worked, movedLog.hours_billed)
+        : null
+      const { error } = await supabase.from("daily_logs").update({ date: day, ...movedValues }).eq("id", item.id)
       if (error) { toast.error("Erro ao mover diária"); return }
       toast.success("Diária movida", {
         duration: 10000, // tempo para alcançar o Desfazer
         action: { label: "Desfazer", onClick: async () => {
-          await supabase.from("daily_logs").update({ date: item.from }).eq("id", item.id)
+          await supabase.from("daily_logs").update({
+            date: item.from,
+            ...(movedLog ? {
+              daily_rate: movedLog.daily_rate, hours_worked: movedLog.hours_worked,
+              hours_billed: movedLog.hours_billed, total_value: movedLog.total_value,
+            } : {}),
+          }).eq("id", item.id)
           router.refresh()
         } },
       })

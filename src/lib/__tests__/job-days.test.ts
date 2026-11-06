@@ -1,5 +1,18 @@
 import { describe, it, expect } from "vitest"
-import { daysInSpan, missingDays, logForDay } from "@/lib/job-days"
+import { daysInSpan, missingDays, logForDay, logValuesForDate } from "@/lib/job-days"
+
+describe("logValuesForDate", () => {
+  it("charges the weekend rate for a daily log created on Saturday", () => {
+    const job = { id: "j", billing_mode: "daily" as const, daily_rate: 600, weekend_daily_rate: 900 }
+
+    expect(logValuesForDate(job, "2026-11-07", 8, 8)).toEqual({
+      daily_rate: 900,
+      hours_worked: 8,
+      hours_billed: 8,
+      total_value: 900,
+    })
+  })
+})
 
 describe("daysInSpan", () => {
   it("lists the weekdays of a span, skipping the weekend", () => {
