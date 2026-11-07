@@ -13,6 +13,8 @@ export interface DraftLog {
   hours_billed: number
   daily_rate?: number | null
   total_value: number
+  /** What was done on this day; printed as the invoice line description. */
+  requests?: string | null
 }
 
 export interface DraftJob {
@@ -72,7 +74,7 @@ export function buildDraft(
     const price = rateOf(job)
     items = [
       ...logs.map<DraftItem>(l => ({
-        log_id: l.id, date: l.date, hours_billed: l.hours_billed,
+        log_id: l.id, date: l.date, description: l.requests?.trim() || null, hours_billed: l.hours_billed,
         quantity: l.hours_billed, unit: "hour", rate: 0, subtotal: 0,
       })),
       {
@@ -84,7 +86,7 @@ export function buildDraft(
   } else {
     const daily = mode === "daily"
     items = logs.map<DraftItem>(l => ({
-      log_id: l.id, date: l.date, hours_billed: l.hours_billed,
+      log_id: l.id, date: l.date, description: l.requests?.trim() || null, hours_billed: l.hours_billed,
       quantity: daily ? toDays(l.hours_billed) : l.hours_billed,
       unit: daily ? "day" : "hour",
       rate: daily ? (l.daily_rate ?? job.daily_rate ?? 0) : (job.hourly_rate ?? 0),

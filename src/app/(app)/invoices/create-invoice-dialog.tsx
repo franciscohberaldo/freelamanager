@@ -87,6 +87,10 @@ export function CreateInvoiceDialog({
   const addLine = () => setManualLines(ls => [...ls, { description: "", job_number: "", quantity: 1, rate: 0 }])
   const updLine = (i: number, patch: Partial<ManualLine>) => setManualLines(ls => ls.map((l, j) => j === i ? { ...l, ...patch } : l))
   const rmLine = (i: number) => setManualLines(ls => ls.filter((_, j) => j !== i))
+  const updLogDescription = (id: string, requests: string) => {
+    setLogs(ls => ls.map(l => l.id === id ? { ...l, requests } : l))
+    setGroupDays(false) // Different descriptions must remain on separate PDF lines
+  }
 
   const selectedJob = jobs.find((j) => j.id === jobId)
   const isDaily     = selectedJob?.billing_mode === "daily"
@@ -96,6 +100,10 @@ export function CreateInvoiceDialog({
 
   const freshLogs     = logs.filter(l => !invoicedMap[l.id])
   const alreadyBilled = logs.filter(l => invoicedMap[l.id])
+  const hasDayDescriptions = freshLogs.some(l => !!l.requests?.trim())
+  useEffect(() => {
+    if (hasDayDescriptions) setGroupDays(false)
+  }, [hasDayDescriptions])
 
   const draft = useMemo(
     () => buildDraft(freshLogs, selectedJob ?? { name: "" }, manualLines, periodEnd),
@@ -248,6 +256,18 @@ export function CreateInvoiceDialog({
     if (!selectedJob) { toast.error("Selecione um job"); return }
     setCreating(true)
     const { data: { user } } = await supabase.auth.getUser()
+
+    // Keep each day's work description on the log as well as on the invoice item.
+    const descriptionResults = await Promise.all(freshLogs.map(l =>
+      supabase.from("daily_logs").update({ requests: l.requests?.trim() || null }).eq("id", l.id),
+    ))
+    const descriptionError = descriptionResults.find(r => r.error)?.error
+    if (descriptionError) {
+      toast.error(`Erro ao salvar as descrições das diárias: ${descriptionError.message}`)
+      setCreating(false)
+      return
+    }
+
     const year = new Date().getFullYear()
 
     const { data: invNumber, error: rpcError } = await supabase
@@ -416,23 +436,35 @@ export function CreateInvoiceDialog({
                   {loadingLogs && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
                 </p>
                 {freshLogs.length > 1 && (
-                  <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                  <label className={`flex items-center gap-2 text-xs select-none ${hasDayDescriptions ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}>
                     <input
                       type="checkbox"
                       className="h-3.5 w-3.5 accent-primary"
                       checked={groupDays}
+                      disabled={hasDayDescriptions}
                       onChange={(e) => setGroupDays(e.target.checked)}
                     />
-                    Juntar os dias em uma linha só no PDF ({qtyLabel(draft.totalHours)} somados)
+                    {hasDayDescriptions
+                      ? "Dias com descrições diferentes ficam em linhas separadas no PDF"
+                      : `Juntar os dias em uma linha só no PDF (${qtyLabel(draft.totalHours)} somados)`}
                   </label>
                 )}
                 {isProject && freshLogs.length > 0 && (
                   <p className="text-xs text-muted-foreground">Os dias saem listados; o valor fica na linha do projeto.</p>
                 )}
                 {freshLogs.map((l) => (
-                  <div key={l.id} className="flex justify-between">
-                    <span className="text-muted-foreground">{formatDate(l.date)} · {qtyLabel(l.hours_billed)}</span>
-                    <span>{isProject ? "—" : formatCurrency(l.total_value, selectedJob?.currency)}</span>
+                  <div key={l.id} className="rounded-md border bg-background/60 p-2.5 space-y-2">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">{formatDate(l.date)} · {qtyLabel(l.hours_billed)}</span>
+                      <span className="shrink-0">{isProject ? "—" : formatCurrency(l.total_value, selectedJob?.currency)}</span>
+                    </div>
+                    <Input
+                      aria-label={`O que foi feito em ${formatDate(l.date)}`}
+                      className="h-8 text-xs"
+                      value={l.requests ?? ""}
+                      onChange={e => updLogDescription(l.id, e.target.value)}
+                      placeholder="O que foi feito no dia (ex.: Projeto Alpha — animação)"
+                    />
                   </div>
                 ))}
                 {!loadingLogs && freshLogs.length === 0 && (

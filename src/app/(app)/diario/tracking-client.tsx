@@ -140,8 +140,8 @@ function QuickAddForm({ date, jobs, onSaved, onCancel }: QuickAddProps) {
           value={meetings} onChange={e => setMeetings(e.target.value)} />
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">Pedidos</Label>
-        <Textarea className="text-sm resize-none" rows={2} placeholder="Tarefas solicitadas..."
+        <Label className="text-xs">O que foi feito no dia</Label>
+        <Textarea className="text-sm resize-none" rows={2} placeholder="Ex.: Projeto Alpha — animação e ajustes..."
           value={requests} onChange={e => setRequests(e.target.value)} />
       </div>
       {selectedJob && (

@@ -347,14 +347,19 @@ export async function generateInvoicePDF(params: InvoicePDFParams): Promise<Arra
     const q = resolveItemQuantity(item, billingMode)
     const workedDay = isWorkedDayLine(item, billingMode)
     say(lineDate(item.date, item.date_end, lang), X.label, y, { tone: INK.figure })
+    const description = workedDay
+      ? item.description ?? job?.name ?? t.workedDay
+      : itemLabel(item, q, job?.name, lang)
+    doc.setFont(JOST, "normal")
+    doc.setFontSize(BODY_PT)
+    const descriptionLines = doc.splitTextToSize(description, X.itemAmount - X.itemDesc - 6) as string[]
+    descriptionLines.forEach((line, i) => say(line, X.itemDesc, y + ROW * i, { tone: INK.figure }))
     if (workedDay) {
-      say(item.description ?? job?.name ?? t.workedDay, X.itemDesc, y, { tone: INK.figure })
       say(item.hours_billed > 0 ? formatQuantity(item.hours_billed, "hour", lang) : t.workedDay, X.itemAmount, y, { tone: INK.figure })
     } else {
-      say(itemLabel(item, q, job?.name, lang), X.itemDesc, y, { tone: INK.figure })
       say(cur(item.subtotal), X.itemAmount, y, { tone: INK.figure })
     }
-    y += ROW
+    y += ROW * descriptionLines.length
   }
 
   const ruleY = Math.max(Y.rule, y + ROW / 2)

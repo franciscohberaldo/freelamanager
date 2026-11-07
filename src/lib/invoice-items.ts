@@ -65,7 +65,7 @@ export function groupDayLines<T extends GroupableItem>(items: T[]): Array<T & { 
 }
 
 export function itemsFromLogs(
-  logs: Array<{ date: string; hours_billed: number; daily_rate?: number | null; total_value: number | null }>,
+  logs: Array<{ date: string; hours_billed: number; daily_rate?: number | null; total_value: number | null; requests?: string | null }>,
   job: {
     name: string
     billing_mode?: BillingMode | null
@@ -80,7 +80,7 @@ export function itemsFromLogs(
   if (mode === "fixed") {
     const value = job.contract_value ?? invoice.subtotal
     const days: SynthesizedItem[] = logs.map(l => ({
-      date: l.date,
+      date: l.date, description: l.requests?.trim() || null,
       hours_billed: l.hours_billed,
       quantity: l.hours_billed,
       unit: "hour",
@@ -97,7 +97,7 @@ export function itemsFromLogs(
 
   const toDays = (hours: number) => Number((hours / HOURS_PER_DAY).toFixed(2))
   return logs.map(l => ({
-    date: l.date,
+    date: l.date, description: l.requests?.trim() || null,
     hours_billed: l.hours_billed,
     quantity: mode === "daily" ? toDays(l.hours_billed) : l.hours_billed,
     unit: (mode === "daily" ? "day" : "hour") as BillingUnit,

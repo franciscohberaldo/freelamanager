@@ -22,6 +22,16 @@ describe("buildDraft", () => {
     expect(d.items[1]).toMatchObject({ quantity: 0.5, unit: "day" })
   })
 
+  it("keeps a different work description on each day", () => {
+    const describedLogs = [
+      { id: "a", date: "2026-09-02", hours_billed: 8, total_value: 600, requests: "Projeto Alpha — animação" },
+      { id: "b", date: "2026-09-03", hours_billed: 8, total_value: 600, requests: "Projeto Beta — edição" },
+    ]
+    const d = buildDraft(describedLogs, { name: "Buffalo", billing_mode: "daily", daily_rate: 600 }, [], "2026-09-30")
+
+    expect(d.items.map(i => i.description)).toEqual(["Projeto Alpha — animação", "Projeto Beta — edição"])
+  })
+
   it("keeps each day's stored rate when weekends have a different value", () => {
     const weekendLogs = [
       { id: "a", date: "2026-09-05", hours_billed: 8, daily_rate: 600, total_value: 600 },

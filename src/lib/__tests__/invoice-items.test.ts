@@ -14,6 +14,14 @@ describe("itemsFromLogs", () => {
     expect(items[1]).toMatchObject({ date: "2026-04-28", quantity: 0.5, unit: "day", subtotal: 250 })
   })
 
+  it("keeps the work description when rebuilding items from daily logs", () => {
+    const describedLogs = [{ date: "2026-04-27", hours_billed: 8, total_value: 600, requests: "Projeto Alpha — animação" }]
+
+    const items = itemsFromLogs(describedLogs, { name: "Buffalo", billing_mode: "daily", daily_rate: 600 }, { period_end: "2026-04-30", subtotal: 600 })
+
+    expect(items[0].description).toBe("Projeto Alpha — animação")
+  })
+
   it("uses the stored weekend rate on each daily line", () => {
     const weekendLogs = [
       { date: "2026-08-01", hours_billed: 8, daily_rate: 800, total_value: 800 },

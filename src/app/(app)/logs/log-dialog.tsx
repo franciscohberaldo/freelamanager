@@ -204,11 +204,11 @@ export function LogDialog({ children, jobs, log, mode, hourRounding = "none", de
             </div>
 
             <div className="space-y-2 col-span-2">
-              <Label>O que foi pedido</Label>
+              <Label>O que foi feito no dia</Label>
               <Textarea
                 value={form.requests}
                 onChange={(e) => update("requests", e.target.value)}
-                placeholder="Tarefas e pedidos do cliente..."
+                placeholder="Ex.: Projeto Alpha — animação e ajustes..."
                 rows={2}
               />
             </div>
