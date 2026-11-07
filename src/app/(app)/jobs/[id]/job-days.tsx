@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { LogDialog, type JobOption } from "@/app/(app)/logs/log-dialog"
 import { GenerateDaysButton } from "./generate-days-button"
 import { DeleteLogButton } from "@/app/(app)/logs/delete-log-button"
+import { DayDescriptionInput } from "./day-description-input"
 import type { SpanJob } from "@/lib/job-days"
 import { formatHours } from "@/lib/utils"
 import { cn } from "@/lib/utils"
@@ -14,6 +15,7 @@ export interface JobDay {
   id: string
   date: string
   hours_billed: number
+  requests: string | null
 }
 
 interface Props {
@@ -76,28 +78,40 @@ export function JobDays({ job, userId, days }: Props) {
                 {format(parseISO(`${month}-01`), "MMMM yyyy", { locale: ptBR })}
                 <span className="normal-case font-normal tracking-normal"> · {new Set(list.map(d => d.date)).size} dias</span>
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="grid gap-2 sm:grid-cols-2">
                 {list.map(d => {
                   const date = parseISO(d.date)
                   const weekend = isWeekend(date)
+                  const logDate = format(date, "dd/MM/yyyy")
                   return (
-                    <div key={d.id} className="group inline-flex items-center rounded-md border">
-                    <Link
-                      href={`/logs?month=${month}`}
-                      title={`${format(date, "EEEE, d 'de' MMMM", { locale: ptBR })} · ${formatHours(d.hours_billed)}`}
+                    <div
+                      key={d.id}
                       className={cn(
-                        "inline-flex items-baseline gap-1.5 rounded-md px-2 py-1 text-sm tabular transition-colors hover:bg-muted",
-                        weekend
-                          ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
-                          : "bg-card",
+                        "group rounded-md border p-2",
+                        weekend && "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40",
                       )}
                     >
-                      <span className="text-xs text-muted-foreground capitalize">{format(date, "EEE", { locale: ptBR }).replace(".", "")}</span>
-                      <span className="font-medium">{format(date, "dd/MM")}</span>
-                      {d.hours_billed > 0 && <span className="text-xs text-muted-foreground">{formatHours(d.hours_billed)}</span>}
-                    </Link>
-                    <DeleteLogButton logId={d.id} logDate={format(date, "dd/MM/yyyy")} jobName={job.name}
-                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity" />
+                      <div className="flex items-center justify-between gap-2">
+                        <Link
+                          href={`/logs?month=${month}`}
+                          title={`${format(date, "EEEE, d 'de' MMMM", { locale: ptBR })} · ${formatHours(d.hours_billed)}`}
+                          className={cn(
+                            "inline-flex items-baseline gap-1.5 rounded px-1 py-0.5 text-sm tabular transition-colors hover:bg-muted",
+                            weekend && "text-amber-900 dark:text-amber-200",
+                          )}
+                        >
+                          <span className="text-xs text-muted-foreground capitalize">{format(date, "EEE", { locale: ptBR }).replace(".", "")}</span>
+                          <span className="font-medium">{format(date, "dd/MM")}</span>
+                          {d.hours_billed > 0 && <span className="text-xs text-muted-foreground">{formatHours(d.hours_billed)}</span>}
+                        </Link>
+                        <DeleteLogButton
+                          logId={d.id}
+                          logDate={logDate}
+                          jobName={job.name}
+                          className="h-6 w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity"
+                        />
+                      </div>
+                      <DayDescriptionInput logId={d.id} logDate={logDate} initialValue={d.requests} />
                     </div>
                   )
                 })}

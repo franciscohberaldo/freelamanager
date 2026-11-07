@@ -48,7 +48,7 @@ export default async function JobPage({ params }: { params: { id: string } }) {
     supabase.from("clients").select("id, name").eq("user_id", user!.id).order("name"),
     supabase.from("job_documents").select("*").eq("job_id", params.id),
     supabase.from("invoices").select("*").eq("job_id", params.id).order("period_start", { ascending: false }),
-    supabase.from("daily_logs").select("id, date, hours_billed").eq("job_id", params.id).order("date"),
+    supabase.from("daily_logs").select("id, date, hours_billed, requests").eq("job_id", params.id).order("date"),
   ])
 
   const typedJob = job as unknown as Job & { clients: { id: string; name: string; legal_name: string | null; email: string | null } | null }
