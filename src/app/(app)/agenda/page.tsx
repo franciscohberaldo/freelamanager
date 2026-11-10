@@ -20,6 +20,7 @@ export default async function AgendaPage() {
       .from("agenda_events")
       .select("*, jobs(name)")
       .eq("user_id", user!.id)
+      .neq("type", "payment")
       .order("event_date"),
     supabase
       .from("jobs")

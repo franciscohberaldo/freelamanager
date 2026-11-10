@@ -15,6 +15,8 @@ interface Props {
   events: (AgendaEvent & { jobs: { name: string } | null })[]
   jobs: Job[]
   onNew: () => void
+  /** Tasks hides the completed group; the agenda keeps its full history. */
+  showCompleted?: boolean
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -37,7 +39,7 @@ const GROUPS = [
   { key: "done",          label: "Completed",      color: "#22c55e" },
 ]
 
-export function TableView({ events, jobs, onNew }: Props) {
+export function TableView({ events, jobs, onNew, showCompleted = true }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [editTask, setEditTask] = useState<(AgendaEvent & { jobs: { name: string } | null }) | null>(null)
   const router = useRouter()
@@ -54,7 +56,7 @@ export function TableView({ events, jobs, onNew }: Props) {
     router.refresh()
   }
 
-  const grouped = GROUPS.map(g => ({
+  const grouped = GROUPS.filter(g => showCompleted || g.key !== "done").map(g => ({
     ...g,
     tasks: events.filter(e => e.task_status === g.key),
   }))
