@@ -14,7 +14,7 @@ import type { AgendaEvent } from "@/lib/supabase/types"
 import type { JobStage } from "@/lib/job-stage"
 import { JobStageIcon, RunnerIcon } from "@/components/job-stage-icon"
 import { JOB_STAGE_LABELS } from "@/lib/job-stage"
-import { CircleDollarSign, X } from "lucide-react"
+import { X } from "lucide-react"
 import { DayDialog, type DayLog } from "./day-dialog"
 import type { JobOption } from "../logs/log-dialog"
 
@@ -77,7 +77,6 @@ const HOLD_TONE: Record<CalendarHold["type"], { tone: Tone; label: string }> = {
 
 const LEGEND: { tone: Tone; label: string }[] = [
   { tone: "blue",   label: "Job em aberto" },
-  { tone: "grey",   label: "Job encerrado" },
   { tone: "green",  label: "Diária trabalhada" },
   { tone: "amber",  label: "1st hold" },
   { tone: "grey",   label: "2nd hold" },
@@ -345,10 +344,10 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
       .filter(h => key >= todayKey && h.start_date <= key && h.end_date >= key)
       .sort((a, b) => ["booked", "1st_hold", "2nd_hold"].indexOf(a.type) - ["booked", "1st_hold", "2nd_hold"].indexOf(b.type))
 
-  // Jobs whose start→end span covers the day (a missing end reads as a single day)
+  // Only open jobs occupy the calendar. Closed jobs remain available in the job history.
   const jobsForDay = (key: string) =>
     jobs.filter(j => {
-      if (!j.start_date) return false
+      if (j.status === "completed" || !j.start_date) return false
       const end = j.end_date ?? j.start_date
       return j.start_date <= key && key <= end
     })
@@ -497,8 +496,6 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         </span>
         <span className="hidden sm:inline-block w-px h-4 bg-border" aria-hidden />
         <span className="flex items-center gap-1.5"><RunnerIcon className="w-3.5 h-3.5" /> Em andamento</span>
-        <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400"><X className="w-3.5 h-3.5" strokeWidth={2.5} /><span className="text-foreground/80">Pendência (NF)</span></span>
-        <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400"><CircleDollarSign className="w-3.5 h-3.5" /><span className="text-foreground/80">Recebido</span></span>
         <span className="flex items-center gap-1.5 text-muted-foreground"><GripVertical className="w-3.5 h-3.5" /><span className="text-foreground/80">Arraste o chip para mover · puxe a borda do job/reserva para esticar · puxe a seta da diária para marcar mais dias úteis</span></span>
       </div>
 
@@ -519,10 +516,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
           const dayLogs  = logsByDate[key] ?? []
           const today    = isToday(day)
           const dayHolds = holdsForDay(key)
-          // One entry per job per day, all in the job's lane so its days read as one
-          // continuous line: an open job with a diária shows the green piece, a closed
-          // job the grey bar with its stage (its diárias hidden), and a past day with no
-          // diária the striped piece. Diárias of jobs not drawn here fall to the end.
+          // Open jobs draw as one continuous line; a past day without a diária is striped.
           const dayJobs  = jobsForDay(key)
           const visibleLogs = dayLogs.filter(l => !completedJobIds.has(l.job_id) && !dayJobs.some(j => j.id === l.job_id))
           const prevKey  = format(addDays(day, -1), "yyyy-MM-dd")
