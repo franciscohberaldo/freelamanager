@@ -61,7 +61,8 @@ export function Sidebar({ email, counts }: Props) {
 
   const badgeFor = (href: string) =>
     href === "/invoices" ? counts.overdueInvoices :
-    href === "/clients"  ? counts.stalledDeals : 0
+    href === "/clients"  ? counts.stalledDeals :
+    href === "/tasks"    ? counts.openTasks : 0
 
   const rowClass = "w-full flex items-center gap-3 h-10 rounded-lg px-3 text-[15px] text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
 

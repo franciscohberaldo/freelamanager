@@ -497,7 +497,7 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
         </span>
         <span className="hidden sm:inline-block w-px h-4 bg-border" aria-hidden />
         <span className="flex items-center gap-1.5"><RunnerIcon className="w-3.5 h-3.5" /> Em andamento</span>
-        <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400"><X className="w-3.5 h-3.5" strokeWidth={2.5} /><span className="text-foreground/80">Pendência (invoice, NF, DAS)</span></span>
+        <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400"><X className="w-3.5 h-3.5" strokeWidth={2.5} /><span className="text-foreground/80">Pendência (NF, DAS)</span></span>
         <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400"><CircleDollarSign className="w-3.5 h-3.5" /><span className="text-foreground/80">Recebido</span></span>
         <span className="flex items-center gap-1.5 text-muted-foreground"><GripVertical className="w-3.5 h-3.5" /><span className="text-foreground/80">Arraste o chip para mover · puxe a borda do job/reserva para esticar · puxe a seta da diária para marcar mais dias úteis</span></span>
       </div>
@@ -609,8 +609,8 @@ export function CalendarView({ events, holds = [], logs = [], jobs = [], pickerJ
                   const showStartEdge = key === j.start_date || (key === firstKey && j.start_date! < firstKey)
                   const showEndEdge   = key === spanEnd || (key === lastKey && spanEnd > lastKey)
                   const log = completedJobIds.has(j.id) ? undefined : dayLogs.find(l => l.job_id === j.id)
-                  // Pending receipts live in Tasks; the calendar keeps only the job itself.
-                  const stage = j.stage === "payment" ? undefined : j.stage
+                  // Invoice issuance and receipts live in Tasks; the calendar keeps only the job itself.
+                  const stage = j.stage === "payment" || j.stage === "invoice" ? undefined : j.stage
                   if (log) {
                     // A run of worked days is one green stretch, named on every day; the
                     // arrows sit on its ends.

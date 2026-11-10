@@ -2,16 +2,23 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowRight, CircleDollarSign, ListTodo, Plus } from "lucide-react"
+import { ArrowRight, CircleDollarSign, FileText, ListTodo, Plus } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import type { InvoiceStageJob } from "@/lib/invoice-tasks"
 import type { AgendaEvent } from "@/lib/supabase/types"
 import { TableView } from "../agenda/table-view"
 import { TaskDialog } from "../agenda/task-dialog"
 import type { AgendaJob } from "../agenda/agenda-client"
+
+export interface PendingInvoice extends InvoiceStageJob {
+  id: string
+  name: string
+  clients: { name: string } | null
+}
 
 export interface PendingReceipt {
   id: string
@@ -30,16 +37,18 @@ interface Props {
   events: Task[]
   jobs: AgendaJob[]
   receipts: PendingReceipt[]
+  invoiceIssues: PendingInvoice[]
 }
 
-export function TasksClient({ events, jobs, receipts }: Props) {
+export function TasksClient({ events, jobs, receipts, invoiceIssues }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false)
+  const openTaskCount = events.length + receipts.length + invoiceIssues.length
 
   return (
     <div className="px-8 py-6 space-y-8">
       <PageHeader
         title="Tasks"
-        description={`${events.length} ${events.length === 1 ? "tarefa em aberto" : "tarefas em aberto"}`}
+        description={`${openTaskCount} ${openTaskCount === 1 ? "pendência em aberto" : "pendências em aberto"}`}
         actions={
           <TaskDialog jobs={jobs} open={dialogOpen} onOpenChange={setDialogOpen}>
             <Button size="lg">
@@ -49,6 +58,52 @@ export function TasksClient({ events, jobs, receipts }: Props) {
           </TaskDialog>
         }
       />
+
+      <section aria-labelledby="invoice-issues-title" className="space-y-3">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 id="invoice-issues-title" className="text-lg font-semibold tracking-tight">Emissão de invoices</h2>
+            <p className="text-sm text-muted-foreground">Jobs encerrados que ainda precisam de uma invoice.</p>
+          </div>
+          <Badge variant={invoiceIssues.length > 0 ? "destructive" : "secondary"}>{invoiceIssues.length}</Badge>
+        </div>
+
+        {invoiceIssues.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              Nenhuma invoice para emitir.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {invoiceIssues.map(job => (
+              <Link key={job.id} href={`/jobs/${job.id}`} className="block group">
+                <Card className="transition-colors group-hover:border-primary/40 group-hover:bg-accent/30">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400 shrink-0">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">Emitir invoice</span>
+                        <Badge variant="warning">Pendente</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate mt-0.5">
+                        {job.name}{job.clients?.name ? ` · ${job.clients.name}` : ""}
+                      </p>
+                      {job.end_date && <p className="text-xs text-muted-foreground mt-1">Job encerrado em {formatDate(job.end_date)}</p>}
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-xs text-primary shrink-0">
+                      Abrir job <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                    </span>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section aria-labelledby="receipts-title" className="space-y-3">
         <div className="flex items-center justify-between gap-4">

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
-import { TasksClient, type PendingReceipt } from "./tasks-client"
+import { jobsNeedingInvoice } from "@/lib/invoice-tasks"
+import { TasksClient, type PendingInvoice, type PendingReceipt } from "./tasks-client"
 import type { AgendaJob } from "../agenda/agenda-client"
 import type { AgendaEvent } from "@/lib/supabase/types"
 
@@ -11,6 +12,7 @@ export default async function TasksPage() {
     { data: events },
     { data: jobs },
     { data: receipts },
+    { data: completedJobs },
   ] = await Promise.all([
     supabase
       .from("agenda_events")
@@ -31,13 +33,22 @@ export default async function TasksPage() {
       .eq("user_id", user!.id)
       .in("status", ["sent", "overdue"])
       .order("due_date"),
+    supabase
+      .from("jobs")
+      .select("id, name, status, end_date, clients(name), invoices(status), job_documents(kind)")
+      .eq("user_id", user!.id)
+      .eq("status", "completed")
+      .order("end_date"),
   ])
+
+  const invoiceIssues = jobsNeedingInvoice((completedJobs ?? []) as unknown as PendingInvoice[])
 
   return (
     <TasksClient
       events={(events ?? []) as unknown as (AgendaEvent & { jobs: { name: string } | null })[]}
       jobs={(jobs ?? []) as unknown as AgendaJob[]}
       receipts={(receipts ?? []) as unknown as PendingReceipt[]}
+      invoiceIssues={invoiceIssues}
     />
   )
 }
