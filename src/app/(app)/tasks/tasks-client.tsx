@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowRight, CircleDollarSign, FileText, ListTodo, Plus } from "lucide-react"
+import { ArrowRight, CircleDollarSign, FileText, Landmark, ListTodo, Plus } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,7 +27,7 @@ export interface PendingReceipt {
   status: string
   total: number
   currency: string
-  due_date: string
+  due_date: string | null
   jobs: { name: string; clients: { name: string } | null } | null
 }
 
@@ -38,11 +38,12 @@ interface Props {
   jobs: AgendaJob[]
   receipts: PendingReceipt[]
   invoiceIssues: PendingInvoice[]
+  dasIssues: PendingInvoice[]
 }
 
-export function TasksClient({ events, jobs, receipts, invoiceIssues }: Props) {
+export function TasksClient({ events, jobs, receipts, invoiceIssues, dasIssues }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false)
-  const openTaskCount = events.length + receipts.length + invoiceIssues.length
+  const openTaskCount = events.length + receipts.length + invoiceIssues.length + dasIssues.length
 
   return (
     <div className="px-8 py-6 space-y-8">
@@ -140,7 +141,9 @@ export function TasksClient({ events, jobs, receipts, invoiceIssues }: Props) {
                       <p className="text-sm text-muted-foreground truncate mt-0.5">
                         {receipt.jobs?.name ?? "Sem job"}{receipt.jobs?.clients?.name ? ` · ${receipt.jobs.clients.name}` : ""}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">Vencimento em {formatDate(receipt.due_date)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {receipt.due_date ? `Vencimento em ${formatDate(receipt.due_date)}` : "Sem data de vencimento"}
+                      </p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-semibold tabular-nums">{formatCurrency(receipt.total, receipt.currency)}</p>
@@ -148,6 +151,52 @@ export function TasksClient({ events, jobs, receipts, invoiceIssues }: Props) {
                         Abrir invoice <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
                       </span>
                     </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section aria-labelledby="das-issues-title" className="space-y-3">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 id="das-issues-title" className="text-lg font-semibold tracking-tight">Emissão de DAS</h2>
+            <p className="text-sm text-muted-foreground">Jobs com recebimento e NF concluídos, mas com o DAS ainda pendente.</p>
+          </div>
+          <Badge variant={dasIssues.length > 0 ? "destructive" : "secondary"}>{dasIssues.length}</Badge>
+        </div>
+
+        {dasIssues.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              <Landmark className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              Nenhum DAS para emitir.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {dasIssues.map(job => (
+              <Link key={job.id} href={`/jobs/${job.id}`} className="block group">
+                <Card className="transition-colors group-hover:border-primary/40 group-hover:bg-accent/30">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400 shrink-0">
+                      <Landmark className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">Emitir DAS</span>
+                        <Badge variant="warning">Pendente</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate mt-0.5">
+                        {job.name}{job.clients?.name ? ` · ${job.clients.name}` : ""}
+                      </p>
+                      {job.end_date && <p className="text-xs text-muted-foreground mt-1">Job encerrado em {formatDate(job.end_date)}</p>}
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-xs text-primary shrink-0">
+                      Abrir job <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                    </span>
                   </CardContent>
                 </Card>
               </Link>

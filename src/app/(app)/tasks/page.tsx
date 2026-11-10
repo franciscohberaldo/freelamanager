@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
-import { jobsNeedingInvoice } from "@/lib/invoice-tasks"
+import { jobsNeedingDas, jobsNeedingInvoice } from "@/lib/invoice-tasks"
 import { TasksClient, type PendingInvoice, type PendingReceipt } from "./tasks-client"
 import type { AgendaJob } from "../agenda/agenda-client"
 import type { AgendaEvent } from "@/lib/supabase/types"
@@ -35,13 +35,15 @@ export default async function TasksPage() {
       .order("due_date"),
     supabase
       .from("jobs")
-      .select("id, name, status, end_date, clients(name), invoices(status), job_documents(kind)")
+      .select("id, name, status, end_date, clients(name), invoices(status, nf_status), job_documents(kind)")
       .eq("user_id", user!.id)
       .eq("status", "completed")
       .order("end_date"),
   ])
 
-  const invoiceIssues = jobsNeedingInvoice((completedJobs ?? []) as unknown as PendingInvoice[])
+  const stageJobs = (completedJobs ?? []) as unknown as PendingInvoice[]
+  const invoiceIssues = jobsNeedingInvoice(stageJobs)
+  const dasIssues = jobsNeedingDas(stageJobs)
 
   return (
     <TasksClient
@@ -49,6 +51,7 @@ export default async function TasksPage() {
       jobs={(jobs ?? []) as unknown as AgendaJob[]}
       receipts={(receipts ?? []) as unknown as PendingReceipt[]}
       invoiceIssues={invoiceIssues}
+      dasIssues={dasIssues}
     />
   )
 }

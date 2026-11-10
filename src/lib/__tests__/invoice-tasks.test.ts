@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { jobsNeedingInvoice, type InvoiceStageJob } from "../invoice-tasks"
+import { jobsNeedingDas, jobsNeedingInvoice, type InvoiceStageJob } from "../invoice-tasks"
 
 const job = (overrides: Partial<InvoiceStageJob> = {}): InvoiceStageJob => ({
   status: "completed",
@@ -28,5 +28,25 @@ describe("jobsNeedingInvoice", () => {
 
   it("keeps the task open when the only invoice was cancelled", () => {
     expect(jobsNeedingInvoice([job({ invoices: [{ status: "cancelled" }] })])).toHaveLength(1)
+  })
+})
+
+describe("jobsNeedingDas", () => {
+  it("includes a paid job with an issued NF and no paid DAS", () => {
+    const pending = job({ invoices: [{ status: "paid", nf_status: "issued" }] })
+    expect(jobsNeedingDas([pending])).toHaveLength(1)
+  })
+
+  it("does not include a job whose DAS was already paid", () => {
+    const settled = job({
+      invoices: [{ status: "paid", nf_status: "issued" }],
+      job_documents: [{ kind: "das_paid" }],
+    })
+    expect(jobsNeedingDas([settled])).toHaveLength(0)
+  })
+
+  it("waits for the NF before asking for the DAS", () => {
+    const waitingForNf = job({ invoices: [{ status: "paid", nf_status: "pending" }] })
+    expect(jobsNeedingDas([waitingForNf])).toHaveLength(0)
   })
 })

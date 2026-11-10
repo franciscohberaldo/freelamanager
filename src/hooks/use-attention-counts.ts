@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { jobsNeedingInvoice, type InvoiceStageJob } from "@/lib/invoice-tasks"
+import { jobsNeedingDas, jobsNeedingInvoice, type InvoiceStageJob } from "@/lib/invoice-tasks"
 
 export interface AttentionCounts {
   /** Invoices past their due date and still unpaid. */
@@ -47,16 +47,18 @@ export function useAttentionCounts(): AttentionCounts {
           .eq("is_done", false).neq("task_status", "done"),
         supabase.from("invoices").select("*", { count: "exact", head: true })
           .in("status", ["sent", "overdue"]),
-        supabase.from("jobs").select("id, status, end_date, invoices(status), job_documents(kind)")
+        supabase.from("jobs").select("id, status, end_date, invoices(status, nf_status), job_documents(kind)")
           .eq("status", "completed"),
       ])
       if (cancelled) return
-      const invoiceIssues = jobsNeedingInvoice((completedJobs ?? []) as unknown as InvoiceStageJob[])
+      const stageJobs = (completedJobs ?? []) as unknown as InvoiceStageJob[]
+      const invoiceIssues = jobsNeedingInvoice(stageJobs)
+      const dasIssues = jobsNeedingDas(stageJobs)
       setCounts({
         overdueInvoices: overdue ?? 0,
         stalledDeals: stalled ?? 0,
         stalledNfs: nfs ?? 0,
-        openTasks: (openEvents ?? 0) + (openReceipts ?? 0) + invoiceIssues.length,
+        openTasks: (openEvents ?? 0) + (openReceipts ?? 0) + invoiceIssues.length + dasIssues.length,
       })
     }
 
