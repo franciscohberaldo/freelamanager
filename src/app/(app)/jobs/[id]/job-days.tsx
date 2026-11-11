@@ -98,7 +98,7 @@ export function JobDays({ job, userId, days }: Props) {
                         href={`/logs?month=${month}`}
                         title={`${format(date, "EEEE, d 'de' MMMM", { locale: ptBR })} · ${formatHours(d.hours_billed)}`}
                         className={cn(
-                          "inline-flex shrink-0 items-baseline gap-1.5 rounded px-1 py-0.5 text-sm tabular transition-colors hover:bg-muted",
+                          "inline-flex w-36 shrink-0 items-baseline gap-1.5 rounded px-1 py-0.5 text-sm tabular-nums transition-colors hover:bg-muted sm:w-40",
                           weekend && "text-amber-900 dark:text-amber-200",
                         )}
                       >
