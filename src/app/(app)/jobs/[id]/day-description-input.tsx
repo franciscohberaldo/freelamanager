@@ -52,7 +52,7 @@ export function DayDescriptionInput({ logId, logDate, initialValue }: Props) {
   }
 
   return (
-    <div className="mt-1.5">
+    <div className="min-w-0 flex-1">
       <div className="relative">
         <Input
           aria-label={`O que foi feito em ${logDate}`}
